@@ -37,9 +37,56 @@ final readonly class SettingWriter
         private Closure $clock,
     ) {}
 
-    public function set(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value): void
+    /** Store a value and return the stored record. A locked row refuses it. */
+    public function set(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value): Record
     {
-        $this->guard($store, $key, $locale, $owner, $definition);
+        return $this->write($store, $key, $locale, $owner, $definition, $value, overrideLock: false);
+    }
+
+    /**
+     * Store a value over a row lock. Only for a caller that has already established the right
+     * to (an actor holding `override_lock` on a store whose locks are overridable); the lock
+     * stays in place. Definition locks and precedence still refuse.
+     */
+    public function setOverridingLock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value): Record
+    {
+        return $this->write($store, $key, $locale, $owner, $definition, $value, overrideLock: true);
+    }
+
+    /** Remove this scope's own value; returns the removed record, or null when there was none. */
+    public function forget(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition): ?Record
+    {
+        return $this->remove($store, $key, $locale, $owner, $definition, overrideLock: false);
+    }
+
+    /** {@see forget()} over a row lock; the same precondition as {@see setOverridingLock()}. */
+    public function forgetOverridingLock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition): ?Record
+    {
+        return $this->remove($store, $key, $locale, $owner, $definition, overrideLock: true);
+    }
+
+    /** Whether this scope's row in the writable layer is locked. */
+    public function isLocked(Store $store, Key $key, Locale $locale, ?OwnerRef $owner): bool
+    {
+        $scope = $this->scope($owner);
+
+        return $store->writableLayer()->driver->load($store->name, [$scope])->find($scope, $key, $locale)?->locked === true;
+    }
+
+    /** Lock one row against writes; a lock with no value yet is kept as a value-less row. */
+    public function lock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner): Record
+    {
+        return $this->storeLock($store, $key, $locale, $owner, locked: true);
+    }
+
+    public function unlock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner): Record
+    {
+        return $this->storeLock($store, $key, $locale, $owner, locked: false);
+    }
+
+    private function write(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value, bool $overrideLock): Record
+    {
+        $this->guard($store, $key, $locale, $owner, $definition, $overrideLock);
 
         $layer = $store->writableLayer();
         $scope = $this->scope($owner);
@@ -53,7 +100,7 @@ final readonly class SettingWriter
             payload: $this->pipeline->toPayload($key, $value, $definition),
             type: $definition?->type,
             encrypted: $definition instanceof Definition && $definition->encrypted,
-            locked: false,
+            locked: $existing->locked ?? false,
             version: $version,
             writtenAt: ($this->clock)(),
         );
@@ -61,37 +108,30 @@ final readonly class SettingWriter
         $this->events->dispatch(new SettingSaving($store->name->value, $scope->value, $key->value, $locale->value, $version));
         $layer->driver->put($store->name, $record);
         $this->events->dispatch(new SettingSaved($store->name->value, $scope->value, $key->value, $locale->value, $version));
+
+        return $record;
     }
 
-    public function forget(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition): void
+    private function remove(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, bool $overrideLock): ?Record
     {
-        $this->guard($store, $key, $locale, $owner, $definition);
+        $this->guard($store, $key, $locale, $owner, $definition, $overrideLock);
 
         $layer = $store->writableLayer();
         $scope = $this->scope($owner);
         $existing = $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale);
 
         if (! $existing instanceof Record) {
-            return;
+            return null;
         }
 
         $this->events->dispatch(new SettingForgetting($store->name->value, $scope->value, $key->value, $locale->value, $existing->version));
         $layer->driver->forget($store->name, $scope, $key, $locale);
         $this->events->dispatch(new SettingForgotten($store->name->value, $scope->value, $key->value, $locale->value, $existing->version));
+
+        return $existing;
     }
 
-    /** Lock one row against writes; a lock with no value yet is kept as a value-less row. */
-    public function lock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner): void
-    {
-        $this->storeLock($store, $key, $locale, $owner, locked: true);
-    }
-
-    public function unlock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner): void
-    {
-        $this->storeLock($store, $key, $locale, $owner, locked: false);
-    }
-
-    private function storeLock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, bool $locked): void
+    private function storeLock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, bool $locked): Record
     {
         $this->ownerAllowed($store, $owner, null);
 
@@ -100,7 +140,7 @@ final readonly class SettingWriter
         $existing = $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale)
             ?? new Record($scope, $key, $locale, null, version: 0);
 
-        $layer->driver->put($store->name, new Record(
+        $record = new Record(
             $existing->scope,
             $existing->key,
             $existing->locale,
@@ -110,10 +150,14 @@ final readonly class SettingWriter
             $locked,
             $existing->version + 1,
             ($this->clock)(),
-        ));
+        );
+
+        $layer->driver->put($store->name, $record);
+
+        return $record;
     }
 
-    private function guard(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition): void
+    private function guard(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, bool $overrideLock): void
     {
         if (! $definition instanceof Definition && $store->strict) {
             throw new UnknownSetting(sprintf('Store [%s] is strict and has no definition for [%s].', $store->name, $key));
@@ -131,7 +175,7 @@ final readonly class SettingWriter
 
         $scope = $this->scope($owner);
 
-        if ($store->writableLayer()->driver->load($store->name, [$scope])->find($scope, $key, $locale)?->locked === true) {
+        if (! $overrideLock && $this->isLocked($store, $key, $locale, $owner)) {
             throw new LockedSetting(sprintf('Setting [%s] in store [%s] is locked for scope [%s].', $key, $store->name, $scope));
         }
 

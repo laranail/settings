@@ -36,6 +36,16 @@ A short database outage on a live install must not quietly serve shipped default
 maintenance flag) or scatter writes into each server's local file. Falling back is allowed only on
 positive evidence that installation is still in progress.
 
+## Why actors, and why are they optional?
+
+The package is used from controllers, jobs, commands and other packages, and it cannot know which of those calls are on a person's behalf. So the caller says: `as($user)` makes every operation, reads included, go through one `Authorizer` seam (Laravel's gate by default, so a host's existing policies and `Gate::before` rules apply), and is audited with who did it and why. Code that passes no actor is the application itself and keeps working unchanged, audited as `system`; a host that wants every call attributed turns on `authorization.require_actor`, and trusted code then has to say `asSystem()`. Undefined abilities deny, so forgetting to define a gate fails closed. A token is a ceiling on top of the gate, never a grant, so a leaked token cannot exceed its owner.
+
+Every write is one `final` action (`Actions\SetSetting`, …) that authorizes, writes and audits. The PHP API delegates to it today; console commands and the REST API will delegate to the same actions, so the rules cannot drift between channels.
+
+## Why headless?
+
+The package ships no views, Blade components, Livewire, Filament or assets. A settings engine is consumed by many interfaces (an admin panel, a CLI, an API client, another package), and any UI bundled here would be the wrong one for most of them and would drag view dependencies into every host. Its surfaces are the PHP API, events, Artisan commands and, later, an opt-in JSON API; an admin UI is a separate companion package. An architecture test fails on any view, Blade, Livewire or Filament reference in `src/` and on a `resources/views` directory.
+
 ## Dependencies
 
 Built on `laranail/package-tools` (provider, testing guards), `laranail/console` (command base),

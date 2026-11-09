@@ -48,6 +48,11 @@ Settings::for($user)->set('ui.theme', 'dark');
 Settings::for($user)->get('ui.theme', 'light');
 ```
 
+```php
+// On a user's behalf: checked against the laranail-settings.* gates and audited.
+Settings::as($user)->because('INC-123')->set('mail.from.address', 'ap@acme.test');
+```
+
 [Getting started](docs/getting-started.md) walks through stores, owners and definitions; the
 [Documentation](#documentation) index lists every page.
 
@@ -69,11 +74,15 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Definitions](docs/tools/definitions.md) — types, defaults, rules, encryption, locks and precedence.
 - [Drivers and layers](docs/tools/drivers.md) — the built-in drivers and custom ones.
 - [Owners and inheritance](docs/tools/owners.md) — owner references, store routing and the cascade.
+- [Access control](docs/tools/access-control.md) — actors, abilities, authorizers, guarded locks, sensitive reads and step-up verification.
+- [Audit and logging](docs/tools/audit-and-logging.md) — the audit trail, its sinks and the operational log.
+- [Runtime configuration](docs/tools/runtime-configuration.md) — stores, definitions and access changed in code for one request.
 
 ### Recipes
 
 - [Ship defaults with the application](docs/recipes/shipped-defaults.md) — a versioned defaults file instead of `.env`.
 - [Test code that uses settings](docs/recipes/testing-with-the-fake.md) — `Settings::fake()` and its assertions.
+- [Act as a user](docs/recipes/acting-as-a-user.md) — authorize and audit changes made on a user's behalf.
 
 ## Contributing & security
 

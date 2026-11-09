@@ -35,6 +35,9 @@ final readonly class Definition
         public ?string $description = null,
         public ?string $category = null,
         public ?string $group = null,
+        public bool $sensitive = false,
+        public bool $requiresVerification = false,
+        public bool $requiresApproval = false,
     ) {
         if ($encrypted && $public) {
             throw new InvalidDefinition(sprintf('Setting [%s] in store [%s] cannot be both encrypted and public.', $key, $store));
@@ -44,6 +47,12 @@ final readonly class Definition
     public function group(): string
     {
         return $this->group ?? $this->key->group();
+    }
+
+    /** Sensitive settings need `view_sensitive` to read; encryption implies it. */
+    public function isSensitive(): bool
+    {
+        return $this->sensitive || $this->encrypted;
     }
 
     public function allowsOwner(string $alias): bool

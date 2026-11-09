@@ -50,6 +50,12 @@ final class DefinitionBuilder
 
     private ?string $group = null;
 
+    private bool $sensitive = false;
+
+    private bool $requiresVerification = false;
+
+    private bool $requiresApproval = false;
+
     public function __construct(
         private readonly DefinitionRegistry $registry,
         private readonly Key $key,
@@ -134,6 +140,33 @@ final class DefinitionBuilder
         return $this;
     }
 
+    /** Reading it needs `view_sensitive` as well as `view` (implied by {@see encrypted()}). */
+    public function sensitive(): self
+    {
+        $this->sensitive = true;
+
+        return $this;
+    }
+
+    /** Writing it needs a recent step-up verification of the actor. */
+    public function requiresVerification(): self
+    {
+        $this->requiresVerification = true;
+
+        return $this;
+    }
+
+    /**
+     * Writes need a second person's approval. Approvals arrive with the database layer; until
+     * then every write to such a setting raises ApprovalUnavailable.
+     */
+    public function requiresApproval(): self
+    {
+        $this->requiresApproval = true;
+
+        return $this;
+    }
+
     public function locked(): self
     {
         $this->locked = true;
@@ -196,6 +229,9 @@ final class DefinitionBuilder
             description: $this->description,
             category: $this->category,
             group: $this->group,
+            sensitive: $this->sensitive,
+            requiresVerification: $this->requiresVerification,
+            requiresApproval: $this->requiresApproval,
         );
     }
 

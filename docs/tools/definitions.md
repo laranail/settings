@@ -35,6 +35,9 @@ Or in `config/laranail/settings.php` under `definitions`:
 | `rules()` | `rules` | Laravel validation rules, applied to the raw value before casting |
 | `encrypted()` | `encrypted` | stored as ciphertext; needs an application key |
 | `public()` / `private()` | `public` | whether the value may leave the server; cannot be combined with `encrypted` |
+| `sensitive()` | `sensitive` | reading needs `view_sensitive`; implied by `encrypted` (see [Access control](access-control.md)) |
+| `requiresVerification()` | `requires_verification` | writes need a recent step-up verification |
+| `requiresApproval()` | `requires_approval` | writes need approval; until the database layer ships, every write raises `ApprovalUnavailable` |
 | `locked()` | `locked` | refuses every write |
 | `localised()` | `localised` | allows per-locale values; other keys refuse a locale |
 | `inherits()` / `doesNotInherit()` | `inherits` | lets owners fall back to parents and the global value |

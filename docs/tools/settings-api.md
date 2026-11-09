@@ -4,7 +4,7 @@ The `Settings` contract, `Simtabi\Laranail\Settings\Contracts\Settings`, reads a
 
 ## Handles
 
-`store()`, `for()` and `locale()` each return a new handle. The shared instance never changes, so a handle scoped to one owner cannot leak into another request.
+`store()`, `for()`, `locale()`, `as()`, `asSystem()`, `asCurrentActor()` and `because()` each return a new handle. The shared instance never changes, so a handle scoped to one owner or actor cannot leak into another request.
 
 ```php
 use Simtabi\Laranail\Settings\Contracts\Settings;
@@ -21,6 +21,13 @@ $this->settings->locale('fr')->get('site.greeting');
 | `store(string $name)` | handle | another configured store |
 | `for(Settable\|OwnerRef $owner)` | handle | without `store()`, routes to the store whose `owners` list the owner's alias |
 | `locale(string $locale)` | handle | normalised (`pt-br` → `pt_BR`) |
+| `as(Authenticatable\|Actor $actor)` | handle | every operation is authorized and audited; see [Access control](access-control.md) |
+| `asSystem(?string $reason)` | handle | trusted code, explicitly; allowed when an actor is required |
+| `asCurrentActor(?Request $request)` | handle | the actor the configured resolver finds; `ActorRequired` when nobody is authenticated |
+| `because(string $reason)` | handle | the reason recorded with each change in the audit trail |
+| `actor()` | `?Actor` | the handle's actor, or null for trusted code |
+| `configuration()` | `RuntimeConfiguration` | changes for this request; see [Runtime configuration](runtime-configuration.md) |
+| `withConfiguration($change, $run)` | `$run`'s result | changes for one callback, restored afterwards |
 
 ## Reading
 
@@ -30,7 +37,7 @@ $this->settings->locale('fr')->get('site.greeting');
 | `lookup($key)` | `Lookup` | `isFound()` is false |
 | `has($key)` | `bool` | false |
 | `string()`, `integer()`, `float()`, `boolean()`, `array()` | the typed value | throws `TypeMismatch` |
-| `explain($key)` | `Explanation` | lists every step tried |
+| `explain($key)` | `Explanation` | lists every step tried; redacted when the actor may not view the value |
 
 A stored `null` is an answer: `has()` is true and `get()` returns `null`, not the default.
 
@@ -42,7 +49,9 @@ A stored `null` is an answer: `has()` is true and `get()` returns `null`, not th
 | `forget($key)` | removes this handle's own value, so reads fall through again |
 | `lock($key)` / `unlock($key)` | refuses or allows further writes to this row |
 
-Writes raise `UnknownSetting` (strict store, no definition), `OwnerNotAllowed`, `LockedSetting`, `InvalidSettingValue`, `EncryptionUnavailable` or `StoreNotWritable`. Every exception extends `SettingsException`.
+Writes raise `UnknownSetting` (strict store, no definition), `OwnerNotAllowed`, `LockedSetting`, `InvalidSettingValue`, `EncryptionUnavailable` or `StoreNotWritable`. A handle with an actor can also raise `AccessDenied` or `VerificationRequired`, any handle `ActorRequired` (when an actor is required) and `ApprovalUnavailable`. Every exception extends `SettingsException`.
+
+Each write is one action in `Simtabi\Laranail\Settings\Actions` (`SetSetting`, `ForgetSetting`, `LockSetting`, `UnlockSetting`), taking a DTO and the actor. The handle delegates to them, and later channels (console, REST) will too, so behaviour cannot differ between them.
 
 ## Keys
 
