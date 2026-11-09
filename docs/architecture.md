@@ -65,6 +65,45 @@ The package is used from controllers, jobs, commands and other packages, and it 
 
 Every write is one `final` action (`Actions\SetSetting`, …) that authorizes, writes and audits. The PHP API delegates to it today; console commands and the REST API will delegate to the same actions, so the rules cannot drift between channels.
 
+## Why are the table shapes switches, and why are they recorded?
+
+The owner's standing rule is that where several styles are reasonable, all are supported through
+configuration with the recommended one as the default. Identity columns, key types, owner
+columns, soft deletes, JSON translations and the definitions table each have applications that
+need the other value (uuid-keyed estates, a users table that should cascade, an admin UI that
+edits definitions), so they are switches (see [Schema switches](tools/schema-switches.md)).
+
+A switch decides a column, so it is migration-time, and the package must not trust configuration
+for it afterwards: flipping `soft_deletes` on after migrating would make every read filter on a
+`deleted_at` column that does not exist. So `install` and `make-store` record the shape they
+produce in a schema file the application commits, the runtime and the migrations read that file,
+and `doctor` reports any drift between configuration, the file and the database. A later
+`make-store` keeps the file's key type, so a new table's `category_id` can never disagree with the
+categories key it points at.
+
+Every combination is a shape the suite has to keep working. A pairwise set (every pair of switch
+values meets at least once, asserted along with the number of shapes) runs on every pull request
+on SQLite, MySQL and PostgreSQL, and the full product weekly.
+
+## Why does a plain set retry once, and an expected-version write never?
+
+A plain `set()` means "make it this value"; losing a race to another writer between the read and
+the write is not the caller's concern, so the write re-reads the row under a row lock (a plain
+re-read under MySQL's REPEATABLE READ would see the old snapshot) and tries once more
+(`writes.retry_on_conflict`). A write that names the version it expects (the REST API's
+`If-Match`) is the caller asking to be told about the race, so it is never retried.
+
+## Why is schema readiness flushed on tenancy events by name?
+
+laranail/db-tools memoises schema readiness in a singleton, which outlives a request under Octane
+and a tenant under a tenancy package: a tenant whose database is migrated would keep the previous
+tenant's answer. The package forgets the memo after migrations, at the start of every queued job
+and Octane request, and on each event in `readiness.flush_on`. db-tools exposes no tenant-switch
+hook of its own, so the defaults name the tenancy packages' own events (stancl/tenancy's
+`TenancyInitialized` / `TenancyEnded`, spatie/laravel-multitenancy's `MadeTenantCurrentEvent` /
+`ForgotCurrentTenantEvent`) as strings: no dependency is added, and an event that never fires
+costs nothing. Another tenancy package adds its event to the list.
+
 ## Why headless?
 
 The package ships no views, Blade components, Livewire, Filament or assets. A settings engine is consumed by many interfaces (an admin panel, a CLI, an API client, another package), and any UI bundled here would be the wrong one for most of them and would drag view dependencies into every host. Its surfaces are the PHP API, events, Artisan commands and, later, an opt-in JSON API; an admin UI is a separate companion package. An architecture test fails on any view, Blade, Livewire or Filament reference in `src/` and on a `resources/views` directory.

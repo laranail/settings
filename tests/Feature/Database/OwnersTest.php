@@ -5,8 +5,13 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Actions\PruneAudit;
+use Simtabi\Laranail\Settings\Actions\PruneOrphans;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
 use Simtabi\Laranail\Settings\Tests\Fixtures\SoftDeletingOwner;
@@ -118,4 +123,33 @@ it('finds and prunes the settings of owners deleted in bulk', function (): void 
     $this->artisan('laranail::settings.prune-orphans')->expectsOutputToContain('No orphaned settings.')->assertSuccessful();
 
     expect(DB::table('settings')->pluck('scope')->sort()->values()->all())->toBe(['owner:' . $kept->id, 'soft:' . $trashed->id]);
+});
+
+it('needs prune (and forget) to prune orphans with an actor, and audits the run', function (): void {
+    $gone = SettingsOwner::query()->create();
+    $gone->settings()->set('ui.theme', 'dark');
+    SettingsOwner::query()->whereKey($gone->id)->delete();
+    $prune = app(PruneOrphans::class);
+    $actor = Actor::user(user());
+
+    expect(fn () => $prune->handle($actor))->toThrow(AccessDenied::class, 'prune')
+        ->and(DB::table('settings')->count())->toBe(1);
+
+    allowGates(Ability::Prune, Ability::Forget);
+
+    expect($prune->handle($actor))->toBe(1)
+        ->and(DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'allowed')->value('meta'))->toContain('"owners":1')
+        ->and(DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'denied')->count())->toBe(1);
+});
+
+it('needs prune to prune the audit trail with an actor', function (): void {
+    $prune = app(PruneAudit::class);
+    $actor = Actor::user(user());
+
+    expect(fn () => $prune->handle(30, $actor))->toThrow(AccessDenied::class);
+
+    allowGates(Ability::Prune);
+
+    expect($prune->handle(30, $actor))->toBe(0)
+        ->and(DB::table('settings_audit')->where('action', 'prune')->where('actor_type', 'user')->where('outcome', 'allowed')->count())->toBe(1);
 });

@@ -9,6 +9,7 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
@@ -165,4 +166,11 @@ interface Settings
      * @throws StoreNotWritable when the store has no active database layer
      */
     public function promote(?PromotionRequest $request = null): PromotionReport;
+
+    /**
+     * Query the audit trail (§16.8): `->for($owner)`, `->store()`, `->key()`, `->action()`,
+     * `->outcome()`, `->since()`, `->until()`, then `->get()`, `->cursor()` or `->paginate()`.
+     * Needs `view_audit` when the handle carries an actor. Entries never hold values.
+     */
+    public function audit(): AuditQuery;
 }

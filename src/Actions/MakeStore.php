@@ -9,6 +9,8 @@ use Illuminate\Filesystem\Filesystem;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\GeneratedStore;
+use Simtabi\Laranail\Settings\Database\StoreSchema;
+use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
@@ -16,6 +18,11 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
  * from the package's stub with the store name filled in, plus the categories and audit tables
  * when the store lives on a connection of its own (each connection keeps its own). Returns the
  * files written and the configuration entry to add by hand.
+ *
+ * The store's shape (mode, soft deletes, owner table) is recorded in the schema file (§4.0):
+ * taken from its configuration entry when it has one, else the default polymorphic shape on the
+ * given connection. The file's switches (key type, identity, translations) are kept, so the new
+ * table's `category_id` always matches the categories key it points at.
  */
 final readonly class MakeStore
 {
@@ -27,6 +34,7 @@ final readonly class MakeStore
         private Filesystem $files,
         private string $stubs,
         private string $migrations,
+        private ?SchemaShapeRepository $shapes = null,
     ) {}
 
     /**
@@ -64,6 +72,10 @@ final readonly class MakeStore
             self::STORE_LINE      => sprintf("private string \$store = '%s';", $store->value),
             self::CONNECTION_LINE => $pinned,
         ]);
+
+        if ($this->shapes instanceof SchemaShapeRepository) {
+            $this->shapes->recordStore($this->shapes->configured()->stores[$store->value] ?? new StoreSchema($store, connection: $connection));
+        }
 
         return new GeneratedStore($store, $written, $this->config($store, $connection, $owners));
     }

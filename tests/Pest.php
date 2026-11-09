@@ -69,8 +69,9 @@ function auditInMemory(): InMemoryAuditSink
  *
  * @param array<string, mixed> $config extra `laranail.settings.*` values, set before migrating
  * @param list<string> $stores further stores whose values table to create (as make-store would)
+ * @param array<string, string> $ownerTables tables to create first (name => bigint|uuid|ulid key), for dedicated stores
  */
-function useDatabase(array $config = [], array $stores = []): void
+function useDatabase(array $config = [], array $stores = [], array $ownerTables = []): void
 {
     config()->set('laranail.settings.stores.settings.layers', ['database', 'runtime', 'shipped']);
 
@@ -84,8 +85,26 @@ function useDatabase(array $config = [], array $stores = []): void
     $directory = sys_get_temp_dir() . '/laranail-settings-migrations-' . bin2hex(random_bytes(4));
     mkdir($directory);
 
-    foreach (['create_settings_categories_table', 'create_settings_table', 'create_settings_audit_table'] as $index => $stub) {
+    foreach (['create_settings_categories_table', 'create_settings_table', 'create_settings_audit_table', 'create_settings_definitions_table'] as $index => $stub) {
         copy(dirname(__DIR__) . "/database/migrations/{$stub}.php.stub", sprintf('%s/2026_01_01_00000%d_%s.php', $directory, $index, $stub));
+    }
+
+    if ($ownerTables !== []) {
+        file_put_contents($directory . '/2025_01_01_000000_create_owner_tables.php', '<?php return new class extends Illuminate\Database\Migrations\Migration {
+            public function up(): void
+            {
+                foreach (' . var_export($ownerTables, true) . ' as $name => $type) {
+                    Illuminate\Support\Facades\Schema::create($name, static function (Illuminate\Database\Schema\Blueprint $table) use ($type): void {
+                        match ($type) {
+                            "uuid"  => $table->char("id", 36)->primary(),
+                            "ulid"  => $table->char("id", 26)->primary(),
+                            default => $table->bigIncrements("id"),
+                        };
+                        $table->string("name")->nullable();
+                    });
+                }
+            }
+        };');
     }
 
     foreach ($stores as $index => $store) {

@@ -16,31 +16,55 @@ use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Events\SettingSaved;
 use Simtabi\Laranail\Settings\Events\SettingSaving;
 use Simtabi\Laranail\Settings\Support\ValuePipeline;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Events\SettingForgotten;
+use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Events\SettingForgetting;
 use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 
 /**
  * Every write path: set, forget, lock, unlock. Checks run before anything is stored, in this
  * order: definition (strict stores) → owner allowed → lock and precedence → locale → value
- * pipeline → the first writable layer, with the version continued from the existing record.
+ * pipeline → the first writable layer, with the version continued from the existing record
+ * (or from a trashed row, in a store with soft deletes, so the write restores it).
+ *
+ * A plain set that loses a race (another writer changed the row between the read and the
+ * write) is retried once when `writes.retry_on_conflict` is on, re-reading the row under a row
+ * lock; a write that names the version it expects is never retried.
  */
 final readonly class SettingWriter
 {
-    /** @param Closure(): CarbonImmutable $clock */
+    /**
+     * @param Closure(): CarbonImmutable $clock
+     * @param (Closure(Store, Key, Scope, ConcurrentModification): void)|null $onRetry told before a retry (logging)
+     */
     public function __construct(
         private ValuePipeline $pipeline,
         private Dispatcher $events,
         private Closure $clock,
+        private bool $retryOnConflict = false,
+        private ?Closure $onRetry = null,
     ) {}
 
     /** Store a value and return the stored record. A locked row refuses it. */
     public function set(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value): Record
     {
         return $this->write($store, $key, $locale, $owner, $definition, $value, overrideLock: false);
+    }
+
+    /**
+     * Store a value only if this scope's row is still at `$expectedVersion` (0: no row yet).
+     * Anything else raises {@see ConcurrentModification}; it is never retried.
+     *
+     * @throws ConcurrentModification
+     */
+    public function setExpecting(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value, int $expectedVersion, bool $overrideLock = false): Record
+    {
+        return $this->write($store, $key, $locale, $owner, $definition, $value, $overrideLock, $expectedVersion);
     }
 
     /**
@@ -87,14 +111,41 @@ final readonly class SettingWriter
         return $this->storeLock($store, $key, $locale, $owner, locked: false, definition: $definition);
     }
 
-    private function write(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value, bool $overrideLock): Record
+    private function write(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value, bool $overrideLock, ?int $expectedVersion = null): Record
+    {
+        $retries = $expectedVersion === null && $this->retryOnConflict ? 1 : 0;
+
+        for ($attempt = 0; ; $attempt++) {
+            try {
+                return $this->writeOnce($store, $key, $locale, $owner, $definition, $value, $overrideLock, $expectedVersion, relocked: $attempt > 0);
+            } catch (ConcurrentModification $conflict) {
+                if ($attempt >= $retries) {
+                    throw $conflict;
+                }
+
+                if ($this->onRetry instanceof Closure) {
+                    ($this->onRetry)($store, $key, $this->scope($owner), $conflict);
+                }
+            }
+        }
+    }
+
+    private function writeOnce(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value, bool $overrideLock, ?int $expectedVersion, bool $relocked): Record
     {
         $this->guard($store, $key, $locale, $owner, $definition, $overrideLock);
 
         $layer = $store->writableLayer();
         $scope = $this->scope($owner);
-        $existing = $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale);
-        $version = ($existing->version ?? 0) + 1;
+        $database = $this->database($layer);
+        $existing = $relocked && $database instanceof DatabaseDriver
+            ? $database->lockedFind($store->name, $scope, $key, $locale)
+            : $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale);
+
+        if ($expectedVersion !== null && ($existing->version ?? 0) !== $expectedVersion) {
+            throw new ConcurrentModification(sprintf('Setting [%s] in store [%s] for scope [%s] is at version %d, not the expected %d; re-read and retry.', $key, $store->name, $scope, $existing->version ?? 0, $expectedVersion));
+        }
+
+        $version = $this->baseVersion($layer, $store, $scope, $key, $locale, $existing) + 1;
 
         $record = new Record(
             scope: $scope,
@@ -116,6 +167,24 @@ final readonly class SettingWriter
         $this->events->dispatch(new SettingSaved($store->name->value, $scope->value, $key->value, $locale->value, $version));
 
         return $record;
+    }
+
+    /**
+     * The version a write continues: the live row's, else (soft deletes) the trashed row's, so
+     * the write restores it instead of colliding with it, else 0.
+     */
+    private function baseVersion(Layer $layer, Store $store, Scope $scope, Key $key, Locale $locale, ?Record $existing): int
+    {
+        if ($existing instanceof Record) {
+            return $existing->version;
+        }
+
+        return $this->database($layer)?->trashedVersion($store->name, $scope, $key, $locale) ?? 0;
+    }
+
+    private function database(Layer $layer): ?DatabaseDriver
+    {
+        return $layer->driver instanceof DatabaseBacked && $layer->driver->isActive() ? $layer->driver->database() : null;
     }
 
     private function remove(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, bool $overrideLock): ?Record
@@ -144,7 +213,7 @@ final readonly class SettingWriter
         $layer = $store->writableLayer();
         $scope = $this->scope($owner);
         $existing = $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale)
-            ?? new Record($scope, $key, $locale, null, version: 0);
+            ?? new Record($scope, $key, $locale, null, version: $this->baseVersion($layer, $store, $scope, $key, $locale, null));
 
         $record = new Record(
             $existing->scope,
@@ -196,6 +265,10 @@ final readonly class SettingWriter
     private function ownerAllowed(Store $store, ?OwnerRef $owner, ?Definition $definition): void
     {
         if (! $owner instanceof OwnerRef) {
+            if ($store->isDedicated()) {
+                throw new OwnerNotAllowed(sprintf('Store [%s] is dedicated to its owners and holds no global values; write those to store [%s].', $store->name, $store->fallback));
+            }
+
             return;
         }
 

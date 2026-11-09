@@ -5,12 +5,15 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 
 /*
  * laranail/settings: the audit trail (design §16.8). It records actions and denials, who, when,
  * through which channel and which versions, and has no value column: an audit trail must never
  * become a second copy of the secrets it watches.
  *
+ * Table name and connection come from the recorded schema file (or configuration).
  * Runs on the connection of the default store's database layer. `laranail::settings.make-store`
  * pins another connection by rewriting the $pinnedConnection line below.
  */
@@ -24,24 +27,16 @@ return new class extends Migration
             return $this->pinnedConnection;
         }
 
-        $store = config('laranail.settings.default', 'settings');
+        $default = config('laranail.settings.default', 'settings');
 
-        foreach ((array) config("laranail.settings.stores.{$store}.layers", []) as $layer) {
-            if (is_string($layer) && config("laranail.settings.layers.{$layer}.driver") === 'database') {
-                $connection = config("laranail.settings.layers.{$layer}.connection");
-
-                return is_string($connection) ? $connection : null;
-            }
-        }
-
-        return null;
+        return $this->shape()->store(new StoreName(is_string($default) ? $default : 'settings'))->connection;
     }
 
     public function up(): void
     {
         $name = $this->table();
 
-        Schema::create($name, static function (Blueprint $table) use ($name): void {
+        Schema::connection($this->getConnection())->create($name, static function (Blueprint $table) use ($name): void {
             $table->char('id', 26)->primary();
             $table->timestamp('occurred_at');
             $table->string('action', 32);
@@ -71,13 +66,16 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists($this->table());
+        Schema::connection($this->getConnection())->dropIfExists($this->table());
     }
 
     private function table(): string
     {
-        $table = config('laranail.settings.tables.audit', 'settings_audit');
+        return $this->shape()->names->audit();
+    }
 
-        return config('laranail.settings.tables.prefix', '') . (is_string($table) ? $table : 'settings_audit');
+    private function shape(): Simtabi\Laranail\Settings\Database\SchemaShape
+    {
+        return app(SchemaShapeRepository::class)->current();
     }
 };

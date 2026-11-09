@@ -17,6 +17,9 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
  */
 final class DefinitionRegistry
 {
+    /** Names under `laranail.settings.definitions` that are options (D-6), not setting keys. */
+    public const array OPTIONS = ['table', 'sources', 'allowed_rules'];
+
     /** @var array<string, Definition> */
     private array $definitions = [];
 
@@ -52,6 +55,19 @@ final class DefinitionRegistry
         return $this->definitions[$this->index($store, $key)] ?? null;
     }
 
+    /**
+     * Every definition registered in code and config, in registration order (the definitions
+     * table sync copies them as `is_system` rows).
+     *
+     * @return list<Definition>
+     */
+    public function all(): array
+    {
+        $this->loadConfigured();
+
+        return array_values($this->definitions);
+    }
+
     private function loadConfigured(): void
     {
         if ($this->configLoaded) {
@@ -61,6 +77,10 @@ final class DefinitionRegistry
         $this->configLoaded = true;
 
         foreach ($this->configured as $key => $attributes) {
+            if (in_array($key, self::OPTIONS, true)) {
+                continue;
+            }
+
             if (! is_array($attributes)) {
                 throw new InvalidDefinition(sprintf('laranail.settings.definitions.%s: an array of attributes is required.', $key));
             }

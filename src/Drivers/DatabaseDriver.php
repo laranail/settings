@@ -15,14 +15,20 @@ use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Enums\IdentityMode;
+use Simtabi\Laranail\Settings\Enums\OwnerKeyType;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Database\SchemaShape;
+use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Illuminate\Database\ConnectionResolverInterface;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
+use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
@@ -40,6 +46,12 @@ use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
  * first write) does not abort the surrounding transaction on Postgres. Either conflict raises
  * {@see ConcurrentModification}. Database errors surface as {@see DriverUnavailable} when the
  * connection or table is gone, {@see DriverFailure} otherwise, never as PDO exceptions.
+ *
+ * The table's shape (identity columns, key type, owner columns, soft deletes) is read from the
+ * recorded {@see SchemaShape}, never from live configuration (§4.0). With soft deletes a forget
+ * trashes the row, reads skip trashed rows, and the next write to that identity restores the
+ * row through the same version check (so a restore is never read as a conflict and the unique
+ * index never collides).
  */
 final readonly class DatabaseDriver implements DatabaseBacked
 {
@@ -48,6 +60,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     /**
      * @param ?string $table the store's configured table (`stores.<name>.table`); null uses the store name
      * @param Closure(): ReadinessProbe $probe resolved only after a database error
+     * @param (Closure(): SchemaShape)|null $shape the recorded schema shape; null is the default shape over $names
      */
     public function __construct(
         private ConnectionResolverInterface $db,
@@ -56,7 +69,37 @@ final readonly class DatabaseDriver implements DatabaseBacked
         private ?string $table,
         private bool $writable,
         private Closure $probe,
+        private ?Closure $shape = null,
     ) {}
+
+    /**
+     * A new primary key for a table keyed by this type: none for bigint (the database assigns
+     * it), a time-ordered UUID or a ULID otherwise.
+     *
+     * @return array{id?: string}
+     */
+    public static function newId(IdType $type): array
+    {
+        return match ($type) {
+            IdType::Bigint => [],
+            IdType::Uuid   => ['id' => (string) Str::orderedUuid()],
+            IdType::Ulid   => ['id' => (string) Str::ulid()],
+        };
+    }
+
+    /** The recorded schema shape the table was created with. */
+    public function shape(): SchemaShape
+    {
+        $shape = $this->shape instanceof Closure ? ($this->shape)() : null;
+
+        return $shape instanceof SchemaShape ? $shape : new SchemaShape(names: $this->names);
+    }
+
+    /** One store's recorded entry: mode, soft deletes, owner table. */
+    public function schemaOf(StoreName $store): StoreSchema
+    {
+        return $this->shape()->store($store);
+    }
 
     public function database(): self
     {
@@ -81,12 +124,14 @@ final readonly class DatabaseDriver implements DatabaseBacked
 
     public function tableFor(StoreName $store): string
     {
-        return $this->names->store($store, $this->table);
+        $shape = $this->shape();
+
+        return $shape->names->store($store, $shape->hasStore($store) ? $shape->store($store)->table : $this->table);
     }
 
     public function names(): SchemaNames
     {
-        return $this->names;
+        return $this->shape()->names;
     }
 
     public function connection(): Connection
@@ -118,7 +163,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
             $records = [];
 
             foreach (array_chunk($values, 500) as $chunk) {
-                foreach ($this->table($store)->whereIn('scope', $chunk)->get(self::COLUMNS) as $row) {
+                foreach ($this->live($store)->whereIn('scope', $chunk)->get(self::COLUMNS) as $row) {
                     $records[] = $this->record((array) $row);
                 }
             }
@@ -129,8 +174,9 @@ final readonly class DatabaseDriver implements DatabaseBacked
 
     /**
      * Store a record whose version is one above the version the writer read: an update checked
-     * against that version; failing that, an insert. A row at any other version makes the insert
-     * hit the unique index, which is a concurrent change.
+     * against that version; with soft deletes, failing that, a restore of the trashed row at that
+     * version; failing that, an insert. A row at any other version makes the insert hit the
+     * unique index, which is a concurrent change.
      *
      * @throws ConcurrentModification
      */
@@ -143,9 +189,23 @@ final readonly class DatabaseDriver implements DatabaseBacked
                 $now = $record->writtenAt ?? CarbonImmutable::now();
                 $columns = $this->columns($store, $record) + ['version' => $record->version, 'updated_at' => $now];
                 $expected = $record->version - 1;
+                $softDeletes = $this->schemaOf($store)->softDeletes;
 
                 // Versions start at 1, so a first write (expected 0) has no row to update.
-                if ($expected > 0 && $this->identity($this->table($store), $record->scope, $record->key, $record->locale)->where('version', $expected)->update($columns) > 0) {
+                if ($expected > 0 && $this->live($store)->where('scope', $record->scope->value)->where('key', $record->key->value)->where('locale', $record->locale->value)->where('version', $expected)->update($columns) > 0) {
+                    return;
+                }
+
+                // A trashed row at the expected version: restore it as a fresh write, so no flag,
+                // label or category of the forgotten row comes back with it.
+                if ($expected > 0 && $softDeletes && $this->trashed($store)->where('scope', $record->scope->value)->where('key', $record->key->value)->where('locale', $record->locale->value)->where('version', $expected)->update($columns + [
+                    'deleted_at'  => null,
+                    'label'       => null,
+                    'description' => null,
+                    'meta'        => null,
+                    'autoload'    => true,
+                    'sort_order'  => 0,
+                ]) > 0) {
                     return;
                 }
 
@@ -154,12 +214,10 @@ final readonly class DatabaseDriver implements DatabaseBacked
                 try {
                     // A savepoint: on Postgres a unique violation would otherwise abort the
                     // whole surrounding transaction, not just this statement.
-                    $this->connection()->transaction(fn (): bool => $this->table($store)->insert($columns + [
+                    $this->connection()->transaction(fn (): bool => $this->table($store)->insert($columns + $this->identityColumns($record) + [
                         'scope'      => $record->scope->value,
                         'key'        => $record->key->value,
                         'locale'     => $record->locale->value,
-                        'slug'       => $record->key->slug(),
-                        'uid'        => (string) Str::ulid(),
                         'autoload'   => true,
                         'sort_order' => 0,
                         'created_at' => $now,
@@ -171,11 +229,42 @@ final readonly class DatabaseDriver implements DatabaseBacked
         });
     }
 
+    /**
+     * The version of the trashed row of this identity (0 when there is none, or the store keeps
+     * no trashed rows), so a write over it continues its version rather than colliding.
+     */
+    public function trashedVersion(StoreName $store, Scope $scope, Key $key, Locale $locale): int
+    {
+        if (! $this->schemaOf($store)->softDeletes) {
+            return 0;
+        }
+
+        $version = $this->attempt($store, fn (): mixed => $this->identity($this->trashed($store), $scope, $key, $locale)->value('version'));
+
+        return is_numeric($version) ? (int) $version : 0;
+    }
+
+    /**
+     * The live row of one identity read under a row lock (`SELECT … FOR UPDATE` where the
+     * database has one), for retrying a write after a conflict: a plain re-read under MySQL's
+     * REPEATABLE READ would see the old snapshot.
+     */
+    public function lockedFind(StoreName $store, Scope $scope, Key $key, Locale $locale): ?Record
+    {
+        return $this->attempt($store, function () use ($store, $scope, $key, $locale): ?Record {
+            $row = $this->identity($this->live($store), $scope, $key, $locale)->lockForUpdate()->first(self::COLUMNS);
+
+            return $row === null ? null : $this->record((array) $row);
+        });
+    }
+
     public function forget(StoreName $store, Scope $scope, Key $key, Locale $locale): void
     {
         $this->assertWritable($store);
 
-        $this->attempt($store, fn (): int => $this->identity($this->table($store), $scope, $key, $locale)->delete());
+        $this->attempt($store, fn (): int => $this->schemaOf($store)->softDeletes
+            ? $this->identity($this->live($store), $scope, $key, $locale)->update(['deleted_at' => CarbonImmutable::now()])
+            : $this->identity($this->table($store), $scope, $key, $locale)->delete());
     }
 
     /** Remove every row of one scope; returns how many went. */
@@ -183,19 +272,22 @@ final readonly class DatabaseDriver implements DatabaseBacked
     {
         $this->assertWritable($store);
 
-        return $this->attempt($store, fn (): int => $this->table($store)->where('scope', $scope->value)->delete());
+        return $this->attempt($store, fn (): int => $this->schemaOf($store)->softDeletes
+            ? $this->live($store)->where('scope', $scope->value)->update(['deleted_at' => CarbonImmutable::now()])
+            : $this->table($store)->where('scope', $scope->value)->delete());
     }
 
     /**
-     * Every distinct owner scope of one alias in this store (`alias:<id>`), for orphan pruning.
-     * A range on the binary-collated column rather than LIKE, whose `_` would match any character.
+     * Every distinct owner scope of one alias in this store (`alias:<id>`) with live rows, for
+     * orphan pruning. A range on the binary-collated column rather than LIKE, whose `_` would
+     * match any character.
      *
      * @return list<string>
      */
     public function scopesOf(StoreName $store, string $alias): array
     {
         return $this->attempt($store, fn (): array => array_values(array_filter(
-            $this->table($store)
+            $this->live($store)
                 ->where('scope', '>=', $alias . ':')
                 ->where('scope', '<', $alias . ';')
                 ->distinct()
@@ -317,6 +409,19 @@ final readonly class DatabaseDriver implements DatabaseBacked
         return $this->connection()->table($this->tableFor($store));
     }
 
+    /** Rows that are not trashed (every row, without soft deletes). */
+    private function live(StoreName $store): Builder
+    {
+        $query = $this->table($store);
+
+        return $this->schemaOf($store)->softDeletes ? $query->whereNull('deleted_at') : $query;
+    }
+
+    private function trashed(StoreName $store): Builder
+    {
+        return $this->table($store)->whereNotNull('deleted_at');
+    }
+
     private function identity(Builder $query, Scope $scope, Key $key, Locale $locale): Builder
     {
         return $query->where('scope', $scope->value)->where('key', $key->value)->where('locale', $locale->value);
@@ -331,12 +436,9 @@ final readonly class DatabaseDriver implements DatabaseBacked
             throw new InvalidSettingValue(sprintf('Setting [%s]: the group [%s] is longer than 64 characters; give the definition a shorter group.', $record->key, $group));
         }
 
-        [$type, $id] = $this->owner($record->scope);
         $category = $this->categoryId($store, $record);
 
-        return [
-            'settable_type'  => $type,
-            'settable_id'    => $id,
+        return $this->ownerColumns($store, $record->scope) + [
             'category_id'    => $category,
             'category_store' => $category === null ? null : $store->value,
             'group'          => $group,
@@ -348,16 +450,66 @@ final readonly class DatabaseDriver implements DatabaseBacked
         ];
     }
 
-    /** @return array{?string, ?string} the morph alias and id of an owner scope, nulls for global */
-    private function owner(Scope $scope): array
+    /**
+     * The owner columns of a row, per the store's mode: `settable_type` / `settable_id` (typed per
+     * `ids.owner_key`) in a polymorphic store, `owner_id` in a dedicated one, which holds owner
+     * rows only.
+     *
+     * @return array<string, int|string|null>
+     *
+     * @throws OwnerNotAllowed
+     */
+    private function ownerColumns(StoreName $store, Scope $scope): array
     {
-        if ($scope->isGlobal()) {
-            return [null, null];
+        $schema = $this->schemaOf($store);
+        [$alias, $id] = $scope->isGlobal() ? [null, null] : explode(':', $scope->value, 2);
+
+        if (! $schema->isDedicated()) {
+            $shape = $this->shape();
+
+            return [
+                'settable_type' => $alias,
+                'settable_id'   => $id === null || $shape->ownerKey === OwnerKeyType::String ? $id : $this->typedKey($store, $id, $shape->ownerKeyType),
+            ];
         }
 
-        [$alias, $id] = explode(':', $scope->value, 2);
+        if ($alias === null || $id === null) {
+            throw new OwnerNotAllowed(sprintf('Store [%s] is dedicated to owner [%s] and holds no global values; write those to store [%s].', $store, $schema->ownerAlias, $schema->fallback));
+        }
 
-        return [$alias, $id];
+        if ($alias !== $schema->ownerAlias) {
+            throw new OwnerNotAllowed(sprintf('Store [%s] is dedicated to owner [%s], not [%s].', $store, $schema->ownerAlias, $alias));
+        }
+
+        return ['owner_id' => $this->typedKey($store, $id, $schema->ownerKeyType)];
+    }
+
+    /** An owner id as the typed column holds it: an integer for bigint keys. */
+    private function typedKey(StoreName $store, string $id, IdType $type): int|string
+    {
+        return match ($type) {
+            IdType::Bigint => ctype_digit($id) ? (int) $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as bigint; [%s] is not one.', $store, $id)),
+            IdType::Uuid   => strlen($id) === 36 ? $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as uuid; [%s] is not one.', $store, $id)),
+            IdType::Ulid   => strlen($id) === 26 ? $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as ulid; [%s] is not one.', $store, $id)),
+        };
+    }
+
+    /**
+     * The columns only an insert sets: a generated primary key (uuid, ulid) and the identity
+     * columns of the identity mode (D-1).
+     *
+     * @return array<string, string>
+     */
+    private function identityColumns(Record $record): array
+    {
+        $shape = $this->shape();
+        $columns = self::newId($shape->ids);
+
+        return $columns + match ($shape->identity) {
+            IdentityMode::SlugUid    => ['slug' => $record->key->slug(), 'uid' => (string) Str::ulid()],
+            IdentityMode::SlugPerRow => ['slug' => sha1($record->scope->value . '|' . $record->key->value . '|' . $record->locale->value)],
+            IdentityMode::UidOnly    => ['uid' => (string) Str::ulid()],
+        };
     }
 
     /**
@@ -372,7 +524,12 @@ final readonly class DatabaseDriver implements DatabaseBacked
             return null;
         }
 
-        $categories = $this->connection()->table($this->names->categories())->where('slug', $record->category);
+        $categories = $this->connection()->table($this->names()->categories())->where('slug', $record->category);
+
+        if ($this->shape()->categoriesSoftDeletes) {
+            $categories->whereNull('deleted_at');
+        }
+
         $id = (clone $categories)->where('store', $store->value)->value('id');
 
         if (is_int($id) || is_string($id)) {

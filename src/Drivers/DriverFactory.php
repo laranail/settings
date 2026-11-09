@@ -10,6 +10,7 @@ use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Contracts\Filesystem\Factory as Disks;
 use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
@@ -35,6 +36,7 @@ final class DriverFactory
         private readonly ?ConnectionResolverInterface $db = null,
         private readonly SchemaNames $names = new SchemaNames,
         private readonly ?Closure $probe = null,
+        private readonly ?Closure $shape = null,
     ) {}
 
     /** @param Closure(LayerConfig): Driver $factory */
@@ -91,7 +93,8 @@ final class DriverFactory
 
     /**
      * The database layer. `connection` is optional (null = the default connection); `table` is
-     * set by the store registry from `stores.<name>.table`. Nothing connects here.
+     * set by the store registry from `stores.<name>.table`. The driver reads the recorded schema
+     * shape through `$shape` on use. Nothing connects here.
      */
     private function database(LayerConfig $layer): DatabaseDriver
     {
@@ -113,7 +116,10 @@ final class DriverFactory
         /** @var Closure(): ReadinessProbe $probe */
         $probe = $this->probe;
 
-        return new DatabaseDriver($this->db, $connection, $this->names, $table, $layer->writable, $probe);
+        /** @var (Closure(): SchemaShape)|null $shape */
+        $shape = $this->shape;
+
+        return new DatabaseDriver($this->db, $connection, $this->names, $table, $layer->writable, $probe, $shape);
     }
 
     private function json(LayerConfig $layer): JsonDriver

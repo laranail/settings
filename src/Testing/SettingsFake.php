@@ -12,6 +12,7 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
@@ -174,6 +175,11 @@ final readonly class SettingsFake implements Settings
     public function promote(?PromotionRequest $request = null): PromotionReport
     {
         return $this->inner->promote($request);
+    }
+
+    public function audit(): AuditQuery
+    {
+        return $this->inner->audit();
     }
 
     public function assertSaved(string $key, mixed ...$value): void

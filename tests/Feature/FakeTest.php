@@ -12,6 +12,7 @@ use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
+use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
 use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
 use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
 
@@ -102,4 +103,10 @@ it('delegates every read and handle to the real engine', function (): void {
         ->and($fake->store('other')->get('k'))->toBe('v')
         ->and($fake->locale('fr')->get('n.int'))->toBe(3)
         ->and($fake->for(new OwnerRef('user', 1))->get('n.int'))->toBeNull();
+});
+
+it('has no database audit trail to query', function (): void {
+    $fake = Settings::fake();
+
+    expect(fn (): array => $fake->audit()->get())->toThrow(DriverUnavailable::class);
 });

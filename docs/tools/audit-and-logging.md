@@ -57,10 +57,16 @@ both survive the refusal. The table has no value column.
 
 Every connection a store uses has its own audit table; `make-store --connection` generates it.
 
+## Querying the trail
+
+`$settings->audit()->for($user)->since(now()->subWeek())->get()` reads entries back, gated by
+`view_audit`; see [Audit queries](audit-queries.md).
+
 ## Retention
 
 `laranail::settings.prune-audit` deletes rows older than `audit.keep_days` (365 by default), or
-`--days`. Schedule it:
+`--days`, and audits the prune itself; its action needs `prune` when called with an actor.
+Schedule it:
 
 ```php
 Schedule::command('laranail::settings.prune-audit')->weekly();

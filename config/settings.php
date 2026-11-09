@@ -37,15 +37,32 @@ return [
     | name). `bootstrap` lets the database layer be skipped while, and only
     | while, the application is being installed (see `bootstrap` below);
     | otherwise an unreachable database raises DriverUnavailable.
+    |
+    | Schema switches per store (migration-time, recorded in the schema file):
+    | `mode` is `polymorphic` (settable_type/settable_id, any listed alias, plus
+    | global rows) or `dedicated` (one owner alias, a non-null `owner_id` foreign
+    | key to `owner.table`, owner rows only; its global values come from
+    | `fallback`, default the default store). `soft_deletes` keeps forgotten rows
+    | as trashed and restores them on the next write.
+    |
+    |     'user_settings' => [
+    |         'layers' => ['database'],
+    |         'owners' => ['user'],
+    |         'mode'   => 'dedicated',
+    |         'owner'  => ['table' => 'users', 'key' => 'id', 'type' => null],
+    |         'soft_deletes' => false,
+    |     ],
     */
     'stores' => [
         'settings' => [
-            'layers'    => ['database', 'runtime', 'shipped'],
-            'owners'    => [],
-            'strict'    => false,
-            'inherits'  => false,
-            'locks'     => ['overridable' => false],
-            'bootstrap' => false,
+            'layers'       => ['database', 'runtime', 'shipped'],
+            'owners'       => [],
+            'strict'       => false,
+            'inherits'     => false,
+            'locks'        => ['overridable' => false],
+            'bootstrap'    => false,
+            'mode'         => 'polymorphic',
+            'soft_deletes' => false,
         ],
     ],
 
@@ -63,9 +80,77 @@ return [
     | name that is not this package's.
     */
     'tables' => [
-        'prefix'     => env('LARANAIL_SETTINGS_TABLE_PREFIX', ''),
-        'categories' => 'settings_categories',
-        'audit'      => 'settings_audit',
+        'prefix'      => env('LARANAIL_SETTINGS_TABLE_PREFIX', ''),
+        'categories'  => 'settings_categories',
+        'audit'       => 'settings_audit',
+        'definitions' => 'settings_definitions',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Schema switches (migration-time)
+    |--------------------------------------------------------------------------
+    |
+    | Read by `install` and `make-store`, which record the shape they produce
+    | in the schema file (`schema.path`, default database/settings-schema.php).
+    | The package then reads that file, not these keys, so changing a switch
+    | after migrating changes nothing until a migration says so; `doctor`
+    | reports the drift. The defaults are the recommended shape.
+    |
+    | identity.mode: `slug_uid` (a slug shared by a key's rows and a ULID per
+    | row), `slug_per_row` (a unique sha1 slug per row, no uid) or `uid_only`.
+    | ids.type: `bigint`, `uuid` or `ulid`; null follows laranail.db-tools.id_type.
+    | ids.owner_key: `string` (settable_id as string(36)) or `typed` (typed like
+    | laranail.db-tools.id_type, for owners that share one key type).
+    | translations.mode: `lang` (titles, labels and descriptions as text) or
+    | `json` (per-locale JSON maps).
+    | categories.soft_deletes: categories are trashed, and restored when the slug
+    | is created again.
+    */
+    'schema' => [
+        'path' => env('LARANAIL_SETTINGS_SCHEMA_PATH'),
+    ],
+
+    'identity' => [
+        'mode' => 'slug_uid',
+    ],
+
+    'ids' => [
+        'type'      => null,
+        'owner_key' => 'string',
+    ],
+
+    'translations' => [
+        'mode' => 'lang',
+    ],
+
+    'categories' => [
+        'soft_deletes' => false,
+    ],
+
+    /*
+    | Writes. `retry_on_conflict` retries a plain set() once when another writer
+    | changed the row between the read and the write (re-reading it under a row
+    | lock where the database supports one). A write that names the version it
+    | expects is never retried.
+    */
+    'writes' => [
+        'retry_on_conflict' => true,
+    ],
+
+    /*
+    | Events after which the schema readiness memo is forgotten, besides
+    | migrations, queued jobs and Octane requests: tenant switches. db-tools has
+    | no tenant hook of its own, so the tenancy packages' events are listened to
+    | by name (no dependency is added; an event that never fires costs nothing).
+    */
+    'readiness' => [
+        'flush_on' => [
+            'Stancl\\Tenancy\\Events\\TenancyInitialized',
+            'Stancl\\Tenancy\\Events\\TenancyEnded',
+            'Spatie\\Multitenancy\\Events\\MadeTenantCurrentEvent',
+            'Spatie\\Multitenancy\\Events\\ForgotCurrentTenantEvent',
+        ],
     ],
 
     /*
@@ -95,8 +180,18 @@ return [
     | public, locked, localised, inherits, overridable_by, precedence,
     | label, description, category, group, store. Definitions can also be
     | registered in code through DefinitionRegistry::define().
+    |
+    | Three names are options, not keys (D-6): `table` creates the optional
+    | settings_definitions table (migration-time), `sources` lists where
+    | definitions come from, merged in order, later wins per field (`code`,
+    | `config`, `database`; `database` is read only when the table exists),
+    | and `allowed_rules` filters the rules of database definitions.
     */
-    'definitions' => [],
+    'definitions' => [
+        'table'         => false,
+        'sources'       => ['code', 'config', 'database'],
+        'allowed_rules' => ['required', 'nullable', 'string', 'integer', 'numeric', 'boolean', 'array', 'email', 'url', 'in', 'not_in', 'min', 'max', 'between', 'size', 'regex', 'date', 'alpha', 'alpha_dash', 'alpha_num'],
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -149,6 +244,7 @@ return [
             'manage_categories'  => 'settings.manage_categories',
             'manage_definitions' => 'settings.manage_definitions',
             'manage_stores'      => 'settings.manage_stores',
+            'prune'              => 'settings.prune',
         ],
     ],
 
