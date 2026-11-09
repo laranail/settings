@@ -21,10 +21,11 @@
         "customPath": "vendor/bin/pest"
     },
     // Infection reads Pest's version (4.x) as a PHPUnit version and writes a legacy <filter>
-    // element into its generated config. PHPUnit 12 warns about it and phpunit.xml's
-    // failOnWarning turns the warning into exit 1 although every test passes. Only Infection's
-    // runs relax this; the main suite keeps failOnWarning.
-    "testFrameworkOptions": "--do-not-fail-on-warning",
+    // element into its generated config. PHPUnit 12 reports that as a PHPUnit warning
+    // (invalid configuration), which fails the run with exit 1 although every test passes;
+    // `--do-not-fail-on-warning` does not cover it. Only Infection's runs relax this; the main
+    // suite still fails on any warning. Reproduced locally: exit 1 without the flag, 0 with it.
+    "testFrameworkOptions": "--do-not-fail-on-phpunit-warning",
     // Engineering-standard floor (design §8). Raise it as the suite matures; never lower it.
     "minMsi": 70,
     "minCoveredMsi": 70,
