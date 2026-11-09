@@ -20,6 +20,11 @@
     "phpUnit": {
         "customPath": "vendor/bin/pest"
     },
+    // Infection reads Pest's version (4.x) as a PHPUnit version and writes a legacy <filter>
+    // element into its generated config. PHPUnit 12 warns about it and phpunit.xml's
+    // failOnWarning turns the warning into exit 1 although every test passes. Only Infection's
+    // runs relax this; the main suite keeps failOnWarning.
+    "testFrameworkOptions": "--do-not-fail-on-warning",
     // Engineering-standard floor (design §8). Raise it as the suite matures; never lower it.
     "minMsi": 70,
     "minCoveredMsi": 70,
