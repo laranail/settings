@@ -64,8 +64,8 @@ jobs:
   mutation:
     name: Mutation testing (Pest)
     runs-on: ubuntu-latest
-    # About 2,800 mutations since phase 2; sequential runs took over 20 minutes.
-    timeout-minutes: 45
+    # About 3,900 mutations since phase 2b; sequential runs took over 20 minutes.
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -88,4 +88,6 @@ jobs:
         # generated test classes to its JUnit report.
         # --parallel: each worker gets its own faked disk (Storage::fake appends the
         # ParallelTesting token), so the runtime JSON files never collide.
-        run: vendor/bin/pest --mutate --everything --parallel --min=70
+        # The schema matrix (group `matrix`) runs end to end over every shape and covers almost
+        # every line, so each mutant would re-run it; the shapes are tested in the Tests workflow.
+        run: vendor/bin/pest --mutate --everything --parallel --exclude-group=matrix --min=70
