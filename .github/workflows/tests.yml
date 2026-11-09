@@ -1,0 +1,25 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+    # No path filter: this workflow gates merges as a required status check, and a
+    # required check that never reports (a docs-only pull request) blocks it for good.
+  workflow_dispatch:
+  schedule:
+    # Post-merge drift check on the default branch (weekly, never a branch push).
+    - cron: '41 6 * * 1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pest:
+    uses: laranail/.github/.github/workflows/tests.yml@main
+    with:
+      # Resolve whatever composer.json allows rather than letting the shared workflow
+      # rewrite composer.json to a pinned Laravel line.
+      laravel-versions: '["*"]'
+      php-extensions: 'dom, curl, libxml, mbstring, zip, fileinfo, pdo, sqlite3, pdo_sqlite'
+      test-command: 'vendor/bin/pest'

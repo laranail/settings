@@ -1,0 +1,22 @@
+{
+    "$schema": "vendor/infection/infection/resources/schema.json",
+    "source": {
+        "directories": [
+            "src"
+        ],
+        // Service providers are framework wiring: their surviving mutants are registration
+        // calls whose effect the feature suite proves end to end.
+        "excludes": [
+            "Providers"
+        ]
+    },
+    "mutators": {
+        "@default": true
+    },
+    // Engineering-standard floor (design §8). Raise it as the suite matures; never lower it.
+    "minMsi": 70,
+    "minCoveredMsi": 70,
+    "logs": {
+        "text": "php://stderr"
+    }
+}

@@ -1,0 +1,135 @@
+{
+    "name": "laranail/settings",
+    "description": "Key-value settings for any Laravel owner (application, user, tenant, product) with layered stores, categories, and a file-to-database bootstrap path. MySQL, PostgreSQL and SQLite; SQL Server is not supported in 0.x.",
+    "keywords": [
+        "laravel",
+        "laranail",
+        "settings",
+        "preferences",
+        "key-value",
+        "polymorphic",
+        "configuration"
+    ],
+    "homepage": "https://opensource.simtabi.com/products/laranail/settings",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Simtabi LLC",
+            "email": "opensource@simtabi.com",
+            "homepage": "https://opensource.simtabi.com",
+            "role": "Organization"
+        },
+        {
+            "name": "Imani Manyara",
+            "email": "imani@simtabi.com",
+            "role": "Maintainer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/laranail/settings/issues",
+        "source": "https://github.com/laranail/settings",
+        "docs": "https://opensource.simtabi.com/documentation/laranail/settings/"
+    },
+    "require": {
+        "php": "^8.4.1 || ^8.5",
+        "illuminate/contracts": "^13.0",
+        "illuminate/database": "^13.0",
+        "illuminate/support": "^13.0",
+        "laranail/console": "^0.1.5",
+        "laranail/db-tools": "^0.1",
+        "laranail/enumerator": "^0.1",
+        "laranail/package-tools": "^0.1.10",
+        "laravel/framework": "^13.0"
+    },
+    "require-dev": {
+        "infection/infection": "^0.35",
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.30",
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-arch": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0",
+        "phpstan/phpstan": "^2.0",
+        "rector/rector": "^2.5.8",
+        "roave/security-advisories": "dev-latest"
+    },
+    "suggest": {
+        "laranail/installer-headless": "Lets a store's database layer be skipped while the application is being installed (design: bootstrap mode)."
+    },
+    "autoload": {
+        "psr-4": {
+            "Simtabi\\Laranail\\Settings\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Simtabi\\Laranail\\Settings\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "setup": "@composer install",
+        "test": "vendor/bin/pest --colors=always",
+        "test-coverage": "@test --coverage --min=90",
+        "test-dirty": "@test --dirty --compact",
+        "infection": "vendor/bin/infection --threads=max --show-mutations --ignore-msi-with-no-mutations",
+        "lint": [
+            "@pint",
+            "@phpstan",
+            "@rector"
+        ],
+        "composer-audit": "@composer audit --no-interaction",
+        "pint": "@php vendor/bin/laranail-pint --test",
+        "pint-fix": "@php vendor/bin/laranail-pint --parallel",
+        "phpstan": "vendor/bin/phpstan analyse --no-progress",
+        "rector": "vendor/bin/rector process --dry-run",
+        "rector-fix": "vendor/bin/rector process",
+        "format": "@pint-fix"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Simtabi\\Laranail\\Settings\\Providers\\SettingsServiceProvider"
+            ]
+        },
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "infection/extension-installer": true,
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/laranail/console"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/laranail/db-tools"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/laranail/enumerator"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/laranail/package-tools"
+        },
+        {
+            "type": "composer",
+            "url": "https://repo.packagist.org",
+            "exclude": [
+                "laranail/*"
+            ]
+        },
+        {
+            "packagist.org": false
+        }
+    ]
+}

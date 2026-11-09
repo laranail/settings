@@ -1,0 +1,26 @@
+name: Release hygiene
+
+# Thin caller. The checks live in laranail/package-tools and the workflow that
+# runs them lives in laranail/.github, so changing either is one edit rather
+# than fourteen.
+
+on:
+  schedule:
+    - cron: '23 7 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'composer.json'
+      - '.gitattributes'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  hygiene:
+    uses: laranail/.github/.github/workflows/hygiene.yml@main

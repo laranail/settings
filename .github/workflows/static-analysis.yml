@@ -1,0 +1,85 @@
+name: Static analysis
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: static-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Pint · PHPStan · Rector · Infection
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: dom, curl, libxml, mbstring, zip, fileinfo
+          coverage: none
+
+      - name: Cache Composer files
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/composer/files
+          key: composer-static-${{ hashFiles('composer.json') }}
+          restore-keys: composer-static-
+
+      - name: Drop cached laranail archives
+        # laranail/* resolve through a single MOVING v0.1.0 tag, so composer's
+        # dist cache is keyed on a name whose contents change underneath it. A
+        # restored archive is then silently stale: `composer install` reports
+        # success and unpacks whatever was cached the first time. That is how
+        # `vendor/bin/laranail-pint` went missing here while the tag carried it.
+        # Everything else is immutable per version and stays cached.
+        # POSIX command: Windows runners default to PowerShell, where this
+        # is a Remove-Item parse error rather than a no-op. Git Bash ships on
+        # the Windows images, so one line makes the step portable.
+        shell: bash
+        run: rm -rf "$(composer config cache-files-dir)/laranail"
+
+      - name: Install dependencies
+        run: composer update --prefer-stable --no-interaction --no-progress
+
+      - name: Pint (code style)
+        run: vendor/bin/laranail-pint --test
+
+      - name: PHPStan (level max)
+        run: vendor/bin/phpstan analyse --no-progress --error-format=github
+
+      - name: Rector (dry run)
+        run: vendor/bin/rector process --dry-run --no-progress-bar
+
+  mutation:
+    name: Infection (mutation testing)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: dom, curl, libxml, mbstring, zip, fileinfo, pdo, sqlite3, pdo_sqlite
+          # Infection needs per-test coverage; pcov does not emit it.
+          coverage: xdebug
+
+      - name: Install dependencies
+        run: composer update --prefer-stable --no-interaction --no-progress
+
+      - name: Infection
+        run: vendor/bin/infection --threads=max --show-mutations --no-progress --ignore-msi-with-no-mutations
