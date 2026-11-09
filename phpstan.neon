@@ -1,0 +1,11 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    # Strictest level, no baseline (design §8). An ignore needs a comment saying why.
+    level: max
+    # src only, as across the family: Larastan reads a package's own config/ file as if it sat
+    # outside the application's config directory and flags its env() calls, which is wrong.
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false
