@@ -87,7 +87,8 @@ it('cannot query a store whose trail is not in a database', function (): void {
 
 it('refuses a malformed audit row rather than inventing an entry, and ignores malformed meta', function (): void {
     settings()->set('site.name', 'Acme');
-    DB::table('settings_audit')->update(['meta' => 'not json']);
+    // Valid JSON that is not an object: a json column (MySQL, PostgreSQL) refuses text that is not JSON at all.
+    DB::table('settings_audit')->update(['meta' => json_encode('not an object')]);
 
     expect(settings()->audit()->get()[0]->meta)->toBe([]);
 

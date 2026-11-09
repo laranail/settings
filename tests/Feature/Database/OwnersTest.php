@@ -138,7 +138,7 @@ it('needs prune (and forget) to prune orphans with an actor, and audits the run'
     allowGates(Ability::Prune, Ability::Forget);
 
     expect($prune->handle($actor))->toBe(1)
-        ->and(DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'allowed')->value('meta'))->toContain('"owners":1')
+        ->and(json_decode((string) DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'allowed')->value('meta'), true))->toMatchArray(['owners' => 1])
         ->and(DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'denied')->count())->toBe(1);
 });
 

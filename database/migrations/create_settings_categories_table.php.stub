@@ -44,9 +44,16 @@ return new class extends Migration
         Schema::connection($this->getConnection())->create($name, static function (Blueprint $table) use ($name, $shape): void {
             match ($shape->ids) {
                 IdType::Bigint => $table->bigIncrements('id'),
-                IdType::Uuid   => $table->char('id', 36)->primary(),
-                IdType::Ulid   => $table->char('id', 26)->primary(),
+                IdType::Uuid   => $table->char('id', 36),
+                IdType::Ulid   => $table->char('id', 26),
             };
+
+            // An explicit command, not the fluent ->primary(): Laravel appends fluent indexes after
+            // every other command, so PostgreSQL would see the parent_id foreign key below before
+            // the key it references and refuse it (SQLSTATE 42830).
+            if ($shape->ids !== IdType::Bigint) {
+                $table->primary('id');
+            }
 
             $table->string('store', 64);
 
