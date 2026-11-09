@@ -112,8 +112,11 @@ it('reports readiness, schema drift and rows the database cannot guard', functio
     $now = now();
     $row = static fn (string $scope, string $uid, array $extra = []): array => $extra + ['scope' => $scope, 'key' => 'k', 'locale' => '', 'group' => 'k', 'uid' => $uid, 'value' => '1', 'version' => 1, 'created_at' => $now, 'updated_at' => $now];
     DB::table('settings')->insert($row('team:1', str_repeat('A', 26)));
-    // A cross-store link only an import or manual SQL could make, past the foreign key.
-    Schema::withoutForeignKeyConstraints(static fn () => DB::table('settings')->insert($row('global', str_repeat('B', 26), ['key' => 'c', 'category_id' => 9, 'category_store' => 'other'])));
+    // A cross-store link only an import or manual SQL could make: the foreign key holds (the
+    // category exists), but it belongs to another store. Disabling the key instead is not
+    // portable: PostgreSQL only defers constraints declared deferrable.
+    $other = DB::table('settings_categories')->insertGetId(['store' => 'other', 'title' => 'Other', 'slug' => 'other', 'created_at' => $now, 'updated_at' => $now]);
+    DB::table('settings')->insert($row('global', str_repeat('B', 26), ['key' => 'c', 'category_id' => $other, 'category_store' => 'other']));
 
     $this->artisan('laranail::settings.doctor')
         ->expectsOutputToContain('aliases the store does not list')
