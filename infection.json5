@@ -13,6 +13,13 @@
     "mutators": {
         "@default": true
     },
+    // Infection has no Pest framework key, so it drives Pest through the PHPUnit adapter,
+    // pointed at Pest's own binary: Pest's PHPUnit shim refuses to run Pest test files
+    // directly, which failed the initial test run (same fix as laranail/toolkit).
+    "testFramework": "phpunit",
+    "phpUnit": {
+        "customPath": "vendor/bin/pest"
+    },
     // Engineering-standard floor (design §8). Raise it as the suite matures; never lower it.
     "minMsi": 70,
     "minCoveredMsi": 70,
