@@ -6,6 +6,7 @@ namespace Simtabi\Laranail\Settings\Drivers;
 
 use Closure;
 use Exception;
+use PDOException;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Illuminate\Database\Connection;
@@ -259,7 +260,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         } catch (SettingsException $exception) {
             throw $exception;
         } catch (Exception $exception) {
-            if (! $this->readyAfterFailure($store)) {
+            if (! $this->readyAfterFailure($store, $exception)) {
                 throw new DriverUnavailable(sprintf('Store [%s]: the database layer on connection [%s] is unavailable (unreachable, or table [%s] is missing).', $store, $this->connectionName(), $this->tableFor($store)), 0, $exception);
             }
 
@@ -274,8 +275,19 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /** Asked after a failure, so the answer is fresh; a probe that itself fails means not ready. */
-    private function readyAfterFailure(StoreName $store): bool
+    /**
+     * Whether the layer is still there after a failure. Outside a transaction the readiness probe
+     * asks the database. Inside one it cannot: PostgreSQL refuses every statement in an aborted
+     * transaction, so the probe would report a healthy table as missing. There the SQLSTATE
+     * decides instead: a missing table (42S02, 42P01, SQLite's "no such table") or a connection
+     * failure (class 08) means unavailable; anything else is a failure of a live layer.
+     */
+    private function readyAfterFailure(StoreName $store, Exception $exception): bool
     {
+        if ($this->connection()->transactionLevel() > 0) {
+            return ! $this->signalsUnavailable($exception);
+        }
+
         try {
             $probe = ($this->probe)();
             $probe->flush();
@@ -284,6 +296,20 @@ final readonly class DatabaseDriver implements DatabaseBacked
         } catch (Exception) {
             return false;
         }
+    }
+
+    private function signalsUnavailable(Exception $exception): bool
+    {
+        $state = '';
+
+        if ($exception instanceof PDOException) {
+            $info = $exception->errorInfo[0] ?? null;
+            $state = is_string($info) ? $info : (string) $exception->getCode();
+        }
+
+        return in_array($state, ['42S02', '42P01'], true)
+            || str_starts_with($state, '08')
+            || str_contains($exception->getMessage(), 'no such table');
     }
 
     private function table(StoreName $store): Builder

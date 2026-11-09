@@ -96,7 +96,7 @@ it('needs manage_categories to change categories and view to read them, and audi
     $audit = DB::table('settings_audit')->where('action', 'manage_categories')->orderBy('occurred_at')->get();
 
     expect($audit->pluck('outcome')->all())->toBe(['denied', 'allowed'])
-        ->and(json_decode((string) $audit->last()?->meta, true))->toBe(['operation' => 'create', 'category' => 'mail'])
+        ->and(json_decode((string) $audit->last()?->meta, true))->toEqualCanonicalizing(['operation' => 'create', 'category' => 'mail'])
         ->and(settings()->as(user())->categories()->all())->toHaveCount(1);
 });
 

@@ -47,7 +47,7 @@ it('refuses to install over a table of the same name that is not its own (D-4)',
         $table->string('name');
     });
 
-    expect(fn () => $this->artisan('laranail::settings.install')->run())->toThrow(InvalidConfiguration::class, 'testing.settings')
+    expect(fn () => $this->artisan('laranail::settings.install')->run())->toThrow(InvalidConfiguration::class, DB::getDefaultConnection() . '.settings')
         ->and(settingsMigrations())->toBe([]);
 
     // The package's own tables are not foreign: installing again over them is fine.
@@ -103,7 +103,7 @@ it('reports readiness, schema drift and rows the database cannot guard', functio
     ]);
 
     $this->artisan('laranail::settings.doctor')
-        ->expectsOutputToContain('Table [settings] on [testing] is ready.')
+        ->expectsOutputToContain(sprintf('Table [settings] on [%s] is ready.', DB::getDefaultConnection()))
         ->expectsOutputToContain('No schema drift.')
         ->expectsOutputToContain('Every scope uses a listed alias.')
         ->expectsOutputToContain('No database layer')
