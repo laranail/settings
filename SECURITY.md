@@ -4,9 +4,13 @@ Where this file is silent, the [laranail security policy](https://github.com/lar
 
 ## Reporting a vulnerability
 
-Please report security vulnerabilities to **security@simtabi.com**. Do not open a public issue for
-security reports. You will receive an acknowledgement within a reasonable timeframe, and we will work
-with you on a coordinated disclosure.
+**Prefer GitHub private vulnerability reporting:** open it from this repository's
+[Security tab](https://github.com/laranail/settings/security/advisories/new). The report arrives
+attached to the repository with a draft advisory and a CVE request path already in place.
+
+Email is the fallback for anyone who would rather not use GitHub: **security@simtabi.com**. Do not
+open a public issue for security reports. You will receive an acknowledgement within a reasonable
+timeframe, and we will work with you on a coordinated disclosure.
 
 ## Scope
 
