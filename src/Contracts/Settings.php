@@ -4,19 +4,32 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Contracts;
 
+use Illuminate\Http\Request;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
+use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
+use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
 
 /**
- * Read and write settings. `store()`, `for()` and `locale()` return a new handle; the shared
- * instance never changes, so a scoped handle cannot leak into another request.
+ * Read and write settings. `store()`, `for()`, `locale()`, `as()`, `asSystem()` and `because()`
+ * return a new handle; the shared instance never changes, so a scoped handle cannot leak into
+ * another request.
+ *
+ * A handle with an actor checks every operation, reads included, through the configured
+ * authorizer. A handle without one runs as trusted code and is audited as `system`, unless
+ * `authorization.require_actor` is on.
  */
 interface Settings
 {
@@ -29,10 +42,50 @@ interface Settings
     /** A handle reading and writing one locale. */
     public function locale(string $locale): static;
 
+    /**
+     * A handle acting as this user or actor: every operation is authorized and audited.
+     */
+    public function as(Authenticatable|Actor $actor): static;
+
+    /** A handle acting as trusted system code, explicitly; allowed even when an actor is required. */
+    public function asSystem(?string $reason = null): static;
+
+    /**
+     * A handle acting as whoever the configured actor resolver finds for the request.
+     *
+     * @throws ActorRequired when nobody is authenticated
+     */
+    public function asCurrentActor(?Request $request = null): static;
+
+    /** A handle whose changes carry this reason in the audit trail. */
+    public function because(string $reason): static;
+
+    /** The actor this handle acts as, or null for trusted code. */
+    public function actor(): ?Actor;
+
+    /** Configuration changed in code for the current request only. */
+    public function configuration(): RuntimeConfiguration;
+
+    /**
+     * Apply configuration changes for the duration of `$run` only, then restore them.
+     *
+     * @template TResult
+     *
+     * @param callable(RuntimeConfiguration): mixed $change
+     * @param callable(): TResult $run
+     *
+     * @return TResult
+     */
+    public function withConfiguration(callable $change, callable $run): mixed;
+
     /** The value, or `$default` when nothing is stored and the definition has no default. */
     public function get(string $key, mixed $default = null): mixed;
 
-    /** Presence-aware read: found (value possibly null) or missing. */
+    /**
+     * Presence-aware read: found (value possibly null) or missing.
+     *
+     * @throws AccessDenied when the actor may not view the key (or, for a sensitive key, its value)
+     */
     public function lookup(string $key): Lookup;
 
     public function has(string $key): bool;
@@ -56,7 +109,7 @@ interface Settings
      */
     public function array(string $key): array;
 
-    /** How a read resolves: every step tried, and the answer. */
+    /** How a read resolves: every step tried, and the answer, redacted when the actor may not view it. */
     public function explain(string $key): Explanation;
 
     /**
@@ -65,6 +118,10 @@ interface Settings
      * @throws LockedSetting
      * @throws InvalidSettingValue
      * @throws StoreNotWritable
+     * @throws AccessDenied
+     * @throws ActorRequired
+     * @throws VerificationRequired
+     * @throws ApprovalUnavailable
      */
     public function set(string $key, mixed $value): void;
 

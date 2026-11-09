@@ -41,6 +41,23 @@ final class DriverFactory
         $this->custom[$name] = $factory;
     }
 
+    /**
+     * A copy that can also build these custom drivers (runtime configuration uses it, so a
+     * driver registered for one request never reaches the shared factory).
+     *
+     * @param array<string, Closure(LayerConfig): Driver> $drivers
+     */
+    public function withExtensions(array $drivers): self
+    {
+        $copy = clone $this;
+
+        foreach ($drivers as $name => $factory) {
+            $copy->extend($name, $factory);
+        }
+
+        return $copy;
+    }
+
     /** @return list<string> every driver name this factory can build */
     public function names(): array
     {

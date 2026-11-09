@@ -13,6 +13,7 @@ use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
 
 /**
  * Builds and validates every store from configuration on first use. Configuration errors are
@@ -22,6 +23,9 @@ final class StoreRegistry
 {
     /** @var array<string, Store>|null */
     private ?array $stores = null;
+
+    /** The runtime configuration generation the built stores reflect. */
+    private int $builtGeneration = 0;
 
     /**
      * @param array<array-key, mixed> $storeConfig `laranail.settings.stores`
@@ -33,12 +37,26 @@ final class StoreRegistry
         private readonly array $storeConfig,
         private readonly array $layerConfig,
         private readonly ?Driver $override = null,
+        private readonly ?RuntimeConfiguration $runtime = null,
     ) {}
 
     /** A copy whose every layer is replaced by one driver (used by the fake). */
     public function withEveryLayer(Driver $driver): self
     {
-        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver);
+        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime);
+    }
+
+    /**
+     * Build every store and every defined layer, raising InvalidConfiguration for the first
+     * problem. Runtime configuration calls this before accepting a change.
+     */
+    public function validate(): void
+    {
+        $this->all();
+
+        foreach (array_keys($this->layerConfigs()) as $name) {
+            $this->layer((string) $name, 'laranail.settings');
+        }
     }
 
     public function default(): Store
@@ -66,7 +84,14 @@ final class StoreRegistry
     /** @return array<string, Store> */
     public function all(): array
     {
-        return $this->stores ??= $this->build();
+        $generation = $this->runtime?->generation() ?? 0;
+
+        if ($this->stores === null || $this->builtGeneration !== $generation) {
+            $this->stores = $this->build();
+            $this->builtGeneration = $generation;
+        }
+
+        return $this->stores;
     }
 
     /** @return array<string, Store> */
@@ -75,7 +100,7 @@ final class StoreRegistry
         $built = [];
         $claimed = [];
 
-        foreach ($this->storeConfig as $name => $config) {
+        foreach ($this->storeConfigs() as $name => $config) {
             $path = 'laranail.settings.stores.' . $name;
 
             if (! is_array($config)) {
@@ -110,6 +135,7 @@ final class StoreRegistry
                 owners: $owners,
                 strict: ($config['strict'] ?? false) === true,
                 inherits: ($config['inherits'] ?? false) === true,
+                locksOverridable: $this->locksOverridable($config['locks'] ?? [], $path . '.locks'),
             );
         }
 
@@ -122,7 +148,7 @@ final class StoreRegistry
 
     private function layer(string $name, string $storePath): Layer
     {
-        $config = $this->layerConfig[$name] ?? null;
+        $config = $this->layerConfigs()[$name] ?? null;
 
         if (! is_array($config)) {
             throw new InvalidConfiguration(sprintf('%s.layers: layer [%s] is not defined in laranail.settings.layers.', $storePath, $name));
@@ -137,7 +163,33 @@ final class StoreRegistry
         $options = array_filter($config, is_string(...), ARRAY_FILTER_USE_KEY);
         $layer = new LayerConfig($name, $driver, ($config['writable'] ?? true) === true, $options);
 
-        return new Layer($name, $this->override ?? $this->drivers->make($layer), $this->override instanceof Driver ? DriverType::Array : DriverType::tryFrom($driver));
+        return new Layer($name, $this->override ?? $this->driverFactory()->make($layer), $this->override instanceof Driver ? DriverType::Array : DriverType::tryFrom($driver));
+    }
+
+    /** @return array<array-key, mixed> config stores, with runtime additions over them */
+    private function storeConfigs(): array
+    {
+        return array_replace($this->storeConfig, $this->runtime?->stores() ?? []);
+    }
+
+    /** @return array<array-key, mixed> config layers, with runtime additions over them */
+    private function layerConfigs(): array
+    {
+        return array_replace($this->layerConfig, $this->runtime?->layers() ?? []);
+    }
+
+    private function driverFactory(): DriverFactory
+    {
+        return $this->runtime instanceof RuntimeConfiguration ? $this->drivers->withExtensions($this->runtime->drivers()) : $this->drivers;
+    }
+
+    private function locksOverridable(mixed $locks, string $path): bool
+    {
+        if (! is_array($locks)) {
+            throw new InvalidConfiguration($path . ': an array is required.');
+        }
+
+        return ($locks['overridable'] ?? false) === true;
     }
 
     /** @return list<string> */

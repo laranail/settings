@@ -53,7 +53,8 @@
         "roave/security-advisories": "dev-latest"
     },
     "suggest": {
-        "laranail/installer-headless": "Lets a store's database layer be skipped while the application is being installed (design: bootstrap mode)."
+        "laranail/installer-headless": "Lets a store's database layer be skipped while the application is being installed (design: bootstrap mode).",
+        "laravel/sanctum": "Enables the sanctum actor resolver, which makes a token's settings:<ability> abilities a ceiling on what the token may do."
     },
     "autoload": {
         "psr-4": {

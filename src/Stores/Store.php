@@ -11,6 +11,8 @@ use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 
 /**
  * A configured store: its layers in read order, the owner aliases it accepts, and its policies.
+ * `locksOverridable` (`locks.overridable`) lets an actor holding `override_lock` write a locked
+ * setting; it is off by default, so a lock binds everyone.
  */
 final readonly class Store
 {
@@ -24,6 +26,7 @@ final readonly class Store
         public array $owners,
         public bool $strict,
         public bool $inherits,
+        public bool $locksOverridable = false,
     ) {}
 
     public function accepts(string $alias): bool

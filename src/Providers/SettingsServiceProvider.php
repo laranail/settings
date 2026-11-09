@@ -4,34 +4,65 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Providers;
 
+use Closure;
 use Override;
+use Psr\Log\LogLevel;
+use Psr\Log\NullLogger;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Request;
+use Illuminate\Log\LogManager;
+use Illuminate\Contracts\Session\Session;
+use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Package\Tools\Package;
 use Illuminate\Contracts\Validation\Factory;
+use Simtabi\Laranail\Settings\Audit\Auditor;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\SettingsManager;
 use Illuminate\Contracts\Foundation\Application;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Audit\LogAuditSink;
 use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Contracts\Verifier;
+use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Audit\NullAuditSink;
+use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Support\ValuePipeline;
+use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Filesystem\Factory as Disks;
+use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Casting\CasterRegistry;
 use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Contracts\ValueValidator;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
+use Simtabi\Laranail\Settings\Authorization\AccessGuard;
+use Simtabi\Laranail\Settings\Logging\OperationalLogger;
+use Simtabi\Laranail\Settings\Verification\NullVerifier;
 use Simtabi\Laranail\Package\Tools\Commands\InstallCommand;
+use Simtabi\Laranail\Settings\Authorization\GateAuthorizer;
+use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Settings\Support\LaravelValueValidator;
 use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
+use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Authentication\SanctumActorResolver;
+use Simtabi\Laranail\Settings\Authorization\PermissionsAuthorizer;
+use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
 use Simtabi\Laranail\Package\Tools\Providers\PackageServiceProvider;
+use Simtabi\Laranail\Settings\Verification\PasswordConfirmationVerifier;
 
 /**
  * Registers laranail/settings with the host application.
@@ -40,6 +71,11 @@ use Simtabi\Laranail\Package\Tools\Providers\PackageServiceProvider;
  * `laranail::settings-*`, and the install command `laranail::settings.install`. Nothing here
  * touches the database or the filesystem at boot: stores, drivers and definitions are built on
  * first use, and the encrypter is resolved only when a value is encrypted or decrypted.
+ *
+ * Everything derived from a request (the actor resolver, the runtime configuration, the access
+ * guard, the auditor and the log) is bound `scoped`, so Octane and queue workers start each
+ * request and job clean. Configuration naming an unknown driver, sink or level raises
+ * InvalidConfiguration with its config path on first use.
  */
 final class SettingsServiceProvider extends PackageServiceProvider
 {
@@ -83,11 +119,24 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
         // Scoped: rebuilt per request and per queued job under Octane and Horizon, so no
         // per-request state can survive into the next one.
+        $this->app->scoped(RuntimeConfiguration::class, static fn (Application $app): RuntimeConfiguration => new RuntimeConfiguration(
+            $app->make(DriverFactory::class),
+            self::string($app, 'laranail.settings.default', 'settings'),
+            self::array($app, 'laranail.settings.stores'),
+            self::array($app, 'laranail.settings.layers'),
+            $app->make(CasterRegistry::class),
+            static function (string $change) use ($app): void {
+                $app->make(OperationalLogger::class)->info('laranail/settings runtime configuration: ' . $change);
+                $app->make(Auditor::class)->record(AuditAction::Configure, AuditOutcome::Allowed, null, null, meta: ['change' => $change]);
+            },
+        ));
+
         $this->app->scoped(StoreRegistry::class, static fn (Application $app): StoreRegistry => new StoreRegistry(
             $app->make(DriverFactory::class),
             self::string($app, 'laranail.settings.default', 'settings'),
             self::array($app, 'laranail.settings.stores'),
             self::array($app, 'laranail.settings.layers'),
+            runtime: $app->make(RuntimeConfiguration::class),
         ));
 
         $this->app->singleton(ValuePipeline::class);
@@ -101,10 +150,82 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $this->app->singleton(SettingWriter::class, static fn (Application $app): SettingWriter => new SettingWriter(
             $app->make(ValuePipeline::class),
             $app->make(Dispatcher::class),
-            static fn (): CarbonImmutable => CarbonImmutable::now(),
+            self::clock(),
         ));
 
-        $this->app->scoped(Settings::class, SettingsManager::class);
+        $this->registerAccess();
+
+        $this->app->scoped(SettingActions::class, static fn (Application $app): SettingActions => SettingActions::using(
+            $app->make(SettingWriter::class),
+            $app->make(AccessGuard::class),
+        ));
+
+        $this->app->scoped(Settings::class, static fn (Application $app): Settings => new SettingsManager(
+            $app->make(StoreRegistry::class),
+            $app->make(DefinitionRegistry::class),
+            $app->make(Resolver::class),
+            $app->make(SettingWriter::class),
+            actions: $app->make(SettingActions::class),
+            access: $app->make(AccessGuard::class),
+            runtime: $app->make(RuntimeConfiguration::class),
+        ));
+    }
+
+    private static function authorizer(Application $app, mixed $driver, string $path): Authorizer
+    {
+        return match ($driver) {
+            'gate'        => new GateAuthorizer($app->make(Gate::class)),
+            'permissions' => new PermissionsAuthorizer(self::array($app, 'laranail.settings.authorization.permissions')),
+            default       => self::instance($app, $driver, Authorizer::class, $path),
+        };
+    }
+
+    private static function auditSink(Application $app, mixed $sink, string $path): AuditSink
+    {
+        return match ($sink) {
+            'log'   => new LogAuditSink($app->make(OperationalLogger::class)),
+            'null'  => new NullAuditSink,
+            default => self::instance($app, $sink, AuditSink::class, $path),
+        };
+    }
+
+    /**
+     * A custom implementation named by class in config: it must exist and implement the contract.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $contract
+     *
+     * @return T
+     */
+    private static function instance(Application $app, mixed $class, string $contract, string $path): object
+    {
+        if (! is_string($class) || ! class_exists($class) || ! is_subclass_of($class, $contract)) {
+            throw new InvalidConfiguration(sprintf('%s: [%s] is not a built-in name or a class implementing %s.', $path, is_scalar($class) ? $class : get_debug_type($class), $contract));
+        }
+
+        $instance = $app->make($class);
+
+        return $instance instanceof $contract ? $instance : throw new InvalidConfiguration(sprintf('%s: [%s] did not build a %s.', $path, $class, $contract));
+    }
+
+    /** @return Closure(): CarbonImmutable */
+    private static function clock(): Closure
+    {
+        return static fn (): CarbonImmutable => now()->toImmutable();
+    }
+
+    private static function integer(Application $app, string $key, int $default): int
+    {
+        $value = $app->make(Repository::class)->get($key, $default);
+
+        return is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : $default;
+    }
+
+    /** @return list<string> */
+    private static function strings(Application $app, string $key): array
+    {
+        return array_values(array_filter(self::array($app, $key), is_string(...)));
     }
 
     private static function string(Application $app, string $key, string $default): string
@@ -120,5 +241,96 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $value = $app->make(Repository::class)->get($key, []);
 
         return is_array($value) ? $value : [];
+    }
+
+    /** Actor resolution, authorization, verification, audit and the operational log. */
+    private function registerAccess(): void
+    {
+        $this->app->scoped(OperationalLogger::class, static function (Application $app): OperationalLogger {
+            $channel = $app->make(Repository::class)->get('laranail.settings.logging.channel');
+
+            return new OperationalLogger(
+                $channel === false ? new NullLogger : $app->make(LogManager::class)->channel(is_string($channel) ? $channel : null),
+                self::string($app, 'laranail.settings.logging.level', LogLevel::INFO),
+                $app->make(RuntimeConfiguration::class),
+            );
+        });
+
+        $this->app->scoped(Auditor::class, static fn (Application $app): Auditor => new Auditor(
+            array_map(
+                static fn (mixed $sink, int|string $index): AuditSink => self::auditSink($app, $sink, 'laranail.settings.audit.sinks.' . $index),
+                self::array($app, 'laranail.settings.audit.sinks'),
+                array_keys(self::array($app, 'laranail.settings.audit.sinks')),
+            ),
+            self::clock(),
+            $app->make(RuntimeConfiguration::class),
+        ));
+
+        $this->app->scoped(Authorizer::class, static function (Application $app): Authorizer {
+            $driver = $app->make(Repository::class)->get('laranail.settings.authorization.driver', 'gate');
+
+            if (is_array($driver)) {
+                return new ChainAuthorizer(array_values(array_map(
+                    static fn (mixed $name, int|string $index): Authorizer => self::authorizer($app, $name, 'laranail.settings.authorization.driver.' . $index),
+                    $driver,
+                    array_keys($driver),
+                )));
+            }
+
+            return self::authorizer($app, $driver, 'laranail.settings.authorization.driver');
+        });
+
+        $this->app->scoped(Verifier::class, static function (Application $app): Verifier {
+            $driver = $app->make(Repository::class)->get('laranail.settings.verification.driver', 'password_confirmation');
+
+            return match ($driver) {
+                'password_confirmation' => new PasswordConfirmationVerifier(
+                    static fn (): ?Session => $app->bound('request') && $app->make('request') instanceof Request && $app->make('request')->hasSession()
+                        ? $app->make('request')->session()
+                        : null,
+                    self::integer($app, 'auth.password_timeout', 10800),
+                    self::clock(),
+                ),
+                'actor' => new ActorTimestampVerifier(self::integer($app, 'laranail.settings.verification.ttl', 900), self::clock()),
+                'none'  => new NullVerifier,
+                default => self::instance($app, $driver, Verifier::class, 'laranail.settings.verification.driver'),
+            };
+        });
+
+        $this->app->scoped(ActorResolver::class, static function (Application $app): ActorResolver {
+            $resolver = $app->make(Repository::class)->get('laranail.settings.authentication.resolver', 'guard');
+            $guards = self::strings($app, 'laranail.settings.authentication.guards');
+            $request = static fn (): ?Request => $app->bound('request') && $app->make('request') instanceof Request ? $app->make('request') : null;
+
+            return match ($resolver) {
+                'guard'   => new GuardActorResolver($app->make(AuthFactory::class), $guards, $request),
+                'sanctum' => new SanctumActorResolver($app->make(AuthFactory::class), $guards, $request),
+                default   => self::instance($app, $resolver, ActorResolver::class, 'laranail.settings.authentication.resolver'),
+            };
+        });
+
+        $this->app->scoped(AccessGuard::class, static function (Application $app): AccessGuard {
+            $undefined = $app->make(Repository::class)->get('laranail.settings.authorization.undefined', 'deny');
+
+            if (! in_array($undefined, ['allow', 'deny'], true)) {
+                throw new InvalidConfiguration('laranail.settings.authorization.undefined: use [allow] or [deny].');
+            }
+
+            return new AccessGuard(
+                $app->make(Authorizer::class),
+                $app->make(Verifier::class),
+                $app->make(ActorResolver::class),
+                $app->make(Auditor::class),
+                $app->make(OperationalLogger::class),
+                array_map(
+                    static fn (string $ability): Ability => Ability::tryFrom($ability)
+                        ?? throw new InvalidConfiguration(sprintf('laranail.settings.verification.abilities: unknown ability [%s].', $ability)),
+                    self::strings($app, 'laranail.settings.verification.abilities'),
+                ),
+                $undefined === 'allow',
+                $app->make(Repository::class)->get('laranail.settings.authorization.require_actor', false) === true,
+                $app->make(RuntimeConfiguration::class),
+            );
+        });
     }
 }

@@ -91,7 +91,7 @@ final class DefinitionRegistry
             $builder->rules(array_values(array_filter($attributes['rules'], is_string(...))));
         }
 
-        foreach (['encrypted' => 'encrypted', 'public' => 'public', 'locked' => 'locked', 'localised' => 'localised'] as $flag => $method) {
+        foreach (['encrypted' => 'encrypted', 'public' => 'public', 'locked' => 'locked', 'localised' => 'localised', 'sensitive' => 'sensitive', 'requires_verification' => 'requiresVerification', 'requires_approval' => 'requiresApproval'] as $flag => $method) {
             if (($attributes[$flag] ?? false) === true) {
                 $builder->{$method}();
             }
