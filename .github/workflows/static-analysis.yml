@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # The whole-package mutation run (every src file) is weekly; pull requests mutate only
+  # the files they change, so they finish in minutes.
+  schedule:
+    - cron: '23 6 * * 1'
 
 permissions:
   contents: read
@@ -64,12 +68,15 @@ jobs:
   mutation:
     name: Mutation testing (Pest)
     runs-on: ubuntu-latest
-    # About 3,900 mutations since phase 2b; sequential runs took over 20 minutes.
-    timeout-minutes: 60
+    # A pull request mutates only the src/ files it changes; the weekly and dispatched runs
+    # mutate everything with a longer limit.
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 15 || 60 }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
@@ -82,12 +89,31 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-stable --no-interaction --no-progress
 
+      - name: Choose what to mutate
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            files=$(git diff --name-only --diff-filter=AMR "$BASE_SHA"...HEAD -- 'src/*.php' | paste -sd, -)
+            echo "paths=$files" >> "$GITHUB_OUTPUT"
+            echo "Mutating: ${files:-nothing (no src/ changes)}"
+          else
+            echo "paths=" >> "$GITHUB_OUTPUT"
+            echo "Mutating: everything"
+          fi
+
       - name: Mutation testing (minimum score 70)
         # Pest's own mutator, not Infection: Infection has no Pest adapter, reads Pest's
         # version as PHPUnit's, writes a config PHPUnit 12 rejects, and cannot map Pest's
-        # generated test classes to its JUnit report.
-        # --parallel: each worker gets its own faked disk (Storage::fake appends the
-        # ParallelTesting token), so the runtime JSON files never collide.
-        # The schema matrix (group `matrix`) runs end to end over every shape and covers almost
-        # every line, so each mutant would re-run it; the shapes are tested in the Tests workflow.
-        run: vendor/bin/pest --mutate --everything --parallel --exclude-group=matrix --min=70
+        # generated test classes to its JUnit report. The schema matrix (group `matrix`)
+        # covers almost every line, so it is left out; the Tests workflow runs it.
+        if: github.event_name != 'pull_request' || steps.scope.outputs.paths != ''
+        env:
+          MUTATE_PATHS: ${{ steps.scope.outputs.paths }}
+        run: |
+          if [ -n "$MUTATE_PATHS" ]; then
+            vendor/bin/pest --mutate --path="$MUTATE_PATHS" --parallel --exclude-group=matrix --ignore-min-score-on-zero-mutations --min=70
+          else
+            vendor/bin/pest --mutate --everything --parallel --exclude-group=matrix --min=70
+          fi
