@@ -1,14 +1,15 @@
 # laranail/settings
 
-No badges yet: the package is not on a registry and its repository has no CI runs to report.
+No badges yet: the package is not on a registry and its CI history is only days old.
 They are added once each claim is true.
 
 > Key-value settings for any Laravel owner (the application, a user, a tenant, a product), stored in layered stores that work before the database exists.
 
 Requires PHP 8.4.1+ or 8.5 and Laravel 13. Works on MySQL, PostgreSQL and SQLite; SQL Server is not supported in 0.x.
 
-> **Pre-release.** This is the package skeleton (design phase 0). The settings API, stores and
-> drivers arrive in the next phases; see [Architecture](docs/architecture.md).
+> **Pre-release.** The engine reads and writes through file and config layers today; the
+> database layer, caching and history arrive in the next phases. See
+> [Getting started](docs/getting-started.md).
 
 ## Install
 
@@ -23,23 +24,31 @@ composer require laranail/settings
 
 ### Getting started
 
-Publish the config file (optional; the package runs on its defaults):
+Nothing is required: the default store writes to `storage/app/private/laranail/settings/settings.json`
+and reads shipped defaults from `settings/defaults.php` when that file exists. To change stores,
+layers or definitions, publish the config:
 
 ```bash
 php artisan laranail::settings.install
 ```
 
-That writes `config/laranail/settings.php`. The only key today is the default store name,
-overridable with `LARANAIL_SETTINGS_STORE`.
-
 ### Usage
 
 ```php
-config('laranail.settings.default'); // 'settings'
+use Simtabi\Laranail\Settings\Facades\Settings;
+
+Settings::set('site.name', 'Acme');
+Settings::get('site.name');                 // 'Acme'
+Settings::get('site.tagline', 'Welcome');   // the default when nothing is stored
 ```
 
-Reading and writing settings (`$settings->get()`, `->for($user)`, stores and categories) lands
-with the engine; [Getting started](docs/getting-started.md) tracks what works today, and the
+```php
+// Per owner, in the store that accepts its alias, falling back to parents when allowed.
+Settings::for($user)->set('ui.theme', 'dark');
+Settings::for($user)->get('ui.theme', 'light');
+```
+
+[Getting started](docs/getting-started.md) walks through stores, owners and definitions; the
 [Documentation](#documentation) index lists every page.
 
 ## <a name="documentation"></a>Documentation
@@ -49,10 +58,22 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 ### Guides
 
 - [Installation](docs/installation.md) — Composer repositories, requirements and the install command.
-- [Getting started](docs/getting-started.md) — what the package does today and what comes next.
+- [Getting started](docs/getting-started.md) — stores, owners and definitions in a first application.
 - [Configuration](docs/configuration.md) — every key in `config/laranail/settings.php`.
 - [Architecture](docs/architecture.md) — stores, layers, owners, categories and why they are shaped this way.
 - [Release](docs/release.md) — versioning, tags and how a release is cut.
+
+### Reference
+
+- [Settings API](docs/tools/settings-api.md) — handles, reads, writes and the exceptions they raise.
+- [Definitions](docs/tools/definitions.md) — types, defaults, rules, encryption, locks and precedence.
+- [Drivers and layers](docs/tools/drivers.md) — the built-in drivers and custom ones.
+- [Owners and inheritance](docs/tools/owners.md) — owner references, store routing and the cascade.
+
+### Recipes
+
+- [Ship defaults with the application](docs/recipes/shipped-defaults.md) — a versioned defaults file instead of `.env`.
+- [Test code that uses settings](docs/recipes/testing-with-the-fake.md) — `Settings::fake()` and its assertions.
 
 ## Contributing & security
 

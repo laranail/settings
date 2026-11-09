@@ -12,17 +12,57 @@ declare(strict_types=1);
 |
 |     php artisan laranail::settings.install
 |
-| Stores, layers and their drivers arrive with the engine (design phase 1).
-| Only keys the package actually reads live here, so a published copy never
-| advertises a setting that does nothing.
+| The database layer arrives in the next release; until then a store reads
+| and writes its JSON runtime file and reads its shipped PHP defaults.
 |
 */
 
 return [
 
     /*
-    | The store used when a call does not name one.
+    | The store used when a call names neither a store nor an owner.
     */
     'default' => env('LARANAIL_SETTINGS_STORE', 'settings'),
+
+    /*
+    | Stores. `layers` are read in order; writes go to the first writable one.
+    | `owners` lists the morph aliases this store holds values for (each alias
+    | belongs to one store). `strict` makes keys without a definition an error.
+    | `inherits` lets owners fall back to their parents and to the global value
+    | when a definition does not say otherwise.
+    */
+    'stores' => [
+        'settings' => [
+            'layers'   => ['runtime', 'shipped'],
+            'owners'   => [],
+            'strict'   => false,
+            'inherits' => false,
+        ],
+    ],
+
+    /*
+    | Layers, by name. Drivers: json, php, config, array, or a custom one
+    | registered with DriverFactory::extend(). A JSON path must contain {store}.
+    */
+    'layers' => [
+        'runtime' => [
+            'driver' => 'json',
+            'disk'   => env('LARANAIL_SETTINGS_RUNTIME_DISK', 'local'),
+            'path'   => 'laranail/settings/{store}.json',
+        ],
+        'shipped' => [
+            'driver'   => 'php',
+            'path'     => 'settings/defaults.php',
+            'writable' => false,
+        ],
+    ],
+
+    /*
+    | Definitions, `key => attributes`: type, default, rules, encrypted,
+    | public, locked, localised, inherits, overridable_by, precedence,
+    | label, description, category, group, store. Definitions can also be
+    | registered in code through DefinitionRegistry::define().
+    */
+    'definitions' => [],
 
 ];
