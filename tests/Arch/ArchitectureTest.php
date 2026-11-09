@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+
 /**
  * The rules from the design (§7.10) that a reviewer would otherwise have to remember.
  */
@@ -9,10 +12,15 @@ arch('every source file declares strict types')
     ->expect('Simtabi\Laranail\Settings')
     ->toUseStrictTypes();
 
-arch('classes are final unless Laravel requires extension')
+arch('classes are final unless they are an exception base')
     ->expect('Simtabi\Laranail\Settings')
     ->classes()
-    ->toBeFinal();
+    ->toBeFinal()
+    ->ignoring([
+        // Bases callers catch; their subtypes are final.
+        SettingsException::class,
+        InvalidIdentifier::class,
+    ]);
 
 arch('nothing outside Providers and Facades reaches into the container')
     ->expect('Simtabi\Laranail\Settings')
