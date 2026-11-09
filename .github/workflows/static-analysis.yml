@@ -83,11 +83,22 @@ jobs:
         with:
           php-version: '8.5'
           extensions: dom, curl, libxml, mbstring, zip, fileinfo, pdo, sqlite3, pdo_sqlite
-          # Pest mutation testing needs a coverage driver.
-          coverage: xdebug
+          # Pest mutation testing needs a coverage driver; PCOV is several times faster than Xdebug.
+          coverage: pcov
 
       - name: Install dependencies
         run: composer update --prefer-stable --no-interaction --no-progress
+
+      # Pest caches each mutant's result by the code and tests it depends on; restoring it means
+      # a re-run (a fix pushed to the same pull request) only tests what changed.
+      - name: Restore the mutation cache
+        uses: actions/cache@v6
+        with:
+          path: /tmp/pest-mutate-cache
+          key: pest-mutate-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            pest-mutate-${{ github.head_ref || github.ref_name }}-
+            pest-mutate-main-
 
       - name: Choose what to mutate
         id: scope
@@ -113,7 +124,7 @@ jobs:
           MUTATE_PATHS: ${{ steps.scope.outputs.paths }}
         run: |
           if [ -n "$MUTATE_PATHS" ]; then
-            vendor/bin/pest --mutate --path="$MUTATE_PATHS" --parallel --exclude-group=matrix --ignore-min-score-on-zero-mutations --min=70
+            vendor/bin/pest --mutate --path="$MUTATE_PATHS" --parallel --processes=8 --exclude-group=matrix --ignore-min-score-on-zero-mutations --min=70
           else
-            vendor/bin/pest --mutate --everything --parallel --exclude-group=matrix --min=70
+            vendor/bin/pest --mutate --everything --parallel --processes=8 --exclude-group=matrix --min=70
           fi
