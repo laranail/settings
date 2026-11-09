@@ -31,7 +31,27 @@ final readonly class Resolver
         private StoreRegistry $stores,
         private ValuePipeline $pipeline,
         private string $fallbackLocale,
+        private PreloadedRecords $preloaded = new PreloadedRecords,
     ) {}
+
+    /**
+     * Load these scopes now, one read per store and layer, and answer later reads of them from
+     * memory for the rest of the request.
+     *
+     * @param list<array{Store, list<Scope>}> $groups
+     */
+    public function preload(array $groups): void
+    {
+        foreach ($groups as [$store, $scopes]) {
+            $this->preloaded->remember($store->name, $scopes, $store->load($scopes));
+        }
+    }
+
+    /** Drop what was preloaded for one scope (it was just written). */
+    public function forgetPreloaded(Store $store, Scope $scope): void
+    {
+        $this->preloaded->forget($store->name, $scope);
+    }
 
     /** @param list<OwnerRef> $parents */
     public function resolve(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, array $parents, ?Definition $definition): Explanation
@@ -114,10 +134,41 @@ final readonly class Resolver
         $loaded = [];
 
         foreach ($stores as $name => $store) {
-            $loaded[$name] = $store->load(array_values($scopes[$name]));
+            $loaded[$name] = $this->load($store, array_values($scopes[$name]));
         }
 
         return $loaded;
+    }
+
+    /**
+     * One store's records for these scopes: preloaded scopes from memory, the rest in one read.
+     *
+     * @param list<Scope> $scopes
+     *
+     * @return array<string, RecordSet>
+     */
+    private function load(Store $store, array $scopes): array
+    {
+        $missing = array_values(array_filter($scopes, fn (Scope $scope): bool => ! $this->preloaded->has($store->name, $scope)));
+
+        if ($missing === $scopes) {
+            return $store->load($scopes);
+        }
+
+        $fresh = $missing === [] ? [] : $store->load($missing);
+        $merged = [];
+
+        foreach ($store->layers as $layer) {
+            $records = isset($fresh[$layer->name]) ? $fresh[$layer->name]->all() : [];
+
+            foreach ($scopes as $scope) {
+                $records = [...$records, ...($this->preloaded->get($store->name, $scope)[$layer->name] ?? [])];
+            }
+
+            $merged[$layer->name] = new RecordSet($records);
+        }
+
+        return $merged;
     }
 
     /** @return list<Locale> requested → fallback → none, without duplicates */

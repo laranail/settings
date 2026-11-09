@@ -24,13 +24,17 @@ composer require laranail/settings
 
 ### Getting started
 
-Nothing is required: the default store writes to `storage/app/private/laranail/settings/settings.json`
-and reads shipped defaults from `settings/defaults.php` when that file exists. To change stores,
-layers or definitions, publish the config:
+Publish the config and the migrations (`settings`, `settings_categories`, `settings_audit`), then
+migrate: the default store reads the database first, then its runtime file, then shipped defaults
+from `settings/defaults.php` when that file exists.
 
 ```bash
 php artisan laranail::settings.install
+php artisan migrate
 ```
+
+An application without a database drops `database` from `stores.settings.layers` and keeps its
+values in `storage/app/private/laranail/settings/settings.json`.
 
 ### Usage
 
@@ -73,6 +77,9 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Settings API](docs/tools/settings-api.md) — handles, reads, writes and the exceptions they raise.
 - [Definitions](docs/tools/definitions.md) — types, defaults, rules, encryption, locks and precedence.
 - [Drivers and layers](docs/tools/drivers.md) — the built-in drivers and custom ones.
+- [Database](docs/tools/database.md) — the tables, version-checked writes, eager loading and `HasSettings`.
+- [Categories](docs/tools/categories.md) — nested, per-store categories and the rules that guard them.
+- [Commands](docs/tools/commands.md) — install, make-store, promote, doctor and the prune commands.
 - [Owners and inheritance](docs/tools/owners.md) — owner references, store routing and the cascade.
 - [Access control](docs/tools/access-control.md) — actors, abilities, authorizers, guarded locks, sensitive reads and step-up verification.
 - [Audit and logging](docs/tools/audit-and-logging.md) — the audit trail, its sinks and the operational log.
@@ -83,6 +90,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Ship defaults with the application](docs/recipes/shipped-defaults.md) — a versioned defaults file instead of `.env`.
 - [Test code that uses settings](docs/recipes/testing-with-the-fake.md) — `Settings::fake()` and its assertions.
 - [Act as a user](docs/recipes/acting-as-a-user.md) — authorize and audit changes made on a user's behalf.
+- [Move from files to the database](docs/recipes/moving-from-files-to-the-database.md) — bootstrap mode during install, then promotion.
 
 ## Contributing & security
 

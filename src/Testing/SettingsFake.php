@@ -16,7 +16,10 @@ use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
 
 /**
@@ -153,6 +156,26 @@ final readonly class SettingsFake implements Settings
     }
 
     /** Assert the key was saved, and with exactly this value when one is given. */
+    public function flush(): void
+    {
+        $this->inner->flush();
+    }
+
+    public function preload(iterable $owners): void
+    {
+        $this->inner->preload($owners);
+    }
+
+    public function categories(): CategoryManager
+    {
+        return $this->inner->categories();
+    }
+
+    public function promote(?PromotionRequest $request = null): PromotionReport
+    {
+        return $this->inner->promote($request);
+    }
+
     public function assertSaved(string $key, mixed ...$value): void
     {
         $checksValue = $value !== [];

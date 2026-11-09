@@ -20,6 +20,10 @@ enum DriverType: string implements Enumerator
 {
     use HasEnumeratorBehavior;
 
+    #[Label('Database')]
+    #[Description('A table on a database connection, through the query builder; version-checked writes.')]
+    case Database = 'database';
+
     #[Label('In memory')]
     #[Description('Holds values for the current process only; used by tests and fakes.')]
     case Array = 'array';

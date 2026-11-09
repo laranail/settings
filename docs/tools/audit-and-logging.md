@@ -31,11 +31,40 @@ Settings::as($user)->because('INC-123')->set('mail.from.address', 'ap@acme.test'
 
 | Sink | Writes to |
 |---|---|
-| `log` (default) | the operational log, at `info` |
+| `auto` (default) | `database` for an entry whose store has an active database layer, `log` otherwise |
+| `database` | the `settings_audit` table on the store's connection |
+| `log` | the operational log, at `info` |
 | `null` | nowhere |
 | a class name | any class implementing `AuditSink` |
 
-A `database` sink, with retention and a query API, arrives with the database layer. Until then an allowed write is audited after it is stored; there is no transaction to roll back.
+## The audit table and transactions
+
+An allowed change and its audit row are written in one transaction on the store's connection,
+so if the audit insert fails, the change is rolled back and the caller gets the exception. A
+failure is audited after the rollback; a denial is audited before anything is attempted, so
+both survive the refusal. The table has no value column.
+
+| Column | Holds |
+|---|---|
+| `id` | the entry's ULID |
+| `occurred_at` | when, from `now()` |
+| `action`, `outcome` | the `AuditAction` and `AuditOutcome` |
+| `store`, `scope`, `key`, `locale` | what the action was about |
+| `version_from`, `version_to` | the row's versions around the change |
+| `actor_type`, `actor_alias`, `actor_id`, `channel` | who, and through which channel |
+| `ip`, `user_agent`, `request_id`, `reason` | the actor's context |
+| `meta` | identifiers only (the refusal, the category operation) |
+
+Every connection a store uses has its own audit table; `make-store --connection` generates it.
+
+## Retention
+
+`laranail::settings.prune-audit` deletes rows older than `audit.keep_days` (365 by default), or
+`--days`. Schedule it:
+
+```php
+Schedule::command('laranail::settings.prune-audit')->weekly();
+```
 
 ## The operational log
 

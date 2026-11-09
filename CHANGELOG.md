@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The database layer (design phase 2, default schema): the `database` driver
+  (`DriverType::Database`) over the query builder, with version-checked writes that raise
+  `ConcurrentModification`, inserts in a savepoint, and database errors surfaced as
+  `DriverUnavailable` (unreachable or table missing) or `DriverFailure`, never as PDO exceptions.
+- Publishable migrations for `settings_categories`, `settings` (polymorphic, `slug_uid`,
+  bigint ids, string owner key, binary-collated identity) and `settings_audit`;
+  `tables.prefix`, `tables.categories`, `tables.audit` and `stores.<name>.table`.
+- `laranail::settings.install` now also publishes the migrations, and refuses to run over a
+  table of the same name that is not the package's (D-4).
+- Bootstrap mode (`stores.<name>.bootstrap`, `bootstrap` / `LARANAIL_SETTINGS_BOOTSTRAP`, or
+  laranail/installer-headless' `isInstalling()`): the database layer is skipped only on positive
+  evidence of an install in progress and while the database is not ready, with a `LayerSkipped`
+  event. Readiness comes from laranail/db-tools and is flushed after migrations and per job.
+- Promotion: `$settings->promote()` and `laranail::settings.promote` copy runtime-written values
+  (never shipped defaults) into the database, skip existing rows unless forced, replay an
+  archive with `--from`, take a cache lock, and archive the runtime file. `StorePromoting` /
+  `StorePromoted` events; `PromotionLocked`.
+- Categories: `$settings->categories()` with create, rename, move, delete, get and all, gated by
+  `manage_categories` and audited; `CategoryCycle`, `CategoryStoreMismatch`, `UnknownCategory`;
+  `CategorySaving`/`Saved`/`Deleting`/`Deleted` events. Definitions' categories are linked per
+  store (G-33).
+- `HasSettings` for Eloquent owners: `settings()`, `withSettings()` eager loading, and deletion
+  of an owner's settings with the owner (on force delete for soft-deleting models).
+- `$settings->preload()` (one read per store for a list of owners) and `$settings->flush()` (an
+  owner's values, gated by `forget`), with `ScopeFlushing` / `ScopeFlushed` events.
+- The `database` and `auto` audit sinks; an allowed change and its audit row commit in one
+  transaction, so a failed audit insert rolls the change back. `audit.keep_days` and
+  `laranail::settings.prune-audit`.
+- `laranail::settings.make-store`, `laranail::settings.doctor` (readiness, schema drift,
+  class-name and unlisted scopes, cross-store categories) and
+  `laranail::settings.prune-orphans`.
+- CI runs the `database` test group on MySQL 8.4 and PostgreSQL 17.
+
 - Access control (design phase 1b): the `Actor` authentication object (`Actor::user()`,
   `Actor::system()`, never serialising the model) and `as()`, `asSystem()`, `asCurrentActor()`,
   `because()` and `actor()` on the `Settings` contract. A handle with an actor authorizes every
@@ -43,6 +76,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `resources/views`), and write actions are final with a `handle()` method.
 
 ### Changed
+
+- The default store's layers are now `['database', 'runtime', 'shipped']`: run the migrations
+  after install, or drop `database` from the layers to stay on files.
+- `audit.sinks` defaults to `['auto']` (the database for a store with a database layer, the log
+  otherwise) instead of `['log']`.
+- `Record` gains optional `group`, `category` and `public` fields; `SettingWriter::lock()` and
+  `unlock()` take an optional definition; `Store`, `StoreRegistry`, `DriverFactory` and
+  `SettingsManager` take further trailing optional constructor arguments. Existing calls are
+  unaffected.
+- The `Settings` contract gains `flush()`, `preload()`, `categories()` and `promote()`.
 
 - `SettingWriter::set()`, `lock()` and `unlock()` return the stored `Record`, and `forget()`
   the removed one (or null), instead of nothing. Callers that ignored the result are unaffected.

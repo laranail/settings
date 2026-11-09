@@ -2,6 +2,17 @@
 
 Read and write settings, give them owners, and describe them with definitions.
 
+## Install and migrate
+
+```bash
+php artisan laranail::settings.install
+php artisan migrate
+```
+
+The default store keeps values in the database, above the JSON runtime file and the shipped
+defaults. An application without a database drops `database` from the store's layers; see
+[Installation](installation.md).
+
 ## Read and write
 
 ```php
@@ -25,17 +36,23 @@ Add a store for user settings in `config/laranail/settings.php`:
 
 ```php
 'stores' => [
-    'settings'      => ['layers' => ['runtime', 'shipped'], 'owners' => []],
-    'user_settings' => ['layers' => ['runtime'], 'owners' => ['user']],
+    'settings'      => ['layers' => ['database', 'runtime', 'shipped'], 'owners' => []],
+    'user_settings' => ['layers' => ['database'], 'owners' => ['user']],
 ],
 ```
 
-Implement `Settable` on the model (see [Owners and inheritance](tools/owners.md)), then:
+Generate its table with `php artisan laranail::settings.make-store user_settings --owner=user`
+and migrate. Give the model a morph alias (`Relation::enforceMorphMap(['user' => User::class])`),
+implement `Settable` and use `HasSettings` (see [Owners and inheritance](tools/owners.md)), then:
 
 ```php
-Settings::for($user)->set('ui.theme', 'dark');
-Settings::for($user)->get('ui.theme', 'light');
+$user->settings()->set('ui.theme', 'dark');
+$user->settings()->get('ui.theme', 'light');
+
+User::query()->withSettings()->paginate();   // one query per store for the whole page
 ```
+
+Deleting the user deletes its settings.
 
 ## Describe settings
 
@@ -51,9 +68,9 @@ Definitions add types, defaults, validation, encryption, locks and inheritance. 
 
 | Phase | Adds |
 |---|---|
-| Database | the `settings` and `settings_categories` tables, `HasSettings`, bootstrap before the database, promotion |
+| Schema switches | uuid/ulid ids, typed owner keys, other identity modes, dedicated stores, soft deletes, translated labels |
 | Performance | caching with stale-while-revalidate |
-| Governance | history and rollback, export and import, `doctor` |
+| Governance | history and rollback, approvals, export and import, the full `doctor` |
 | Typed classes | strongly typed settings classes over the same engine |
 
 ---

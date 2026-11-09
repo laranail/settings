@@ -9,7 +9,10 @@ use Illuminate\Contracts\Config\Repository;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
+use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Contracts\Filesystem\Factory as Disks;
+use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
@@ -29,6 +32,9 @@ final class DriverFactory
         private readonly ReadOnlyValues $reader,
         private readonly RecordSerializer $serializer,
         private readonly string $basePath,
+        private readonly ?ConnectionResolverInterface $db = null,
+        private readonly SchemaNames $names = new SchemaNames,
+        private readonly ?Closure $probe = null,
     ) {}
 
     /** @param Closure(LayerConfig): Driver $factory */
@@ -75,11 +81,39 @@ final class DriverFactory
         }
 
         return match ($type) {
-            DriverType::Array  => new ArrayDriver($layer->writable),
-            DriverType::Json   => $this->json($layer),
-            DriverType::Php    => new PhpDriver($this->path($layer, $this->stringOption($layer, 'path')), $this->reader),
-            DriverType::Config => new ConfigDriver($this->config, $this->stringOption($layer, 'prefix'), $this->reader),
+            DriverType::Database => $this->database($layer),
+            DriverType::Array    => new ArrayDriver($layer->writable),
+            DriverType::Json     => $this->json($layer),
+            DriverType::Php      => new PhpDriver($this->path($layer, $this->stringOption($layer, 'path')), $this->reader),
+            DriverType::Config   => new ConfigDriver($this->config, $this->stringOption($layer, 'prefix'), $this->reader),
         };
+    }
+
+    /**
+     * The database layer. `connection` is optional (null = the default connection); `table` is
+     * set by the store registry from `stores.<name>.table`. Nothing connects here.
+     */
+    private function database(LayerConfig $layer): DatabaseDriver
+    {
+        if (! $this->db instanceof ConnectionResolverInterface || ! $this->probe instanceof Closure) {
+            throw new InvalidConfiguration(sprintf('laranail.settings.layers.%s.driver: the database driver needs the database service.', $layer->name));
+        }
+
+        $connection = $layer->option('connection');
+        $table = $layer->option('table');
+
+        if (($connection !== null && (! is_string($connection) || $connection === '')) || ($table !== null && ! is_string($table))) {
+            throw new InvalidConfiguration(sprintf('laranail.settings.layers.%s: `connection` and `table` must be non-empty strings or null.', $layer->name));
+        }
+
+        if (is_string($table)) {
+            SchemaNames::assertTable($table, sprintf('laranail.settings.layers.%s.table', $layer->name));
+        }
+
+        /** @var Closure(): ReadinessProbe $probe */
+        $probe = $this->probe;
+
+        return new DatabaseDriver($this->db, $connection, $this->names, $table, $layer->writable, $probe);
     }
 
     private function json(LayerConfig $layer): JsonDriver

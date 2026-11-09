@@ -73,15 +73,18 @@ final readonly class SettingWriter
         return $store->writableLayer()->driver->load($store->name, [$scope])->find($scope, $key, $locale)?->locked === true;
     }
 
-    /** Lock one row against writes; a lock with no value yet is kept as a value-less row. */
-    public function lock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner): Record
+    /**
+     * Lock one row against writes; a lock with no value yet is kept as a value-less row. The
+     * definition, when given, supplies the row's group, category and visibility.
+     */
+    public function lock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition = null): Record
     {
-        return $this->storeLock($store, $key, $locale, $owner, locked: true);
+        return $this->storeLock($store, $key, $locale, $owner, locked: true, definition: $definition);
     }
 
-    public function unlock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner): Record
+    public function unlock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition = null): Record
     {
-        return $this->storeLock($store, $key, $locale, $owner, locked: false);
+        return $this->storeLock($store, $key, $locale, $owner, locked: false, definition: $definition);
     }
 
     private function write(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value, bool $overrideLock): Record
@@ -103,6 +106,9 @@ final readonly class SettingWriter
             locked: $existing->locked ?? false,
             version: $version,
             writtenAt: ($this->clock)(),
+            group: $definition?->group(),
+            category: $definition?->category,
+            public: $definition instanceof Definition && $definition->public,
         );
 
         $this->events->dispatch(new SettingSaving($store->name->value, $scope->value, $key->value, $locale->value, $version));
@@ -131,7 +137,7 @@ final readonly class SettingWriter
         return $existing;
     }
 
-    private function storeLock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, bool $locked): Record
+    private function storeLock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, bool $locked, ?Definition $definition): Record
     {
         $this->ownerAllowed($store, $owner, null);
 
@@ -150,6 +156,9 @@ final readonly class SettingWriter
             $locked,
             $existing->version + 1,
             ($this->clock)(),
+            $definition?->group(),
+            $definition?->category,
+            $definition instanceof Definition && $definition->public,
         );
 
         $layer->driver->put($store->name, $record);

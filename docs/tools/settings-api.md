@@ -48,6 +48,15 @@ A stored `null` is an answer: `has()` is true and `get()` returns `null`, not th
 | `set($key, $value)` | validates, casts, encrypts if defined so, and writes to the first writable layer |
 | `forget($key)` | removes this handle's own value, so reads fall through again |
 | `lock($key)` / `unlock($key)` | refuses or allows further writes to this row |
+| `flush()` | removes every value of the handle's owner in its store (needs `for($owner)`) |
+
+## Store-level operations
+
+| Method | Does |
+|---|---|
+| `preload($owners)` | loads many owners' settings in one read per store; see [Database](database.md) |
+| `categories()` | the store's categories; see [Categories](categories.md) |
+| `promote(?PromotionRequest)` | moves runtime-file values into the database; returns a `PromotionReport` |
 
 Writes raise `UnknownSetting` (strict store, no definition), `OwnerNotAllowed`, `LockedSetting`, `InvalidSettingValue`, `EncryptionUnavailable` or `StoreNotWritable`. A handle with an actor can also raise `AccessDenied` or `VerificationRequired`, any handle `ActorRequired` (when an actor is required) and `ApprovalUnavailable`. Every exception extends `SettingsException`.
 

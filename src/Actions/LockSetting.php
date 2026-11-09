@@ -22,7 +22,7 @@ final readonly class LockSetting
     public function handle(SettingTarget $target, ?Actor $actor = null): void
     {
         $this->guard->run(Ability::Lock, $target, $actor, respectsLocks: false, write: function () use ($target): array {
-            $after = $this->writer->lock($target->store, $target->key, $target->locale, $target->owner);
+            $after = $this->writer->lock($target->store, $target->key, $target->locale, $target->owner, $target->definition);
 
             return [$after->version > 1 ? $after->version - 1 : null, $after->version];
         });

@@ -1,0 +1,75 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
+
+/*
+ * laranail/settings: categories (nested by parent_id), shared by every store on this connection.
+ * `store` is the logical store name; `unique(id, store)` lets a store's values table point at a
+ * category of its own store only, through a composite foreign key.
+ *
+ * Runs on the connection of the default store's database layer. `laranail::settings.make-store`
+ * pins another connection by rewriting the $pinnedConnection line below.
+ */
+return new class extends Migration
+{
+    private ?string $pinnedConnection = null;
+
+    public function getConnection(): ?string
+    {
+        if ($this->pinnedConnection !== null) {
+            return $this->pinnedConnection;
+        }
+
+        $store = config('laranail.settings.default', 'settings');
+
+        foreach ((array) config("laranail.settings.stores.{$store}.layers", []) as $layer) {
+            if (is_string($layer) && config("laranail.settings.layers.{$layer}.driver") === 'database') {
+                $connection = config("laranail.settings.layers.{$layer}.connection");
+
+                return is_string($connection) ? $connection : null;
+            }
+        }
+
+        return null;
+    }
+
+    public function up(): void
+    {
+        $name = $this->table();
+
+        Schema::create($name, static function (Blueprint $table) use ($name): void {
+            $table->bigIncrements('id');
+            $table->string('store', 64);
+            $table->unsignedBigInteger('parent_id')->nullable();
+            $table->string('title');
+            $table->string('slug', 128);
+            $table->text('description')->nullable();
+            $table->string('icon')->nullable();
+            $table->unsignedInteger('sort_order')->default(0);
+            $table->boolean('is_system')->default(false);
+            $table->json('meta')->nullable();
+            $table->timestamps();
+
+            $table->unique(['store', 'slug'], $name . '_store_slug_unique');
+            $table->unique(['id', 'store'], $name . '_id_store_unique');
+            $table->index('parent_id', $name . '_parent_index');
+            $table->foreign('parent_id', $name . '_parent_foreign')->references('id')->on($name)->nullOnDelete();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists($this->table());
+    }
+
+    private function table(): string
+    {
+        $table = config('laranail.settings.tables.categories', 'settings_categories');
+
+        return config('laranail.settings.tables.prefix', '') . (is_string($table) ? $table : 'settings_categories');
+    }
+};

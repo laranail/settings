@@ -9,13 +9,17 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
@@ -131,4 +135,34 @@ interface Settings
     public function lock(string $key): void;
 
     public function unlock(string $key): void;
+
+    /**
+     * Remove every value this handle's owner holds in its store (an owner being deleted).
+     *
+     * @throws AccessDenied
+     * @throws StoreNotWritable
+     */
+    public function flush(): void;
+
+    /**
+     * Load the settings of many owners now, one read per store, so reading each of them later in
+     * the request costs no further query (eager loading, G-9). Includes the global scope and the
+     * owners' parents.
+     *
+     * @param iterable<Settable|OwnerRef> $owners
+     */
+    public function preload(iterable $owners): void;
+
+    /** The categories of this handle's store, managed as this handle's actor. */
+    public function categories(): CategoryManager;
+
+    /**
+     * Copy the values written to the store's runtime file before the database existed into its
+     * database layer; shipped defaults are never copied. Idempotent.
+     *
+     * @throws AccessDenied
+     * @throws PromotionLocked
+     * @throws StoreNotWritable when the store has no active database layer
+     */
+    public function promote(?PromotionRequest $request = null): PromotionReport;
 }

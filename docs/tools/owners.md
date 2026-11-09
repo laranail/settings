@@ -24,6 +24,9 @@ class User extends Model implements Settable
 
 Parents are alias and id pairs, nearest first, so resolving them loads no models. A pair whose id is null is dropped.
 
+On an Eloquent model, `HasSettings` supplies `settingsOwner()` from the morph alias and key, plus
+`settings()`, `withSettings()` and clean-up on delete; see [Database](database.md#owners).
+
 ## Stores per owner
 
 Each store lists the aliases it holds in `owners`, and each alias belongs to one store. `for($owner)` without `store()` routes to that store; an alias no store lists raises `OwnerNotAllowed`.

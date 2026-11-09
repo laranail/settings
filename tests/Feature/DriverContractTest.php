@@ -25,16 +25,21 @@ function driverFor(DriverType $type): Driver
     file_put_contents($path, "<?php return ['site.name' => 'Shipped'];");
     config()->set('contract', ['site' => ['name' => 'Configured']]);
 
+    if ($type === DriverType::Database) {
+        useDatabase(stores: ['one', 'two']);
+    }
+
     return app(DriverFactory::class)->make(match ($type) {
-        DriverType::Array  => new LayerConfig('a', 'array', true),
-        DriverType::Json   => new LayerConfig('j', 'json', true, ['disk' => 'local', 'path' => 'contract/{store}.json']),
-        DriverType::Php    => new LayerConfig('p', 'php', false, ['path' => $path]),
-        DriverType::Config => new LayerConfig('c', 'config', false, ['prefix' => 'contract']),
+        DriverType::Database => new LayerConfig('d', 'database', true),
+        DriverType::Array    => new LayerConfig('a', 'array', true),
+        DriverType::Json     => new LayerConfig('j', 'json', true, ['disk' => 'local', 'path' => 'contract/{store}.json']),
+        DriverType::Php      => new LayerConfig('p', 'php', false, ['path' => $path]),
+        DriverType::Config   => new LayerConfig('c', 'config', false, ['prefix' => 'contract']),
     });
 }
 
 it('covers every built-in driver', function (): void {
-    expect(DriverType::cases())->toHaveCount(4);
+    expect(DriverType::cases())->toHaveCount(5);
 });
 
 it('returns only the scopes asked for', function (DriverType $type): void {
