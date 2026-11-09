@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   static:
-    name: Pint · PHPStan · Rector · Infection
+    name: Pint · PHPStan · Rector
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -62,7 +62,7 @@ jobs:
         run: vendor/bin/rector process --dry-run --no-progress-bar
 
   mutation:
-    name: Infection (mutation testing)
+    name: Mutation testing (Pest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -75,11 +75,14 @@ jobs:
         with:
           php-version: '8.5'
           extensions: dom, curl, libxml, mbstring, zip, fileinfo, pdo, sqlite3, pdo_sqlite
-          # Infection needs per-test coverage; pcov does not emit it.
+          # Pest mutation testing needs a coverage driver.
           coverage: xdebug
 
       - name: Install dependencies
         run: composer update --prefer-stable --no-interaction --no-progress
 
-      - name: Infection
-        run: vendor/bin/infection --threads=max --show-mutations --no-progress --ignore-msi-with-no-mutations
+      - name: Mutation testing (minimum score 70)
+        # Pest's own mutator, not Infection: Infection has no Pest adapter, reads Pest's
+        # version as PHPUnit's, writes a config PHPUnit 12 rejects, and cannot map Pest's
+        # generated test classes to its JUnit report.
+        run: vendor/bin/pest --mutate --everything --min=70

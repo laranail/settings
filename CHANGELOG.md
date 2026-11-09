@@ -17,5 +17,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Guards: architecture rules, vendor-scoped names read from the live registries, config read
   only at the registered key, provider layout, no literal test credentials, and the docs
   standard.
-- CI: tests, static analysis with mutation testing, security audit, release hygiene and a
-  tag-driven release.
+- CI: tests, static analysis, Pest mutation testing (minimum score 70), security audit,
+  release hygiene and a tag-driven release.

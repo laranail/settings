@@ -17,7 +17,7 @@ Contributions are welcome via pull requests.
 |---|---|
 | `composer test` | the Pest suite (Arch, Unit, Feature) |
 | `composer test-coverage` | the suite with line coverage, failing below 90 % |
-| `composer infection` | mutation testing, failing below 70 % MSI |
+| `composer mutate` | Pest mutation testing, failing below a 70 % score |
 | `composer lint` | Pint (shared laranail config), PHPStan at level max, Rector dry run; never changes files |
 | `composer composer-audit` | known-vulnerable dependencies |
 

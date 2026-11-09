@@ -7,7 +7,7 @@
 - [ ] Each new class has one clear responsibility; no speculative features or flags
 - [ ] Tests cover the new behaviour and `composer test` passes deterministically
 - [ ] `composer lint` is clean (Pint, PHPStan max, Rector dry run) with no new ignores
-- [ ] `composer infection` meets the minimum MSI
+- [ ] `composer mutate` meets the minimum mutation score
 - [ ] Errors use the package's `SettingsException` hierarchy and carry context without secrets
 - [ ] No secrets, no unvalidated input, no new unaudited dependency
 - [ ] `CHANGELOG.md` updated under `## [Unreleased]`
