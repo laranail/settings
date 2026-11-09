@@ -8,6 +8,7 @@ use LogicException;
 use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\Subject;
@@ -22,14 +23,18 @@ use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
 use Simtabi\Laranail\Settings\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Actions\StoreActions;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
@@ -65,6 +70,7 @@ final readonly class SettingsManager implements Settings
         private ?RuntimeConfiguration $runtime = null,
         private ?Actor $actingAs = null,
         private ?string $reason = null,
+        private ?StoreActions $storeActions = null,
     ) {
         $this->access = $access ?? AccessGuard::closed();
         $this->actions = $actions ?? SettingActions::using($writer, $this->access);
@@ -198,22 +204,103 @@ final readonly class SettingsManager implements Settings
 
     public function set(string $key, mixed $value): void
     {
-        $this->actions->set->handle(new SettingWrite($this->writeTarget($key), $value), $this->actingAs);
+        $target = $this->writeTarget($key);
+
+        try {
+            $this->actions->set->handle(new SettingWrite($target, $value), $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
     }
 
     public function forget(string $key): void
     {
-        $this->actions->forget->handle($this->writeTarget($key), $this->actingAs);
+        $target = $this->writeTarget($key);
+
+        try {
+            $this->actions->forget->handle($target, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
     }
 
     public function lock(string $key): void
     {
-        $this->actions->lock->handle($this->writeTarget($key), $this->actingAs);
+        $target = $this->writeTarget($key);
+
+        try {
+            $this->actions->lock->handle($target, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
     }
 
     public function unlock(string $key): void
     {
-        $this->actions->unlock->handle($this->writeTarget($key), $this->actingAs);
+        $target = $this->writeTarget($key);
+
+        try {
+            $this->actions->unlock->handle($target, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
+    }
+
+    public function flush(): void
+    {
+        $store = $this->targetStore();
+        $owner = $this->owner ?? throw new LogicException('flush() removes one owner\'s values; call for($owner) first.');
+
+        try {
+            $this->storeActions()->flush->handle($store, $owner, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($store, $this->scope());
+        }
+    }
+
+    public function preload(iterable $owners): void
+    {
+        $groups = [];
+
+        foreach ($owners as $owner) {
+            [$ref, $parents] = $owner instanceof Settable ? [$owner->settingsOwner(), $owner->settingsParents()] : [$owner, []];
+            $store = $this->storeName instanceof StoreName ? $this->stores->get($this->storeName) : $this->stores->forOwner($ref->alias);
+
+            $groups[$store->name->value][0] = $store;
+            $groups[$store->name->value][1][$ref->scope()->value] = $ref->scope();
+            $groups[$store->name->value][1][Scope::GLOBAL] = Scope::global();
+
+            foreach ($parents as $parent) {
+                $parentStore = $this->stores->forOwner($parent->alias);
+                $groups[$parentStore->name->value][0] = $parentStore;
+                $groups[$parentStore->name->value][1][$parent->scope()->value] = $parent->scope();
+            }
+        }
+
+        $this->resolver->preload(array_values(array_map(
+            static fn (array $group): array => [$group[0], array_values($group[1])],
+            $groups,
+        )));
+    }
+
+    public function categories(): CategoryManager
+    {
+        return new CategoryManager($this->targetStore(), $this->actingAs, $this->storeActions()->categories, $this->access);
+    }
+
+    public function promote(?PromotionRequest $request = null): PromotionReport
+    {
+        return $this->storeActions()->promote->handle($this->targetStore(), $request ?? new PromotionRequest, $this->actingAs);
+    }
+
+    private function storeActions(): StoreActions
+    {
+        return $this->storeActions ?? throw new LogicException('This settings handle was built without store actions; resolve Settings from the container.');
+    }
+
+    private function scope(): Scope
+    {
+        return $this->owner?->scope() ?? Scope::global();
     }
 
     /**
@@ -319,6 +406,7 @@ final readonly class SettingsManager implements Settings
             $this->runtime,
             $actor ?? $this->actingAs,
             $reason ?? $this->reason,
+            $this->storeActions,
         );
     }
 }

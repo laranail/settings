@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Stores;
 
+use Closure;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
+use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Contracts\BootstrapEvidence;
+use Simtabi\Laranail\Settings\Drivers\BootstrapGatedDriver;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
@@ -30,6 +35,7 @@ final class StoreRegistry
     /**
      * @param array<array-key, mixed> $storeConfig `laranail.settings.stores`
      * @param array<array-key, mixed> $layerConfig `laranail.settings.layers`
+     * @param (Closure(string, string, string): void)|null $onLayerSkipped told (store, layer, reason) when bootstrap mode skips a layer
      */
     public function __construct(
         private readonly DriverFactory $drivers,
@@ -38,12 +44,14 @@ final class StoreRegistry
         private readonly array $layerConfig,
         private readonly ?Driver $override = null,
         private readonly ?RuntimeConfiguration $runtime = null,
+        private readonly ?BootstrapEvidence $evidence = null,
+        private readonly ?Closure $onLayerSkipped = null,
     ) {}
 
     /** A copy whose every layer is replaced by one driver (used by the fake). */
     public function withEveryLayer(Driver $driver): self
     {
-        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime);
+        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->onLayerSkipped);
     }
 
     /**
@@ -129,13 +137,27 @@ final class StoreRegistry
                 throw new InvalidConfiguration($path . '.layers: at least one layer is required.');
             }
 
+            $table = $config['table'] ?? null;
+
+            if ($table !== null) {
+                if (! is_string($table)) {
+                    throw new InvalidConfiguration($path . '.table: a table name is required.');
+                }
+
+                SchemaNames::assertTable($table, $path . '.table');
+            }
+
+            $bootstrap = ($config['bootstrap'] ?? false) === true;
+
             $built[$storeName->value] = new Store(
                 name: $storeName,
-                layers: array_map(fn (string $layer): Layer => $this->layer($layer, $path), $layerNames),
+                layers: array_map(fn (string $layer): Layer => $this->storeLayer($layer, $path, $storeName, $table, $bootstrap), $layerNames),
                 owners: $owners,
                 strict: ($config['strict'] ?? false) === true,
                 inherits: ($config['inherits'] ?? false) === true,
                 locksOverridable: $this->locksOverridable($config['locks'] ?? [], $path . '.locks'),
+                bootstrap: $bootstrap,
+                table: $table,
             );
         }
 
@@ -146,7 +168,32 @@ final class StoreRegistry
         return $built;
     }
 
-    private function layer(string $name, string $storePath): Layer
+    /**
+     * A layer built for one store: a database layer learns the store's table, and in a store in
+     * bootstrap mode it is put behind the bootstrap gate.
+     */
+    private function storeLayer(string $name, string $storePath, StoreName $store, ?string $table, bool $bootstrap): Layer
+    {
+        $layer = $this->layer($name, $storePath, $table === null ? [] : ['table' => $table]);
+
+        if (! $bootstrap || ! $layer->driver instanceof DatabaseDriver) {
+            return $layer;
+        }
+
+        $onSkip = $this->onLayerSkipped;
+
+        return new Layer($name, new BootstrapGatedDriver(
+            $layer->driver,
+            $store,
+            $this->evidence ?? new InstallationEvidence(false),
+            $onSkip instanceof Closure ? static function (string $reason) use ($onSkip, $store, $name): void {
+                $onSkip($store->value, $name, $reason);
+            } : null,
+        ), $layer->type);
+    }
+
+    /** @param array<string, mixed> $extra options the store adds (the database table) */
+    private function layer(string $name, string $storePath, array $extra = []): Layer
     {
         $config = $this->layerConfigs()[$name] ?? null;
 
@@ -161,7 +208,7 @@ final class StoreRegistry
         }
 
         $options = array_filter($config, is_string(...), ARRAY_FILTER_USE_KEY);
-        $layer = new LayerConfig($name, $driver, ($config['writable'] ?? true) === true, $options);
+        $layer = new LayerConfig($name, $driver, ($config['writable'] ?? true) === true, $extra + $options);
 
         return new Layer($name, $this->override ?? $this->driverFactory()->make($layer), $this->override instanceof Driver ? DriverType::Array : DriverType::tryFrom($driver));
     }

@@ -6,6 +6,7 @@ namespace Simtabi\Laranail\Settings\Drivers;
 
 use Throwable;
 use JsonException;
+use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
@@ -62,11 +63,72 @@ final readonly class JsonDriver implements Driver
         return $this->writable;
     }
 
+    /**
+     * Every record in the store's file, for promotion to the database.
+     *
+     * @return list<Record>
+     */
+    public function all(StoreName $store): array
+    {
+        return array_values($this->read($store));
+    }
+
+    /**
+     * Every record in another file on the same disk: a promoted archive being replayed. The path
+     * comes from an operator, so it may not climb out of the disk.
+     *
+     * @return list<Record>
+     */
+    public function recordsIn(string $path): array
+    {
+        if (str_contains($path, '..')) {
+            throw new DriverFailure(sprintf('Settings file [%s] must not contain "..".', $path));
+        }
+
+        try {
+            $exists = $this->disk->exists($path);
+        } catch (Throwable $exception) {
+            throw new DriverFailure(sprintf('Settings file [%s] could not be read.', $path), $exception->getCode(), previous: $exception);
+        }
+
+        return $exists ? array_values($this->readPath($path)) : throw new DriverFailure(sprintf('Settings file [%s] does not exist.', $path));
+    }
+
+    /**
+     * Move the store's file aside as `<file>.promoted-<timestamp>.json` once its records are in
+     * the database. Returns the archive's path, or null when there was no file.
+     */
+    public function archive(StoreName $store, CarbonImmutable $at): ?string
+    {
+        $path = $this->path($store);
+        $archive = preg_replace('/\.json$/', '', $path) . '.promoted-' . $at->format('Ymd_His_u') . '.json';
+
+        try {
+            if (! $this->disk->exists($path)) {
+                return null;
+            }
+
+            if (! $this->disk->move($path, $archive)) {
+                throw new DriverFailure(sprintf('Settings file [%s] could not be archived.', $path));
+            }
+        } catch (DriverFailure $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            throw new DriverFailure(sprintf('Settings file [%s] could not be archived.', $path), $exception->getCode(), previous: $exception);
+        }
+
+        return $archive;
+    }
+
     /** @return array<string, Record> */
     private function read(StoreName $store): array
     {
-        $path = $this->path($store);
+        return $this->readPath($this->path($store));
+    }
 
+    /** @return array<string, Record> */
+    private function readPath(string $path): array
+    {
         try {
             if (! $this->disk->exists($path)) {
                 return [];

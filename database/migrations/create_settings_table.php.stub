@@ -1,0 +1,111 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
+
+/*
+ * laranail/settings: the values table of one store, in the default shape: polymorphic owners,
+ * identity mode slug_uid, bigint ids, a string owner key. Identity is (scope, key, locale); the
+ * three columns are binary-collated so `Theme` and `theme` or `pt_BR` and `pt_br` cannot become
+ * one row on MySQL only (G-38). Column types are explicit so db-tools' blueprint macros cannot
+ * retype them.
+ *
+ * `laranail::settings.make-store` copies this file for another store by rewriting the $store
+ * (and, with --connection, the $pinnedConnection) line below.
+ */
+return new class extends Migration
+{
+    private string $store = 'settings';
+
+    private ?string $pinnedConnection = null;
+
+    public function getConnection(): ?string
+    {
+        if ($this->pinnedConnection !== null) {
+            return $this->pinnedConnection;
+        }
+
+        foreach ((array) config("laranail.settings.stores.{$this->store}.layers", []) as $layer) {
+            if (is_string($layer) && config("laranail.settings.layers.{$layer}.driver") === 'database') {
+                $connection = config("laranail.settings.layers.{$layer}.connection");
+
+                return is_string($connection) ? $connection : null;
+            }
+        }
+
+        return null;
+    }
+
+    public function up(): void
+    {
+        $name = $this->table();
+        $categories = $this->categories();
+        $index = substr($name, 0, 40);
+        $binary = match (Schema::getConnection()->getDriverName()) {
+            'mysql', 'mariadb' => 'utf8mb4_bin',
+            'pgsql'            => 'C',
+            default            => null,
+        };
+
+        Schema::create($name, static function (Blueprint $table) use ($binary, $categories, $index): void {
+            $collate = static function (Illuminate\Database\Schema\ColumnDefinition $column) use ($binary): Illuminate\Database\Schema\ColumnDefinition {
+                return $binary === null ? $column : $column->collation($binary);
+            };
+
+            $table->bigIncrements('id');
+            $table->string('settable_type', 64)->nullable();
+            $table->string('settable_id', 36)->nullable();
+            $collate($table->string('scope', 128));
+            $table->unsignedBigInteger('category_id')->nullable();
+            $table->string('category_store', 64)->nullable();
+            $table->string('group', 64);
+            $collate($table->string('key', 191));
+            $collate($table->string('slug', 191)->nullable());
+            $table->char('uid', 26)->nullable();
+            $collate($table->string('locale', 16)->default(''));
+            $table->longText('value')->nullable();
+            $table->string('type', 64)->nullable();
+            $table->text('label')->nullable();
+            $table->text('description')->nullable();
+            $table->boolean('is_encrypted')->default(false);
+            $table->boolean('is_locked')->default(false);
+            $table->boolean('is_public')->default(false);
+            $table->boolean('autoload')->default(true);
+            $table->unsignedInteger('sort_order')->default(0);
+            $table->json('meta')->nullable();
+            $table->unsignedInteger('version')->default(1);
+            $table->timestamps();
+
+            $table->unique(['scope', 'key', 'locale'], $index . '_identity_unique');
+            $table->unique('uid', $index . '_uid_unique');
+            $table->index('slug', $index . '_slug_index');
+            $table->index(['settable_type', 'settable_id'], $index . '_settable_index');
+            $table->index('category_id', $index . '_category_index');
+            $table->index(['autoload', 'scope'], $index . '_autoload_index');
+            $table->foreign(['category_id', 'category_store'], $index . '_category_foreign')
+                ->references(['id', 'store'])->on($categories)->nullOnDelete();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists($this->table());
+    }
+
+    private function table(): string
+    {
+        $table = config("laranail.settings.stores.{$this->store}.table");
+
+        return config('laranail.settings.tables.prefix', '') . (is_string($table) ? $table : $this->store);
+    }
+
+    private function categories(): string
+    {
+        $table = config('laranail.settings.tables.categories', 'settings_categories');
+
+        return config('laranail.settings.tables.prefix', '') . (is_string($table) ? $table : 'settings_categories');
+    }
+};

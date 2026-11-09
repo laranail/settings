@@ -16,14 +16,18 @@ use Simtabi\Laranail\Settings\Testing\FakeLog;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
 use Simtabi\Laranail\Settings\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Actions\StoreActions;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Testing\SettingsFake;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Support\ValuePipeline;
 use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
 use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
@@ -55,6 +59,10 @@ use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
  * @method static void forget(string $key)
  * @method static void lock(string $key)
  * @method static void unlock(string $key)
+ * @method static void flush()
+ * @method static void preload(iterable<Settable|OwnerRef> $owners)
+ * @method static CategoryManager categories()
+ * @method static PromotionReport promote(?PromotionRequest $request = null)
  *
  * @see SettingsContract
  */
@@ -86,6 +94,7 @@ final class Settings extends Facade
             actions: SettingActions::using($writer, $access),
             access: $access,
             runtime: $app->make(RuntimeConfiguration::class),
+            storeActions: $app->make(StoreActions::class),
         ), $log);
 
         self::swap($fake);

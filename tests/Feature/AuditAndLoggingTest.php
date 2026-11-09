@@ -204,7 +204,7 @@ it('accepts null and custom audit sinks and rejects an unknown one', function ()
 
     expect(CountingSink::$count)->toBe(1);
 
-    config()->set('laranail.settings.audit.sinks', ['database']);
+    config()->set('laranail.settings.audit.sinks', ['redis']);
     app()->forgetScopedInstances();
 
     expect(fn () => settings()->set('site.name', 'Acme'))->toThrow(InvalidConfiguration::class, 'laranail.settings.audit.sinks.0');

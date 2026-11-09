@@ -12,8 +12,10 @@ declare(strict_types=1);
 |
 |     php artisan laranail::settings.install
 |
-| The database layer arrives in a later release; until then a store reads
-| and writes its JSON runtime file and reads its shipped PHP defaults.
+| The default store keeps its values in the database (publish and run the
+| migrations with the install command above), above a JSON runtime file and
+| the shipped PHP defaults. An application without a database drops
+| `database` from the store's `layers`.
 |
 */
 
@@ -31,23 +33,51 @@ return [
     | `inherits` lets owners fall back to their parents and to the global value
     | when a definition does not say otherwise. `locks.overridable` lets an
     | actor holding `override_lock` write a locked setting; off, a lock binds
-    | everyone.
+    | everyone. `table` names the store's database table (default: the store
+    | name). `bootstrap` lets the database layer be skipped while, and only
+    | while, the application is being installed (see `bootstrap` below);
+    | otherwise an unreachable database raises DriverUnavailable.
     */
     'stores' => [
         'settings' => [
-            'layers'   => ['runtime', 'shipped'],
-            'owners'   => [],
-            'strict'   => false,
-            'inherits' => false,
-            'locks'    => ['overridable' => false],
+            'layers'    => ['database', 'runtime', 'shipped'],
+            'owners'    => [],
+            'strict'    => false,
+            'inherits'  => false,
+            'locks'     => ['overridable' => false],
+            'bootstrap' => false,
         ],
     ],
 
     /*
-    | Layers, by name. Drivers: json, php, config, array, or a custom one
-    | registered with DriverFactory::extend(). A JSON path must contain {store}.
+    | Positive evidence that the application is being installed, for stores in
+    | bootstrap mode: set it for the install window only. laranail/installer-
+    | headless reporting an install in progress counts too. The absence of
+    | evidence never does.
+    */
+    'bootstrap' => env('LARANAIL_SETTINGS_BOOTSTRAP', false),
+
+    /*
+    | Table names (D-4). `prefix` goes in front of every table, including each
+    | store's values table. Install refuses to run over a table of the same
+    | name that is not this package's.
+    */
+    'tables' => [
+        'prefix'     => env('LARANAIL_SETTINGS_TABLE_PREFIX', ''),
+        'categories' => 'settings_categories',
+        'audit'      => 'settings_audit',
+    ],
+
+    /*
+    | Layers, by name. Drivers: database, json, php, config, array, or a custom
+    | one registered with DriverFactory::extend(). A JSON path must contain
+    | {store}. A database layer's `connection` is null for the default one.
     */
     'layers' => [
+        'database' => [
+            'driver'     => 'database',
+            'connection' => env('LARANAIL_SETTINGS_DB_CONNECTION'),
+        ],
         'runtime' => [
             'driver' => 'json',
             'disk'   => env('LARANAIL_SETTINGS_RUNTIME_DISK', 'local'),
@@ -136,13 +166,16 @@ return [
     ],
 
     /*
-    | Audit sinks, all of which receive every entry: `log` (the logging
-    | channel below), `null`, or a class implementing AuditSink. Entries
-    | record actions and denials, never values. A `database` sink arrives with
-    | the database layer.
+    | Audit sinks, all of which receive every entry: `auto` (the `database`
+    | sink for a store with an active database layer, `log` otherwise),
+    | `database` (the settings_audit table), `log` (the logging channel
+    | below), `null`, or a class implementing AuditSink. Entries record actions
+    | and denials, never values. An allowed write and its database audit row
+    | commit together. `keep_days` is the retention prune-audit applies.
     */
     'audit' => [
-        'sinks' => ['log'],
+        'sinks'     => ['auto'],
+        'keep_days' => 365,
     ],
 
     /*

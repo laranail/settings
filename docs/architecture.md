@@ -36,6 +36,29 @@ A short database outage on a live install must not quietly serve shipped default
 maintenance flag) or scatter writes into each server's local file. Falling back is allowed only on
 positive evidence that installation is still in progress.
 
+## Why version-checked writes?
+
+Two requests that read a setting at version 3 and both write must not both win silently. Every
+database write is an `UPDATE … WHERE version = 3`; when no row is at that version the driver
+inserts, and a row at another version makes the insert hit the `(scope, key, locale)` unique
+index, which the driver reports as `ConcurrentModification`. A plain upsert cannot check a
+version, so it is not used. The insert runs in a savepoint, because on Postgres a failed
+statement would otherwise abort the whole surrounding transaction.
+
+## Why is the audit row in the write's transaction?
+
+An audit trail that can miss a change is not an audit trail. With a database layer, the change
+and its audit row commit together, so a failed audit insert rolls the change back. Denials and
+failures are written outside any transaction, because there is nothing to roll back and the
+record of the refusal must survive it.
+
+## Why is `scope` a column, not just `settable_type` and `settable_id`?
+
+A unique index treats `NULL`s as distinct, so global rows (no owner) could repeat. `scope`
+(`global` or `alias:id`) is never null and is part of the unique key. Every lookup goes through
+it, too, which keeps a string owner id from ever being compared with an integer key column on
+Postgres. `settable_*` remain for reporting and for an application's own `morphTo`.
+
 ## Why actors, and why are they optional?
 
 The package is used from controllers, jobs, commands and other packages, and it cannot know which of those calls are on a person's behalf. So the caller says: `as($user)` makes every operation, reads included, go through one `Authorizer` seam (Laravel's gate by default, so a host's existing policies and `Gate::before` rules apply), and is audited with who did it and why. Code that passes no actor is the application itself and keeps working unchanged, audited as `system`; a host that wants every call attributed turns on `authorization.require_actor`, and trusted code then has to say `asSystem()`. Undefined abilities deny, so forgetting to define a gate fails closed. A token is a ceiling on top of the gate, never a grant, so a leaked token cannot exceed its owner.

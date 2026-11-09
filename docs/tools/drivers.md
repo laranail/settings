@@ -1,17 +1,23 @@
 # Drivers and layers
 
-A store reads through ordered layers; each layer is backed by one of four built-in drivers or a custom one.
+A store reads through ordered layers; each layer is backed by one of five built-in drivers or a custom one.
 
 ## Built-in drivers
 
 | Driver | Writable | Holds | Options |
 |---|---|---|---|
+| `database` | yes, unless `writable => false` | every scope and locale, in the store's table | `connection` (null = default) |
 | `json` | yes, unless `writable => false` | every scope and locale | `disk` (private), `path` containing `{store}` |
 | `php` | no | global, unlocalised `key => value` | `path`, relative to the application root |
 | `config` | no | global, unlocalised values under a config prefix | `prefix` |
 | `array` | yes | values for the current process only | — |
 
 Reads try each layer in order and stop at the first that holds a value. Writes go to the first writable layer.
+
+## The database driver
+
+Described in [Database](database.md): one table per store, version-checked writes and
+`DriverUnavailable` when the database is gone.
 
 ## The JSON driver
 

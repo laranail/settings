@@ -1,0 +1,83 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
+
+/*
+ * laranail/settings: the audit trail (design §16.8). It records actions and denials, who, when,
+ * through which channel and which versions, and has no value column: an audit trail must never
+ * become a second copy of the secrets it watches.
+ *
+ * Runs on the connection of the default store's database layer. `laranail::settings.make-store`
+ * pins another connection by rewriting the $pinnedConnection line below.
+ */
+return new class extends Migration
+{
+    private ?string $pinnedConnection = null;
+
+    public function getConnection(): ?string
+    {
+        if ($this->pinnedConnection !== null) {
+            return $this->pinnedConnection;
+        }
+
+        $store = config('laranail.settings.default', 'settings');
+
+        foreach ((array) config("laranail.settings.stores.{$store}.layers", []) as $layer) {
+            if (is_string($layer) && config("laranail.settings.layers.{$layer}.driver") === 'database') {
+                $connection = config("laranail.settings.layers.{$layer}.connection");
+
+                return is_string($connection) ? $connection : null;
+            }
+        }
+
+        return null;
+    }
+
+    public function up(): void
+    {
+        $name = $this->table();
+
+        Schema::create($name, static function (Blueprint $table) use ($name): void {
+            $table->char('id', 26)->primary();
+            $table->timestamp('occurred_at');
+            $table->string('action', 32);
+            $table->string('outcome', 16);
+            $table->string('store', 64)->nullable();
+            $table->string('scope', 128)->nullable();
+            $table->string('key', 191)->nullable();
+            $table->string('locale', 16)->nullable();
+            $table->unsignedInteger('version_from')->nullable();
+            $table->unsignedInteger('version_to')->nullable();
+            $table->char('change_request', 26)->nullable();
+            $table->string('actor_type', 16);
+            $table->string('actor_alias', 64)->nullable();
+            $table->string('actor_id', 64)->nullable();
+            $table->string('channel', 16);
+            $table->string('ip', 45)->nullable();
+            $table->string('user_agent')->nullable();
+            $table->string('request_id')->nullable();
+            $table->text('reason')->nullable();
+            $table->json('meta')->nullable();
+
+            $table->index('occurred_at', $name . '_occurred_index');
+            $table->index(['store', 'scope', 'key'], $name . '_subject_index');
+            $table->index(['actor_alias', 'actor_id'], $name . '_actor_index');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists($this->table());
+    }
+
+    private function table(): string
+    {
+        $table = config('laranail.settings.tables.audit', 'settings_audit');
+
+        return config('laranail.settings.tables.prefix', '') . (is_string($table) ? $table : 'settings_audit');
+    }
+};

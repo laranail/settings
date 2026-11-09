@@ -6,6 +6,7 @@ namespace Simtabi\Laranail\Settings\Actions;
 
 use Closure;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
@@ -19,7 +20,10 @@ use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
  * What every write action does around its write, in this order: authorize the ability (or
  * check that an actor is not required), refuse settings that need approval, decide whether a
  * locked row may be overridden, run the write, and audit the outcome. Denials are audited by
- * the {@see AccessGuard}; failures and successes here. Values never reach the audit.
+ * the {@see AccessGuard}; failures and successes here. An allowed write and its audit entry run
+ * in one transaction on the store's database connection (when it has one), so a failed audit
+ * insert rolls the write back; failures are audited after the rollback. Values never reach the
+ * audit.
  */
 final readonly class WriteGuard
 {
@@ -48,23 +52,39 @@ final readonly class WriteGuard
         $override = $respectsLocks && $this->mayOverrideLock($target, $actor);
 
         try {
-            [$before, $after] = $write($override);
+            // The write and its audit row commit together: an audit failure rolls the write back.
+            $target->store->transaction(function () use ($write, $override, $action, $subject, $actor, $target): void {
+                [$before, $after] = $write($override);
+
+                $this->access->auditor()->record(
+                    $action,
+                    AuditOutcome::Allowed,
+                    $subject,
+                    $actor,
+                    $target->reason,
+                    $before,
+                    $after,
+                    $override ? ['override_lock' => true] : [],
+                );
+            });
         } catch (SettingsException $exception) {
-            $this->access->auditor()->record($action, AuditOutcome::Failed, $subject, $actor, $target->reason, meta: ['error' => $exception::class]);
+            $this->recordFailure($action, $subject, $actor, $target, $exception);
 
             throw $exception;
         }
+    }
 
-        $this->access->auditor()->record(
-            $action,
-            AuditOutcome::Allowed,
-            $subject,
-            $actor,
-            $target->reason,
-            $before,
-            $after,
-            $override ? ['override_lock' => true] : [],
-        );
+    /**
+     * Audit a failed write, outside the rolled-back transaction. When the audit itself is what
+     * failed, recording the failure may fail the same way; the original exception still wins.
+     */
+    private function recordFailure(AuditAction $action, Subject $subject, ?Actor $actor, SettingTarget $target, SettingsException $exception): void
+    {
+        try {
+            $this->access->auditor()->record($action, AuditOutcome::Failed, $subject, $actor, $target->reason, meta: ['error' => $exception::class]);
+        } catch (SettingsException) {
+            // The caller is told about the original failure below; nothing else to do here.
+        }
     }
 
     /**

@@ -64,7 +64,8 @@ jobs:
   mutation:
     name: Mutation testing (Pest)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # About 2,800 mutations since phase 2; sequential runs took over 20 minutes.
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -85,4 +86,6 @@ jobs:
         # Pest's own mutator, not Infection: Infection has no Pest adapter, reads Pest's
         # version as PHPUnit's, writes a config PHPUnit 12 rejects, and cannot map Pest's
         # generated test classes to its JUnit report.
-        run: vendor/bin/pest --mutate --everything --min=70
+        # --parallel: each worker gets its own faked disk (Storage::fake appends the
+        # ParallelTesting token), so the runtime JSON files never collide.
+        run: vendor/bin/pest --mutate --everything --parallel --min=70

@@ -1,0 +1,67 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Simtabi\Laranail\Settings\Console;
+
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Actions\PruneOrphans;
+use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+
+/**
+ * `laranail::settings.prune-orphans`: remove the settings of owners that no longer exist, which
+ * bulk deletes leave behind because they fire no model events.
+ */
+final class PruneOrphansCommand extends Command
+{
+    use SupportsNamespacedNames;
+
+    protected $signature = 'laranail::settings.prune-orphans {--dry-run : List the orphans without removing anything}';
+
+    protected $description = 'Remove settings whose owner no longer exists';
+
+    public function handle(PruneOrphans $prune): int
+    {
+        try {
+            $found = $prune->find();
+
+            foreach ($found['unmapped'] as $alias) {
+                $this->warn(sprintf('Alias [%s] has no model in the morph map; its settings were not checked.', $alias));
+            }
+
+            $rows = [];
+
+            foreach ($found['orphans'] as $store => $owners) {
+                foreach ($owners as $owner) {
+                    $rows[] = [$store, $owner->scope()->value];
+                }
+            }
+
+            if ($rows === []) {
+                $this->info('No orphaned settings.');
+
+                return self::SUCCESS;
+            }
+
+            $this->table(['Store', 'Scope'], $rows);
+
+            if ($this->option('dry-run') === true) {
+                $this->info(sprintf('%d orphaned owner(s) found; nothing removed (dry run).', count($rows)));
+
+                return self::SUCCESS;
+            }
+
+            $removed = $prune->handle(Actor::system('laranail::settings.prune-orphans'));
+        } catch (SettingsException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->info(sprintf('Removed %d row(s) of %d orphaned owner(s).', $removed, count($rows)));
+
+        return self::SUCCESS;
+    }
+}

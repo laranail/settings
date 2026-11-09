@@ -7,12 +7,19 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | Key | Default | Purpose |
 |---|---|---|
 | `default` | `settings` (`LARANAIL_SETTINGS_STORE`) | the store used when a call names neither a store nor an owner |
-| `stores.<name>.layers` | `['runtime', 'shipped']` | layer names, in read order; writes go to the first writable one |
+| `stores.<name>.layers` | `['database', 'runtime', 'shipped']` | layer names, in read order; writes go to the first writable one |
 | `stores.<name>.owners` | `[]` | morph aliases this store holds values for; each alias belongs to one store |
 | `stores.<name>.strict` | `false` | refuse keys without a definition |
 | `stores.<name>.inherits` | `false` | let owners fall back to parents and the global value for keys whose definition does not say otherwise |
 | `stores.<name>.locks.overridable` | `false` | let an actor allowed `override_lock` write a locked setting |
-| `layers.<name>.driver` | — | `json`, `php`, `config`, `array`, or a custom driver |
+| `stores.<name>.table` | the store name | the store's values table, after `tables.prefix` |
+| `stores.<name>.bootstrap` | `false` | skip the database layer while, and only while, there is evidence of an install in progress |
+| `bootstrap` | `false` (`LARANAIL_SETTINGS_BOOTSTRAP`) | evidence of an install in progress; set it for the install window only |
+| `tables.prefix` | `''` (`LARANAIL_SETTINGS_TABLE_PREFIX`) | put in front of every package table, `[a-z0-9_]`, at most 32 characters |
+| `tables.categories` | `settings_categories` | the categories table, one per connection |
+| `tables.audit` | `settings_audit` | the audit table, one per connection |
+| `layers.<name>.driver` | — | `database`, `json`, `php`, `config`, `array`, or a custom driver |
+| `layers.<name>.connection` | `null` (`LARANAIL_SETTINGS_DB_CONNECTION` for `database`) | database driver: the connection; null is the default one |
 | `layers.<name>.writable` | `true` | set `false` for a read-only layer |
 | `layers.<name>.disk` | `local` (`LARANAIL_SETTINGS_RUNTIME_DISK`) | JSON driver: a private filesystem disk |
 | `layers.<name>.path` | — | JSON: a path on the disk containing `{store}`; PHP: a path from the application root |
@@ -27,7 +34,8 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `verification.driver` | `password_confirmation` (`LARANAIL_SETTINGS_VERIFIER`) | `password_confirmation`, `actor`, `none` or a class |
 | `verification.abilities` | `override_lock`, `rollback`, `import`, `manage_stores` | abilities that always need step-up verification |
 | `verification.ttl` | `900` | seconds an actor's `verifiedAt` stays fresh for the `actor` driver |
-| `audit.sinks` | `['log']` | `log`, `null` or classes; every sink gets every entry |
+| `audit.sinks` | `['auto']` | `auto` (`database` for a store with an active database layer, else `log`), `database`, `log`, `null` or classes; every sink gets every entry |
+| `audit.keep_days` | `365` | how long `prune-audit` keeps audit rows |
 | `logging.channel` | `null` | the application's default channel, a channel name, or `false` for off |
 | `logging.level` | `info` (`LARANAIL_SETTINGS_LOG_LEVEL`) | the lowest level written |
 

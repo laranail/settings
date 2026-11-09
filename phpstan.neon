@@ -8,4 +8,7 @@ parameters:
     # outside the application's config directory and flags its env() calls, which is wrong.
     paths:
         - src
+        # PHPStan analyses a trait only where a class uses it; this fixture model uses
+        # HasSettings, so the trait is checked in context.
+        - tests/Fixtures/SettingsOwner.php
     treatPhpDocTypesAsCertain: false
