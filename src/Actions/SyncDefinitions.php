@@ -17,6 +17,7 @@ use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 
@@ -95,7 +96,7 @@ final readonly class SyncDefinitions
             $keys[] = $definition->key->value;
             $row = $table()->where('key', $definition->key->value)->first(['is_system']);
 
-            if ($row !== null && ! in_array($row->is_system ?? false, [true, 1, '1'], true)) {
+            if ($row !== null && ! DatabaseValues::boolean($row->is_system ?? false)) {
                 $conflicts[] = $store->name->value . '.' . $definition->key->value;
 
                 continue;

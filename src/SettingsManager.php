@@ -315,7 +315,7 @@ final readonly class SettingsManager implements Settings
 
     private function scope(): Scope
     {
-        return $this->owner?->scope() ?? Scope::global();
+        return Scope::of($this->owner);
     }
 
     /**

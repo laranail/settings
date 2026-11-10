@@ -12,6 +12,7 @@ use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
@@ -71,7 +72,7 @@ final readonly class CategoryRepository
             description: is_string($row['description'] ?? null) ? $this->translations()->text($row['description']) : null,
             icon: is_string($row['icon'] ?? null) ? $row['icon'] : null,
             sortOrder: is_numeric($row['sort_order'] ?? null) ? (int) $row['sort_order'] : 0,
-            system: in_array($row['is_system'] ?? false, [true, 1, '1'], true),
+            system: DatabaseValues::boolean($row['is_system'] ?? false),
             titles: $this->translations()->texts($this->string($row['title'] ?? null)),
         ), $rows));
     }

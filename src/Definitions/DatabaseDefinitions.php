@@ -13,6 +13,7 @@ use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Casting\CasterRegistry;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Enums\TranslationsMode;
+use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 
 /**
@@ -94,7 +95,7 @@ final class DatabaseDefinitions
     private function definition(Store $store, array $row, Translations $translations): Definition
     {
         $text = static fn (string $column): ?string => is_string($row[$column] ?? null) && $row[$column] !== '' ? $row[$column] : null;
-        $flag = static fn (string $column): bool => in_array($row[$column] ?? false, [true, 1, '1'], true);
+        $flag = static fn (string $column): bool => DatabaseValues::boolean($row[$column] ?? false);
         $key = new Key($text('key') ?? throw new InvalidDefinition('A definitions row has no key.'));
         $type = $text('type');
 
@@ -115,7 +116,7 @@ final class DatabaseDefinitions
             encrypted: $flag('is_encrypted'),
             public: $flag('is_public'),
             locked: $flag('is_locked'),
-            inherits: $inherits === null ? null : in_array($inherits, [true, 1, '1'], true),
+            inherits: $inherits === null ? null : DatabaseValues::boolean($inherits),
             overridableBy: Json::strings($text('overridable_by')),
             label: $translations->nullableText($text('label')),
             description: $translations->nullableText($text('description')),

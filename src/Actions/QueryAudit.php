@@ -10,9 +10,7 @@ use Illuminate\Pagination\Cursor;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\LazyCollection;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Data\AuditPage;
@@ -79,7 +77,7 @@ final readonly class QueryAudit
         $this->access->authorize($actor, Ability::ViewAudit, new Subject(
             $store->name,
             key: $filter->key,
-            owner: ! $filter->scope instanceof Scope || $filter->scope->isGlobal() ? null : new OwnerRef(...explode(':', $filter->scope->value, 2)),
+            owner: $filter->scope?->owner(),
         ));
 
         $database = $store->database() ?? $this->stores->default()->database();

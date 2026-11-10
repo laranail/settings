@@ -9,7 +9,6 @@ use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 
 /**
@@ -64,16 +63,6 @@ final class RecordSerializer
 
     private function scope(string $value, string $source): Scope
     {
-        if ($value === Scope::GLOBAL) {
-            return Scope::global();
-        }
-
-        $parts = explode(':', $value, 2);
-
-        if (count($parts) !== 2) {
-            throw new DriverFailure(sprintf('A record in [%s] has a malformed scope.', $source));
-        }
-
-        return new OwnerRef($parts[0], $parts[1])->scope();
+        return Scope::fromString($value) ?? throw new DriverFailure(sprintf('A record in [%s] has a malformed scope.', $source));
     }
 }
