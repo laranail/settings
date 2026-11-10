@@ -12,6 +12,7 @@ use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Database\AuditRepository;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
@@ -54,11 +55,7 @@ final readonly class PruneAudit
 
             $seen[$database->connectionName()] = true;
 
-            // Retention is one policy for the whole application, so it prunes every tenant's rows.
-            $removed += $database->attempt($store->name, static fn (): int => $database->connection()
-                ->table($database->names()->audit())
-                ->where('occurred_at', '<', $cutoff)
-                ->delete());
+            $removed += new AuditRepository($database)->prune($cutoff, $store->name);
         }
 
         $this->access->auditor()->record(AuditAction::Prune, AuditOutcome::Allowed, $subject, $actor, meta: ['target' => 'audit', 'keep_days' => $keepDays, 'removed' => $removed]);
