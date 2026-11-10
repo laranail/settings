@@ -40,6 +40,7 @@ use Simtabi\Laranail\Settings\Audit\LogAuditSink;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Actions\FindOrphans;
 use Simtabi\Laranail\Settings\Audit\AutoAuditSink;
 use Simtabi\Laranail\Settings\Audit\NullAuditSink;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
@@ -335,6 +336,11 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $this->app->scoped(QueryAudit::class, static fn (Application $app): QueryAudit => new QueryAudit(
             $app->make(StoreRegistry::class),
             $app->make(AccessGuard::class),
+        ));
+
+        $this->app->scoped(FindOrphans::class, static fn (Application $app): FindOrphans => new FindOrphans(
+            $app->make(StoreRegistry::class),
+            static fn (string $alias): ?string => Relation::getMorphedModel($alias),
         ));
 
         $this->app->scoped(PruneOrphans::class, static fn (Application $app): PruneOrphans => new PruneOrphans(

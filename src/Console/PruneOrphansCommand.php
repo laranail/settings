@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Console;
 
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Actions\FindOrphans;
 use Simtabi\Laranail\Settings\Actions\PruneOrphans;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
@@ -22,10 +23,10 @@ final class PruneOrphansCommand extends Command
 
     protected $description = 'Remove settings whose owner no longer exists';
 
-    public function handle(PruneOrphans $prune): int
+    public function handle(PruneOrphans $prune, FindOrphans $find): int
     {
         try {
-            $found = $prune->find();
+            $found = $find->handle();
 
             foreach ($found['unmapped'] as $alias) {
                 $this->warn(sprintf('Alias [%s] has no model in the morph map; its settings were not checked.', $alias));

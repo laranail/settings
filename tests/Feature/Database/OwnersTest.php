@@ -142,6 +142,18 @@ it('needs prune (and forget) to prune orphans with an actor, and audits the run'
         ->and(DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'denied')->count())->toBe(1);
 });
 
+it('finds orphans with FindOrphans, and through the deprecated PruneOrphans::find()', function (): void {
+    $gone = SettingsOwner::query()->create();
+    $gone->settings()->set('ui.theme', 'dark');
+    SettingsOwner::query()->whereKey($gone->id)->delete();
+
+    $found = app(Simtabi\Laranail\Settings\Actions\FindOrphans::class)->handle();
+
+    expect(array_map(static fn (OwnerRef $owner): string => $owner->scope()->value, $found['orphans']['settings'] ?? []))->toBe(['owner:' . $gone->id])
+        ->and(app(PruneOrphans::class)->find())->toEqual($found)
+        ->and(DB::table('settings')->count())->toBe(1);
+});
+
 it('needs prune to prune the audit trail with an actor', function (): void {
     $prune = app(PruneAudit::class);
     $actor = Actor::user(user());

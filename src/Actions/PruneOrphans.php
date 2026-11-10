@@ -14,15 +14,10 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 
 /**
- * Find, and remove, the settings of owners that no longer exist (G-7): rows left by bulk
- * deletes, which fire no model events. For each store's owner aliases it lists the owner scopes
- * in the database layer and asks the aliased model which ids still exist, soft-deleted ones
- * included (a soft-deleted owner keeps its settings for a restore). An alias with no model in
- * the morph map is reported, never guessed at.
+ * Remove the settings of owners that no longer exist (G-7), as {@see FindOrphans} finds them.
  *
  * Removing needs `prune` when an actor is present (and, per owner, the `forget` that flushing
  * needs); the run is audited as one `prune` entry besides the per-owner `forget` entries.
@@ -44,38 +39,13 @@ final readonly class PruneOrphans
     /**
      * The orphaned owners per store, and the aliases no model answers for.
      *
+     * @deprecated 0.1 Use {@see FindOrphans::handle()}; this forwards to it and is removed in 1.0.
+     *
      * @return array{orphans: array<string, list<OwnerRef>>, unmapped: list<string>}
      */
     public function find(): array
     {
-        $orphans = [];
-        $unmapped = [];
-
-        foreach ($this->stores->all() as $name => $store) {
-            $database = $store->database();
-
-            if (! $database instanceof DatabaseDriver) {
-                continue;
-            }
-
-            foreach ($store->owners as $alias) {
-                $model = ($this->models)($alias);
-
-                if ($model === null || ! is_subclass_of($model, Model::class)) {
-                    $unmapped[] = $alias;
-
-                    continue;
-                }
-
-                $found = $this->orphansOf($store, $database, $alias, $model);
-
-                if ($found !== []) {
-                    $orphans[$name] = [...($orphans[$name] ?? []), ...$found];
-                }
-            }
-        }
-
-        return ['orphans' => $orphans, 'unmapped' => array_values(array_unique($unmapped))];
+        return $this->finder()->handle();
     }
 
     /**
@@ -88,7 +58,7 @@ final readonly class PruneOrphans
         $removed = 0;
         $flushed = 0;
 
-        foreach ($this->find()['orphans'] as $name => $owners) {
+        foreach ($this->finder()->handle()['orphans'] as $name => $owners) {
             $store = $this->stores->all()[$name];
 
             foreach ($owners as $owner) {
@@ -102,31 +72,8 @@ final readonly class PruneOrphans
         return $removed;
     }
 
-    /**
-     * @param class-string<Model> $model
-     *
-     * @return list<OwnerRef>
-     */
-    private function orphansOf(Store $store, DatabaseDriver $database, string $alias, string $model): array
+    private function finder(): FindOrphans
     {
-        $instance = new $model;
-        $integerKeys = $instance->getKeyType() === 'int';
-        $orphans = [];
-
-        foreach (array_chunk($database->scopesOf($store->name, $alias), 500) as $scopes) {
-            $ids = array_map(static fn (string $scope): string => substr($scope, strlen($alias) + 1), $scopes);
-            $keys = $integerKeys ? array_map(intval(...), array_filter($ids, ctype_digit(...))) : $ids;
-
-            $existing = array_map(
-                static fn (mixed $key): string => is_scalar($key) ? (string) $key : '',
-                $instance->newQueryWithoutScopes()->whereKey($keys)->pluck($instance->getKeyName())->all(),
-            );
-
-            foreach (array_diff($ids, $existing) as $id) {
-                $orphans[] = new OwnerRef($alias, $id);
-            }
-        }
-
-        return $orphans;
+        return new FindOrphans($this->stores, $this->models);
     }
 }
