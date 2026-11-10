@@ -61,6 +61,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The code is layered entry points → actions → services → support, held by architecture
+  tests. Database work moved out of actions into `Database\AuditRepository` (the audit sink,
+  query and prune), `Database\DefinitionsRepository` (definitions sync and reads) and
+  `Database\SchemaInspector` (`doctor` and install's foreign-table check); the tenant adapters
+  into `Tenancy\TenantDiscriminators`; the transaction-and-audit sequence of every write,
+  category change and promotion into `Support\AuditedTransaction`; shared helpers into
+  `Support\Json`, `Support\Translations`, `Support\DatabaseValues` and
+  `Support\ConfigValues`, and `Scope::of()`, `Scope::fromString()`, `Scope::owner()`,
+  `Store::requireDatabase()`, `CategoryRepository::of()`. Behaviour, messages and audit entries
+  are unchanged.
+- `FindOrphans` finds orphaned owners' settings; `PruneOrphans` removes them.
+
+### Deprecated
+
+- `PruneOrphans::find()`: use `FindOrphans::handle()`. It forwards; removed in 1.0.
+- `DatabaseDefinitions::localised()`: use `Support\Translations::nullableText()`. It forwards;
+  removed in 1.0.
+
 - The four migration stubs are replaced by one migration,
   `database/migrations/create_laranail_settings_tables.php`, which creates categories, the
   optional definitions table, every recorded database store's values table (on its own
