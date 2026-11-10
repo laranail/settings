@@ -82,7 +82,19 @@ function useDatabase(array $config = [], array $stores = [], array $ownerTables 
     app()->forgetInstance(DriverFactory::class);
     app()->forgetScopedInstances();
 
-    $directory = sys_get_temp_dir() . '/laranail-settings-migrations-' . bin2hex(random_bytes(4));
+    // One directory per distinct set of files, reused: the migrator requires each file, and PHP
+    // keeps every compiled file for the life of the process, so a fresh path per call would leak
+    // a migration's worth of memory per test (the full switch matrix runs thousands of them).
+    $migration = (string) file_get_contents(__DIR__ . '/../database/migrations/create_laranail_settings_tables.php');
+    $directory = sys_get_temp_dir() . '/laranail-settings-migrations-' . sha1(serialize([$migration, $stores, $ownerTables]));
+
+    if (is_dir($directory)) {
+        Artisan::call('migrate:fresh', ['--path' => $directory, '--realpath' => true]);
+        app(ReadinessProbe::class)->flush();
+
+        return;
+    }
+
     mkdir($directory);
 
     copy(__DIR__ . '/../database/migrations/create_laranail_settings_tables.php', $directory . '/2026_01_01_000000_create_laranail_settings_tables.php');
