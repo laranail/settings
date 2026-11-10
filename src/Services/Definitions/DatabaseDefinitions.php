@@ -11,7 +11,6 @@ use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Enums\TranslationsMode;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
@@ -43,16 +42,6 @@ final class DatabaseDefinitions
         private readonly array $allowedRules,
         private readonly bool $enabled = true,
     ) {}
-
-    /**
-     * A label as text: itself, or (json mode) the entry for any locale, else the first one.
-     *
-     * @deprecated 0.1 Use {@see Translations::nullableText()}; this forwards to it and is removed in 1.0.
-     */
-    public static function localised(?string $stored, bool $json): ?string
-    {
-        return new Translations($json ? TranslationsMode::Json : TranslationsMode::Lang)->nullableText($stored);
-    }
 
     /** Forget the store's loaded rows, so the next read sees a definition just saved or deleted. */
     public function forget(Store $store): void

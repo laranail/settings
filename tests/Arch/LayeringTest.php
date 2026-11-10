@@ -51,7 +51,6 @@ const ACTION_EXEMPTIONS = [
     'Actions\\Configuration\\ConfigurationActions' => 'a bundle of the persisted configuration actions for entry points',
     'Actions\\Categories\\CategoryActions'         => 'a bundle of the category actions for entry points (using())',
     'Actions\\QueryAudit'                          => 'get(), cursor(), paginate(): one authorized read in three result shapes, part of the public API',
-    'Actions\\PruneOrphans'                        => 'find(): deprecated in 0.1, forwards to FindOrphans, removed in 1.0',
 ];
 
 it('gives every action handle() as its only public method', function (): void {

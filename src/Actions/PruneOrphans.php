@@ -8,7 +8,6 @@ use Closure;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
@@ -35,18 +34,6 @@ final readonly class PruneOrphans
         private ?Dispatcher $events = null,
     ) {
         $this->access = $access ?? AccessGuard::closed();
-    }
-
-    /**
-     * The orphaned owners per store, and the aliases no model answers for.
-     *
-     * @deprecated 0.1 Use {@see FindOrphans::handle()}; this forwards to it and is removed in 1.0.
-     *
-     * @return array{orphans: array<string, list<OwnerRef>>, unmapped: list<string>}
-     */
-    public function find(): array
-    {
-        return $this->finder()->handle();
     }
 
     /**

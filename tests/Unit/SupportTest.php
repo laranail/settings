@@ -13,7 +13,6 @@ use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 
 it('stores and reads titles in both translation modes', function (): void {
     $lang = new Translations(TranslationsMode::Lang);
@@ -30,10 +29,7 @@ it('stores and reads titles in both translation modes', function (): void {
         ->and($json->text('{"fr":3}'))->toBe('{"fr":3}')
         ->and($json->storeNullable(null))->toBeNull()
         ->and($json->nullableText(null))->toBeNull()
-        ->and($json->nullableText('{"":"Mail"}'))->toBe('Mail')
-        // The deprecated helper forwards.
-        ->and(DatabaseDefinitions::localised('{"":"Mail"}', true))->toBe('Mail')
-        ->and(DatabaseDefinitions::localised('{"":"Mail"}', false))->toBe('{"":"Mail"}');
+        ->and($json->nullableText('{"":"Mail"}'))->toBe('Mail');
 });
 
 it('encodes JSON with one set of flags and names what failed', function (): void {

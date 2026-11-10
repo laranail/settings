@@ -48,11 +48,9 @@ entry points.
 Two architecture tests keep it so: nothing under `Services\` implements a plug-in contract (a
 driver, sink, authorizer, caster, verifier, resolver or discriminator stays beside its kind, where
 a reader looking for "the drivers" finds them), and no class named `*Repository` or `*Registry`
-lives anywhere else. The 19 classes that moved keep their old names through `class_alias` in
-`src/deprecated-aliases.php`, loaded by Composer, until 1.0. The aliases are declared eagerly:
-PHP does not autoload a class for a type check, so a lazily declared alias would make
-`function f(Stores\SettingWriter $w)` refuse the object it accepted before. A third test asserts the
-alias file names exactly the moved classes.
+lives anywhere else. The 19 classes that moved there in 0.1 kept no old name: the package had never
+been tagged, so the aliases were removed before the first release, and a third test asserts the old
+names no longer resolve.
 
 ## Why history and audit are separate tables
 
