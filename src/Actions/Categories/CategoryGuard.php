@@ -12,12 +12,11 @@ use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
+use Simtabi\Laranail\Settings\Support\AuditedTransaction;
 use Simtabi\Laranail\Settings\Database\CategoryRepository;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
  * What every category change does around its work: authorize `manage_categories`, then run the
@@ -48,23 +47,20 @@ final readonly class CategoryGuard
 
         $database = $store->requireDatabase('; categories are kept in the database.');
 
-        try {
-            return $store->transaction(function () use ($store, $database, $work, $before, $after, $subject, $actor, $meta): mixed {
+        return new AuditedTransaction($this->access)->run(
+            $store,
+            AuditAction::ManageCategories,
+            $subject,
+            $actor,
+            function () use ($store, $database, $work, $before): mixed {
                 $this->events->dispatch($before);
-                $result = $work(new CategoryRepository($database, $store->name), $database);
-                $this->access->auditor()->record(AuditAction::ManageCategories, AuditOutcome::Allowed, $subject, $actor, meta: $meta);
+
+                return $work(new CategoryRepository($database, $store->name), $database);
+            },
+            then: function () use ($after): void {
                 $this->events->dispatch($after);
-
-                return $result;
-            });
-        } catch (SettingsException $exception) {
-            try {
-                $this->access->auditor()->record(AuditAction::ManageCategories, AuditOutcome::Failed, $subject, $actor, meta: $meta + ['error' => $exception::class]);
-            } catch (SettingsException) {
-                // The original failure is what the caller needs; it is rethrown below.
-            }
-
-            throw $exception;
-        }
+            },
+            meta: $meta,
+        );
     }
 }

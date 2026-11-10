@@ -6,14 +6,13 @@ namespace Simtabi\Laranail\Settings\Actions;
 
 use Closure;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Support\AuditedTransaction;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 
 /**
@@ -51,40 +50,16 @@ final readonly class WriteGuard
 
         $override = $respectsLocks && $this->mayOverrideLock($target, $actor);
 
-        try {
-            // The write and its audit row commit together: an audit failure rolls the write back.
-            $target->store->transaction(function () use ($write, $override, $action, $subject, $actor, $target): void {
-                [$before, $after] = $write($override);
-
-                $this->access->auditor()->record(
-                    $action,
-                    AuditOutcome::Allowed,
-                    $subject,
-                    $actor,
-                    $target->reason,
-                    $before,
-                    $after,
-                    $override ? ['override_lock' => true] : [],
-                );
-            });
-        } catch (SettingsException $exception) {
-            $this->recordFailure($action, $subject, $actor, $target, $exception);
-
-            throw $exception;
-        }
-    }
-
-    /**
-     * Audit a failed write, outside the rolled-back transaction. When the audit itself is what
-     * failed, recording the failure may fail the same way; the original exception still wins.
-     */
-    private function recordFailure(AuditAction $action, Subject $subject, ?Actor $actor, SettingTarget $target, SettingsException $exception): void
-    {
-        try {
-            $this->access->auditor()->record($action, AuditOutcome::Failed, $subject, $actor, $target->reason, meta: ['error' => $exception::class]);
-        } catch (SettingsException) {
-            // The caller is told about the original failure below; nothing else to do here.
-        }
+        // The write and its audit row commit together: an audit failure rolls the write back.
+        new AuditedTransaction($this->access)->run(
+            $target->store,
+            $action,
+            $subject,
+            $actor,
+            static fn (): array => $write($override),
+            static fn (array $versions): array => ['from' => $versions[0], 'to' => $versions[1], 'meta' => $override ? ['override_lock' => true] : []],
+            reason: $target->reason,
+        );
     }
 
     /**
