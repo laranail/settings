@@ -11,14 +11,14 @@ use Simtabi\Laranail\Settings\Data\HistoryEntry;
 use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
 /**
- * A history entry (§4.3), its payloads as stored (encrypted values stay encrypted).
+ * A history entry, its payloads as stored (encrypted values stay encrypted).
  *
  * @property HistoryEntry $resource
  */
 #[PreserveKeys]
 final class HistoryEntryResource extends JsonResource
 {
-    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    /** Always wrapped in `data`, whatever the application sets. */
     public static $wrap = 'data';
 
     /** @return array<string, mixed> */

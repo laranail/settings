@@ -77,7 +77,23 @@ Schedule::command('laranail::settings.prune-audit')->weekly();
 
 ## The operational log
 
-Refusals are logged as warnings, and runtime configuration changes and log-sink audit entries at `info`, with store, key, scope and actor identifiers.
+Refusals are logged as warnings, and runtime configuration changes and log-sink audit entries at `info`.
+
+Every entry's context starts with the same five keys, in this order, `null` where the entry has
+none, followed by anything specific to the entry (`reason`, `operation`, `event`, …). No context
+holds a value.
+
+| Context key | Holds |
+|---|---|
+| `store` | the store name |
+| `key` | the setting key |
+| `scope` | `global` or `alias:id` |
+| `actor` | `type`, `alias` and `id` of the actor, plus its `channel` where known |
+| `channel` | `php`, `rest`, `console` or `queue` |
+
+So a log query such as `context.store = "settings" and context.key = "mail.host"` finds every
+entry about one setting, whichever part of the package wrote it. The keys are listed in
+`Logging\LogContext::KEYS`.
 
 | Key | Default | Effect |
 |---|---|---|

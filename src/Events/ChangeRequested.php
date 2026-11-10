@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * A change request was opened: the write waits for approval. Dispatched after commit; identifiers only, never the proposed value.
- */
+/** A change request was opened. */
 final readonly class ChangeRequested implements ShouldDispatchAfterCommit
 {
     public function __construct(

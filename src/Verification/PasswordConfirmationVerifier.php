@@ -13,18 +13,15 @@ use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 
 /**
- * Laravel's own password confirmation: the session's `auth.password_confirmed_at` within
- * `auth.password_timeout`, the same check as the `password.confirm` middleware. Outside HTTP,
- * or when the session has no confirmation, it reads {@see Actor::$verifiedAt} with the same
- * timeout.
+ * Laravel's password confirmation, as the `password.confirm` middleware checks it. Falls back to
+ * {@see Actor::$verifiedAt} outside HTTP.
  */
 final readonly class PasswordConfirmationVerifier implements Verifier
 {
     public const string SESSION_KEY = 'auth.password_confirmed_at';
 
     /**
-     * @param Closure(): ?Session $session the current session, or null outside HTTP; a closure
-     *                                     because the request changes under this scoped service
+     * @param Closure(): ?Session $session the current session, or null outside HTTP
      */
     public function __construct(
         private Closure $session,

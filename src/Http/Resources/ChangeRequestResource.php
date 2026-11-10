@@ -11,14 +11,14 @@ use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
 /**
- * A change request (§16.7) without its proposed payload, which may be a secret.
+ * A change request without its proposed payload, which may be a secret.
  *
  * @property ChangeRequest $resource
  */
 #[PreserveKeys]
 final class ChangeRequestResource extends JsonResource
 {
-    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    /** Always wrapped in `data`, whatever the application sets. */
     public static $wrap = 'data';
 
     /** @return array<string, mixed> */

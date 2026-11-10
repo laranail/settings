@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use LogicException;
 
-/**
- * The presence-aware result of reading a setting: found (with a value that may be null) or
- * missing. Used instead of a nullable return, so "stored null" and "absent" stay distinct.
- */
+/** The result of a read: found (the value may be null) or missing. */
 final readonly class Lookup
 {
     private function __construct(
@@ -35,10 +32,7 @@ final readonly class Lookup
         return new self(false, null, null, null);
     }
 
-    /**
-     * The same answer with its value withheld, for an actor not allowed to see it: presence,
-     * layer and scope stay visible; {@see value()} throws and {@see valueOr()} returns the default.
-     */
+    /** The same answer with its value withheld; presence, layer and scope stay visible. */
     public function redacted(): self
     {
         return new self($this->found, null, $this->layer, $this->scope, redacted: true);

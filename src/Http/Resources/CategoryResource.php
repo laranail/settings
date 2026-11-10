@@ -11,14 +11,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
 /**
- * A category as the API returns it, by slug (its numeric id is internal, G-42).
+ * A category as the API returns it, identified by slug.
  *
  * @property Category $resource
  */
 #[PreserveKeys]
 final class CategoryResource extends JsonResource
 {
-    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    /** Always wrapped in `data`, whatever the application sets. */
     public static $wrap = 'data';
 
     /** @return array<string, mixed> */

@@ -8,9 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Simtabi\Laranail\Settings\Data\Http\WriteInput;
 use Simtabi\Laranail\Settings\Http\Requests\Concerns\ReadsAddress;
 
-/**
- * `POST …/settings/{key}/rollback`: the version to return to, and an optional `reason`.
- */
+/** `POST …/settings/{key}/rollback`. */
 final class RollbackSettingRequest extends FormRequest
 {
     use ReadsAddress;

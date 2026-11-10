@@ -35,12 +35,9 @@ use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
- * Approve a change request (§16.7): needs `approve` on its setting. The requester cannot approve
- * their own request unless `approvals.allow_self` is on. Once `approvals.min_approvals` approvals
- * are in, the change is applied through the normal write pipeline with the request's base version
- * as the expected version, so a setting that changed since the request was opened is never
- * overwritten: the request becomes `stale` instead (and is returned, not thrown). An expired
- * request is marked `expired` and refused. Returns the request as it now stands.
+ * Approve a change request; needs `approve` on its setting. With enough approvals the change is
+ * written against the request's base version, and a setting that moved on since makes the
+ * request `stale` instead. Returns the request as it now stands.
  */
 final readonly class ApproveChange
 {

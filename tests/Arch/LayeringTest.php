@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * The layering (refactor plan, 2026-11-09): entry points → actions → services → support.
+ * The layering: entry points → actions → services → support.
  *
  *   1. An action exposes handle() and nothing else public.
  *   2. Actions never touch the database connection or schema builder themselves; repositories

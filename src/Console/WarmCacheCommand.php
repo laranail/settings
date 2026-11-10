@@ -14,8 +14,8 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.warm`: load each cached store's global scope into the cache (one query per
- * store on a miss), so the first request after a deploy or a cache reset does not pay for it.
+ * Load each cached store's global scope into the cache, so the first request after a deploy does
+ * not pay for it.
  */
 final class WarmCacheCommand extends Command
 {

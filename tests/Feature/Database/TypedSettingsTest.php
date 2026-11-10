@@ -21,9 +21,9 @@ use Simtabi\Laranail\Settings\Tests\Fixtures\Typed\BrokenSettings;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
- * Phase 5: typed settings classes over the key-value engine. The typed API and the key-value
+ * Typed settings classes over the key-value engine. The typed API and the key-value
  * API read and write the same rows (parity), saves go through the write actions (actor, audit,
- * history), and settings migrations rename, move, add and delete keys (G-17).
+ * history), and settings migrations rename, move, add and delete keys.
  */
 
 beforeEach(function (): void {

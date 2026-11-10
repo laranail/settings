@@ -9,9 +9,7 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Attributes\Description;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
-/**
- * How a polymorphic store types `settable_id` (D-5, `ids.owner_key`).
- */
+/** How a polymorphic store types `settable_id` (`ids.owner_key`). */
 enum OwnerKeyType: string implements Enumerator
 {
     use HasEnumeratorBehavior;

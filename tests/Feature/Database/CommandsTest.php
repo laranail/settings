@@ -13,10 +13,8 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
-// Writes into the testbench application shared by every process (config/, database/), so it
-// cannot run beside itself in parallel; the parallel mutation run leaves this group out.
-// mutation-excluded: Pest's parallel runner honours only the first --exclude-group, so every group
-// the mutation job leaves out also carries this one.
+// Writes into the testbench application shared by every process, so it cannot run in parallel.
+// It also carries `mutation-excluded`, because Pest's parallel runner honours one --exclude-group.
 pest()->group('shared-app', 'mutation-excluded');
 
 /** @return list<string> */
@@ -47,7 +45,7 @@ it('publishes the config and the one migration on install, and records the schem
         ->and(app(SchemaShapeRepository::class)->recorded()?->hasStore(new StoreName('settings')))->toBeTrue();
 });
 
-it('refuses to install over a table of the same name that is not its own (D-4)', function (): void {
+it('refuses to install over a table of the same name that is not its own', function (): void {
     config()->set('laranail.settings.stores.settings.layers', ['database', 'runtime', 'shipped']);
     app()->forgetScopedInstances();
     Schema::create('settings', static function (Blueprint $table): void {

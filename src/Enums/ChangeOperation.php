@@ -8,7 +8,7 @@ use Simtabi\Laranail\Enumerator\Attributes\Label;
 use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
-/** The write a change request (§16.7) applies once it is approved. */
+/** The write a change request applies once it is approved. */
 enum ChangeOperation: string implements Enumerator
 {
     use HasEnumeratorBehavior;

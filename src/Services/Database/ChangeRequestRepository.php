@@ -24,9 +24,7 @@ use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
 
 /**
- * The change requests table on one connection (§16.7): every read and write of change requests
- * goes through here. In column-mode tenancy a request carries the current tenant and a query sees
- * the current tenant's requests only; the expiry and retention sweeps are application-wide.
+ * Reads and writes the change requests table on one connection, scoped to the current tenant.
  */
 final readonly class ChangeRequestRepository
 {
@@ -35,8 +33,7 @@ final readonly class ChangeRequestRepository
     ) {}
 
     /**
-     * Where a store's change requests live: its active database layer's connection, when the
-     * recorded schema has the change requests table.
+     * The repository for a store's change requests.
      *
      * @throws ApprovalUnavailable when the store cannot hold change requests
      */
@@ -52,7 +49,7 @@ final readonly class ChangeRequestRepository
     }
 
     /**
-     * One row as a request; a malformed row raises DriverFailure rather than inventing a request.
+     * Build a request from one row; a malformed row raises DriverFailure.
      *
      * @param array<array-key, mixed> $row
      */
@@ -102,7 +99,7 @@ final readonly class ChangeRequestRepository
         );
     }
 
-    /** The current tenant's request with this id in the store, or UnknownChangeRequest. */
+    /** @throws UnknownChangeRequest */
     public function get(StoreName $store, string $id): ChangeRequest
     {
         return $this->find($store, $id) ?? throw new UnknownChangeRequest(sprintf('Store [%s] has no change request [%s].', $store, $id));
@@ -175,8 +172,7 @@ final readonly class ChangeRequestRepository
     }
 
     /**
-     * Move a request from one of `$from` to a new status, recording who decided it; returns
-     * false when it was no longer in any of `$from` (somebody else decided it first).
+     * Move a request from one of `$from` to a new status; false when someone else decided it first.
      *
      * @param list<ChangeStatus> $from
      * @param list<string>|null $approvals the approvals so far, when they change
@@ -211,9 +207,8 @@ final readonly class ChangeRequestRepository
                 return true;
             }
 
-            // MySQL reports changed rows, not matched rows, so an update writing identical
-            // values reports 0. That can only happen when the target status is itself one of
-            // the allowed ones (approved -> approved); any other target means somebody else won.
+            // MySQL counts changed rows, so an identical update reports 0; that only means a lost
+            // race when the target status is not one of the allowed ones.
             if (! in_array($columns['status'], $statuses, true)) {
                 return false;
             }
@@ -226,12 +221,11 @@ final readonly class ChangeRequestRepository
     }
 
     /**
-     * Rewrite every tenant's encrypted proposed payloads (re-encryption). `$rewrite` returns null
-     * when it cannot read a payload (counted as failed, left as it was). Returns [rewritten, failed].
+     * Rewrite every tenant's encrypted proposed payloads.
      *
-     * @param Closure(string): ?string $rewrite
+     * @param Closure(string): ?string $rewrite returns null when it cannot read a payload
      *
-     * @return array{int, int}
+     * @return array{int, int} rewritten and failed counts
      */
     public function rewriteEncrypted(StoreName $store, Closure $rewrite): array
     {
@@ -258,7 +252,7 @@ final readonly class ChangeRequestRepository
         });
     }
 
-    /** Rename an owner alias in every tenant's open and decided requests (rescope, G-30). */
+    /** Rename an owner alias in every tenant's requests. */
     public function rescope(StoreName $store, string $from, string $to): int
     {
         return $this->database->attempt($store, function () use ($from, $to): int {
@@ -275,10 +269,9 @@ final readonly class ChangeRequestRepository
     }
 
     /**
-     * Mark every tenant's open requests past their expiry as expired, and delete decided requests
-     * last touched before `$cutoff`. Returns [expired, deleted].
+     * Expire overdue open requests and delete decided ones older than `$cutoff`, for every tenant.
      *
-     * @return array{int, int}
+     * @return array{int, int} expired and deleted counts
      */
     public function sweep(CarbonImmutable $now, ?CarbonImmutable $cutoff, StoreName $store): array
     {
@@ -300,7 +293,7 @@ final readonly class ChangeRequestRepository
         });
     }
 
-    /** How many of the current tenant's requests are open but past their expiry (doctor). */
+    /** How many of the current tenant's open requests are past their expiry. */
     public function overdue(CarbonImmutable $now, StoreName $store): int
     {
         return $this->database->attempt($store, fn (): int => $this->database->scoped($this->table())

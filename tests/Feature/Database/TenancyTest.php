@@ -15,7 +15,7 @@ use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /*
- * Amendment B: column-mode tenancy. One database; every values, categories and audit row carries
+ * Column-mode tenancy. One database; every values, categories and audit row carries
  * the current tenant and every query is limited to it, so two tenants writing the same key never
  * see each other's value, and '' holds the central rows.
  */

@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data\Http;
 
-/**
- * A REST write: where, the value (for a set), the reason, the `If-Match` ETag the client read
- * (null: unconditional) and, for a rollback, the version to return to.
- */
+/** A REST write: address, value, reason, optional `If-Match` ETag and rollback version. */
 final readonly class WriteInput
 {
     public function __construct(

@@ -6,7 +6,7 @@ use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 
 /*
- * §16.2 (D-17): every REST route runs the action the PHP API runs. Read from the live router:
+ * Every REST route runs the action the PHP API runs. Read from the live router:
  * each route names a controller method, each controller method is routed, and each delegates
  * to an Actions\* class it was handed as a parameter.
  */

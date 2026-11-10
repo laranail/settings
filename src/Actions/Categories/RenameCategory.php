@@ -12,9 +12,7 @@ use Simtabi\Laranail\Settings\Events\CategorySaving;
 use Simtabi\Laranail\Settings\Events\CategoryRenamed;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
-/**
- * Give a category a new title (its slug, the identifier, stays): needs `manage_categories`.
- */
+/** Give a category a new title; its slug stays. */
 final readonly class RenameCategory
 {
     public function __construct(
@@ -23,7 +21,6 @@ final readonly class RenameCategory
 
     public function handle(Store $store, string $slug, string $title, ?Actor $actor = null): void
     {
-        // Validates the slug and the title the same way creation does.
         $input = new NewCategory($slug, $title);
         $events = [new CategorySaving($store->name->value, $slug), new CategorySaved($store->name->value, $slug)];
 

@@ -13,11 +13,7 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Services\Transfer\StoreSnapshots;
 
-/**
- * Compare a store with an export file (G-42): which identities an import would add, which the
- * store holds that the file does not, and which differ. Needs `export` (it reads the whole store);
- * the result never carries a value.
- */
+/** Compare a store with an export file, without exposing any value. */
 final readonly class DiffStore
 {
     public function __construct(

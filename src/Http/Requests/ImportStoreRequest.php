@@ -8,9 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 
-/**
- * `POST /stores/{store}/import`: an export document, applied only when `apply` is true.
- */
+/** `POST /stores/{store}/import`: applied only when `apply` is true. */
 final class ImportStoreRequest extends FormRequest
 {
     public function authorize(): bool

@@ -24,9 +24,9 @@ use Simtabi\Laranail\Settings\Actions\Approvals\ApproveChange;
 use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
 
 /**
- * The change requests of one store (§16.7), as the handle's actor: list them (`->pending()`,
- * `->status()`, `->key()`, `->for($owner)`, then `->get()`), and approve, reject or cancel one by
- * id. Immutable: every narrowing returns a new query.
+ * The change requests of one store, seen as the handle's actor. Narrow with `pending()`,
+ * `status()`, `key()` or `for($owner)`, then `get()`; approve, reject or cancel one by id.
+ * Every narrowing returns a new instance.
  */
 final readonly class Approvals
 {

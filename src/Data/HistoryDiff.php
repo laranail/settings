@@ -5,12 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Data;
 
 /**
- * The value of one setting at two versions. `redacted` is true when the setting is encrypted and
- * the actor may not view sensitive values: both values are then null and only `changed` (whether
- * the stored payloads differ) is reported. A version that holds no value (a tombstone, or a lock
- * row without one) reads as null with `fromFound` / `toFound` false. `encrypted` says the value is
- * protected (encrypted at rest, or its definition is sensitive), so a caller printing it, such as
- * the history command, can hold it back unless asked.
+ * One setting at two versions. When `redacted`, both values are null and only `changed` is known.
+ * `encrypted` marks a protected value that callers should not print unless asked.
  */
 final readonly class HistoryDiff
 {

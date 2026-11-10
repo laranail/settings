@@ -8,9 +8,8 @@ use Stringable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
 /**
- * A store's logical name: lower-case letters, digits and underscores, starting with a letter,
- * at most 64 characters. It is interpolated into file paths and cache keys, so it is validated
- * here rather than trusted.
+ * A store name: lower-case letters, digits and underscores, starting with a letter, at most 64
+ * characters. Validated because it ends up in file paths and cache keys.
  */
 final readonly class StoreName implements Stringable
 {

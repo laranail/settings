@@ -13,12 +13,11 @@ use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
 
 /**
- * Every known setting definition, from code (`define()`) and from the `definitions` config map.
- * The config map is parsed on first use, never at boot.
+ * Every setting definition from code and from the `definitions` config map.
  */
 final class DefinitionRegistry
 {
-    /** Names under `laranail.settings.definitions` that are options (D-6), not setting keys. */
+    /** Names under `laranail.settings.definitions` that are options, not setting keys. */
     public const array OPTIONS = ['table', 'sources', 'allowed_rules'];
 
     /** @var array<string, Definition> */
@@ -63,8 +62,7 @@ final class DefinitionRegistry
     }
 
     /**
-     * Every definition registered in code and config, in registration order (the definitions
-     * table sync copies them as `is_system` rows).
+     * Every definition registered in code and config, in registration order.
      *
      * @return list<Definition>
      */
@@ -76,9 +74,7 @@ final class DefinitionRegistry
     }
 
     /**
-     * Build, without registering, a definition from configuration-style attributes (`type`,
-     * `default`, `rules`, `encrypted`, …, as in `definitions.<key>`): how a definition saved
-     * through the API (§16.11) is validated before it is stored.
+     * Build a definition from config-style attributes without registering it.
      *
      * @param array<array-key, mixed> $attributes
      *

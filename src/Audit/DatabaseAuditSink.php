@@ -13,10 +13,8 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Database\AuditRepository;
 
 /**
- * Writes each audit entry as a row of `settings_audit` on the connection of the entry's store
- * (or of the default store, for entries without one), so an allowed write and its audit row
- * share one transaction: if the audit insert fails, the write rolls back. The row has no value
- * column; entries never carry one.
+ * Writes audit entries to the audit table on the connection of the entry's store (or the default
+ * store). The write and its audit row share a transaction, so a failed insert rolls the write back.
  */
 final readonly class DatabaseAuditSink implements AuditSink
 {

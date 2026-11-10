@@ -15,19 +15,10 @@ use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 
 /**
- * A database layer behind the settings cache (design §7.3, §7.5): reads come from cached per-scope
- * bags, and every write through it replaces the written scope's generation token once the write
- * has committed.
+ * A database layer read through the settings cache, invalidated after each write commits.
  *
- * The cache is bypassed, read and write, whenever it could disagree with the database:
- *
- *  - while the layer is inactive (bootstrap mode skipping it), so an empty pre-install read is
- *    never cached and served after the install;
- *  - while a transaction is open on the layer's connection, so a write's own transaction reads
- *    its uncommitted rows and nothing uncommitted (or later rolled back) ever reaches the cache.
- *
- * Writes that reach the database without passing through here (flushing a scope, promotion) ask
- * the store to forget the affected bags; see {@see forgetScope()} and {@see forgetStore()}.
+ * The cache is bypassed while the layer is inactive or a transaction is open, so nothing
+ * uncommitted or pre-install is ever cached.
  */
 final readonly class CachingDriver implements DatabaseBacked
 {
@@ -36,7 +27,7 @@ final readonly class CachingDriver implements DatabaseBacked
         private SettingsCache $cache,
     ) {}
 
-    /** The layer this one caches, for callers that must read the database itself. */
+    /** The uncached database layer. */
     public function uncached(): DatabaseBacked
     {
         return $this->inner;
@@ -78,21 +69,20 @@ final readonly class CachingDriver implements DatabaseBacked
         $this->forgetScope($store, $scope);
     }
 
-    /** Invalidate one scope's bag, once the surrounding transaction (if any) commits. */
+    /** Invalidate one scope's bag once the surrounding transaction commits. */
     public function forgetScope(StoreName $store, Scope $scope): void
     {
         $this->afterCommit(fn () => $this->cache->forgetScope($this->target($store), $scope));
     }
 
-    /** Invalidate every bag of the store, once the surrounding transaction (if any) commits. */
+    /** Invalidate every bag of the store once the surrounding transaction commits. */
     public function forgetStore(StoreName $store): void
     {
         $this->afterCommit(fn () => $this->cache->forgetStore($this->target($store)));
     }
 
     /**
-     * Run an invalidation when the layer's connection commits: straight away outside a
-     * transaction, never for a transaction that rolls back (nothing changed).
+     * Run an invalidation when the connection commits, or now outside a transaction.
      *
      * @param callable(): void $invalidate
      */

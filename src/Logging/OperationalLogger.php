@@ -14,7 +14,8 @@ use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 /**
  * The package's operational log: denials, verification failures and configuration changes,
  * written to `logging.channel` (or a logger set at runtime with `logTo()`) at or above
- * `logging.level`. Messages carry store, key, scope and actor identifiers, never a value.
+ * `logging.level`. Every entry's context starts with store, key, scope, actor and channel
+ * ({@see LogContext}), and never holds a value.
  */
 final readonly class OperationalLogger implements LoggerInterface
 {
@@ -54,6 +55,6 @@ final readonly class OperationalLogger implements LoggerInterface
             return;
         }
 
-        ($this->runtime?->logger() ?? $this->logger)->log($level, $message, $context);
+        ($this->runtime?->logger() ?? $this->logger)->log($level, $message, LogContext::normalise($context));
     }
 }

@@ -12,12 +12,9 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 
 /**
- * akaunting/laravel-setting's database driver (G-43; the key-value packages of research.md §2):
- * reads its table of `key` / `value` rows, where nested values are already flattened to dot
- * keys and every value is a string. Each row becomes a global key with that string value; define
- * a typed definition here before importing to have it cast. `$source` is `<connection>` or
- * `<connection>:<table>` (default table `settings`). Rows its extra columns scope to a model or
- * team are skipped, because that scoping is the application's own.
+ * Imports akaunting/laravel-setting's database table. Every value arrives as a string, so define
+ * typed keys before importing. Rows scoped by extra columns are skipped. `$source` is
+ * `<connection>` or `<connection>:<table>` (default table `settings`).
  */
 final readonly class AkauntingSettingsImporter implements Importer
 {
@@ -45,7 +42,7 @@ final readonly class AkauntingSettingsImporter implements Importer
                 throw new InvalidImport(sprintf('akaunting: table [%s] has no key and value columns.', $table));
             }
 
-            // Extra columns (user_id, company_id, …) scope a row to something of the host's own.
+            // Extra columns (user_id, company_id, ...) scope a row to the host's own models.
             if (array_filter(array_diff_key($row, array_flip(['id', 'key', 'value', 'created_at', 'updated_at'])), static fn (mixed $value): bool => $value !== null) !== []) {
                 continue;
             }

@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Testing;
 
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 
-/**
- * The writes and audit entries a {@see SettingsFake} and its derived handles recorded.
- */
+/** The writes and audit entries a {@see SettingsFake} and its handles recorded. */
 final class FakeLog
 {
     /** @var list<array{string, mixed}> */

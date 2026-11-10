@@ -28,7 +28,7 @@ use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
- * §16.7: a write to a setting that needs approval becomes a change request; approvals apply it
+ * A write to a setting that needs approval becomes a change request; approvals apply it
  * through the write pipeline against the version it was opened at; the requester cannot approve
  * their own; rejected, cancelled, stale and expired requests write nothing.
  */

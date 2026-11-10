@@ -7,14 +7,8 @@ namespace Simtabi\Laranail\Settings\Data;
 use Carbon\CarbonImmutable;
 
 /**
- * One stored value as a layer holds it.
- *
- * `payload` is the encoded value (JSON, or ciphertext of the JSON when `encrypted`). A null
- * payload means "no value on this row"; a stored null is the JSON string `null`, so the two
- * never collapse into one.
- *
- * `group`, `category` (a category slug) and `public` are metadata copied from the definition
- * when the record is written; file layers ignore them, the database layer stores them.
+ * One stored value as a layer holds it. `payload` is JSON, or its ciphertext when `encrypted`;
+ * a null payload means no value, while a stored null is the JSON string `null`.
  */
 final readonly class Record
 {

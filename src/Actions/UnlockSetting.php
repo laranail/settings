@@ -12,9 +12,7 @@ use Simtabi\Laranail\Settings\Data\ChangeProposal;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 
-/**
- * Unlock one scope's row against writes: needs `unlock`.
- */
+/** Unlock one scope's row. */
 final readonly class UnlockSetting
 {
     public function __construct(

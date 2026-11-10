@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Exceptions;
 
-/**
- * A store name, key, locale or owner alias failed its value object's validation.
- */
+/** A store name, key, locale or owner alias is invalid. */
 class InvalidIdentifier extends SettingsException
 {
     public const int STATUS = 422;

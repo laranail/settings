@@ -14,19 +14,14 @@ use Simtabi\Laranail\Settings\Http\Controllers\CategoriesController;
 use Simtabi\Laranail\Settings\Http\Controllers\ConfigurationController;
 
 /*
- * The laranail/settings REST API (design §16.10). SettingsServiceProvider loads this file only
- * when `laranail.settings.http.enabled` is on, inside one group that adds the `http.prefix`/v1
- * URI prefix, the `laranail-settings.api.` name prefix, `http.middleware`, the
- * `laranail-settings` rate limiter and the parameter patterns. `route:cache` caches these routes
- * like the application's own.
- *
- * Each `http.routes.<group>` switch leaves its group out when it is false. Every write passes the
- * idempotency middleware.
+ * The REST API, loaded only when `laranail.settings.http.enabled` is on. The provider wraps it in
+ * the `http.prefix`/v1 prefix, the `laranail-settings.api.` name prefix, the configured middleware
+ * and rate limiter. Each `http.routes.<group>` switch can turn a group off.
  */
 
 $enabled = static fn (string $group): bool => config('laranail.settings.http.routes.' . $group, true) !== false;
 
-// A setting, addressed globally or for an owner: the same routes under two prefixes.
+// The same setting routes, globally and for an owner.
 $settings = static function () use ($enabled): void {
     Route::prefix('settings')->name('settings.')->group(static function () use ($enabled): void {
         if ($enabled('settings')) {

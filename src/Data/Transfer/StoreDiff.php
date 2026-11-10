@@ -4,12 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data\Transfer;
 
-/**
- * A store compared with an export (G-42): identities (`scope|key|locale`) only in the document
- * (`added`, as an import would create them), only in the store (`removed`), in both with
- * different values (`changed`) or equal ones (`unchanged`), and those that cannot be compared
- * because a side is redacted or encrypted (`unknown`). Never carries a value.
- */
+/** A store compared with an export, by identity; `unknown` holds those a redacted side hides. */
 final readonly class StoreDiff
 {
     /**

@@ -19,11 +19,8 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.import {source}`: import an export file (G-42), or with `--from=<importer>`
- * another package's settings (G-43: `spatie`, `toolkit`, `akaunting`, or one configured in
- * `importers`). A dry run unless `--apply`: it prints what would be created, updated and skipped.
- * `--trusted` lets the file set locks and system categories (G-10). Everything is written through
- * the write pipeline as the system actor, in one transaction, and audited.
+ * Import an export file, or another package's settings with `--from=<importer>`. A dry run unless
+ * `--apply`; `--trusted` lets the file set locks and system categories.
  */
 final class ImportCommand extends Command
 {

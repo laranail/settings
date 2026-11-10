@@ -23,13 +23,9 @@ use Simtabi\Laranail\Settings\Actions\QueryHistory;
 use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 
 /**
- * `$settings->history()`: an immutable query over the value history (§4.3), newest version first.
- * Narrow it with `for()`, `global()`, `store()`, `key()`, `locale()`, `since()`, `until()` and
- * `versions()`, then read it with `get()`, `cursor()` or `paginate()`.
- *
- * Entries carry the payloads as stored: encrypted values stay encrypted. For an actor who may not
- * view a sensitive or encrypted setting, the entry's payloads are removed entirely
- * ({@see HistoryEntry::redacted()}); `historyDiff()` is the way to read a past value.
+ * An immutable query over the value history, newest version first, returned by
+ * `$settings->history()`. Payloads are as stored, so encrypted values stay encrypted, and they
+ * are removed for an actor who may not view the setting.
  */
 final readonly class HistoryQuery
 {

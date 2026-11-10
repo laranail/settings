@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * A category was deleted (after the transaction commits).
- */
+/** A category was deleted. */
 final readonly class CategoryDeleted implements ShouldDispatchAfterCommit
 {
     public function __construct(

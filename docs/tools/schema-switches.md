@@ -37,7 +37,7 @@ type, so the composite foreign key from a values table to its store's categories
 `ids.owner_key = typed` types `settable_id` like `laranail.db-tools.id_type` (the key type of the
 application's models). A write for an owner id of another shape (`user:abc` against bigint keys)
 raises `OwnerNotAllowed`. The package itself never queries by `settable_id`: every read goes
-through `scope`, so the owner key type never meets the column type (G-26).
+through `scope`, so the owner key type never meets the column type.
 
 ## Dedicated stores
 
@@ -90,7 +90,7 @@ plain text or translation keys and `translations` is ignored.
 
 ## The definitions table
 
-`definitions.table = true` creates `settings_definitions` (§4.4 of the design). Code and config
+`definitions.table = true` creates `settings_definitions`. Code and config
 definitions are copied in as read-only `is_system` rows by
 `laranail::settings.sync-definitions` (also run by `install` once the table exists, and by
 `doctor --fix`), so UIs can list them; system rows nothing defines any more are removed.

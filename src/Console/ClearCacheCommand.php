@@ -13,9 +13,8 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.clear-cache`: reset the settings cache, for every store or the named ones,
- * across every tenant. Only cached copies are reset (generation tokens are replaced); stored
- * values and the application's other cache entries are untouched.
+ * Reset the settings cache for every store, or the named ones, across every tenant. Stored values
+ * and the application's other cache entries are untouched.
  */
 final class ClearCacheCommand extends Command
 {

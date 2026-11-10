@@ -22,8 +22,8 @@ use Simtabi\Laranail\Settings\Actions\Configuration\DeleteConfigurationEntry;
 use Simtabi\Laranail\Settings\Actions\Configuration\ListConfigurationEntries;
 
 /**
- * `/configuration/{stores|layers}/{name}` and `/stores/{store}/definitions/{key}` (§16.11):
- * persisted configuration, edited as the actor, validated like the configuration file.
+ * `/configuration/{stores|layers}/{name}` and `/stores/{store}/definitions/{key}`: persisted
+ * configuration, edited as the actor.
  */
 final readonly class ConfigurationController
 {

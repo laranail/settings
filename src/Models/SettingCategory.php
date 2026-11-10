@@ -14,12 +14,8 @@ use Simtabi\Laranail\Settings\Models\Concerns\UsesSettingsSchema;
 use Simtabi\Laranail\Settings\Database\Factories\SettingCategoryFactory;
 
 /**
- * A row of the categories table (§4.1), for factories, seeders and admin screens. Category
- * changes made through the settings API (`Settings::categories()`) are authorized, validated
- * and audited; changes made through this model are not, so application code should prefer the
- * API and keep the model to tests and seeding.
- *
- * Trashed categories (`categories.soft_deletes`) are hidden, as the engine hides them.
+ * A row of the categories table, for factories, seeders and admin screens. Changes made here skip
+ * authorization and audit; application code uses `Settings::categories()`.
  *
  * @property int|string $id
  * @property string $store

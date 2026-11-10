@@ -18,22 +18,19 @@ use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
 /**
- * What `laranail::settings.doctor` reports, per store with a database layer: readiness (the
- * connection answers and the tables exist), schema drift (columns this release reads that the
- * tables lack), scopes naming a class instead of a morph alias or an alias the store does not
- * list (G-6, G-30), rows whose category belongs to another store (G-33), encrypted values no key
- * can read any more (§6), open change requests past their expiry (§16.7) and persisted
- * configuration entries that were skipped as invalid (§16.11). Read-only.
+ * The findings of `laranail::settings.doctor`. Read-only.
  *
- * Schema drift is three comparisons (§4.0): the schema file against the configuration (a switch
- * changed after migrating changes nothing until a migration does), the file's shape version
- * against this release's (an upgrade migration that was never published), and the live tables
- * against the recorded shape (missing columns fail; columns the shape does not have, such as
- * `deleted_at` on a store without soft deletes, warn).
+ * Per store with a database layer: readiness, schema drift, scopes that name a class or an alias
+ * the store does not list, category links to another store, keys outside their category,
+ * encrypted values no key can read, and overdue change requests. Then: every code or config
+ * definition whose key sits outside its category, and persisted configuration entries skipped as
+ * invalid. Schema drift compares the schema file with configuration, its shape version with this
+ * release's, and the live tables with the recorded shape.
  */
 final readonly class DiagnoseSettings
 {
@@ -57,6 +54,7 @@ final readonly class DiagnoseSettings
         private SchemaShapeRepository $shapes,
         private LaravelValueEncrypter $encrypter,
         private PersistedConfiguration $persisted,
+        private DefinitionRegistry $definitions,
     ) {}
 
     /** @return list<Finding> */
@@ -85,6 +83,7 @@ final readonly class DiagnoseSettings
             $findings[] = $this->drift($store, $database);
             $findings[] = $this->scopes($store, $database);
             $findings[] = $this->categories($store, $database);
+            $findings[] = $this->categoryKeys($store, $database);
 
             $findings[] = $this->encryption($store, $database, $this->encrypter);
 
@@ -92,6 +91,8 @@ final readonly class DiagnoseSettings
                 $findings[] = $this->changeRequests($store, $database);
             }
         }
+
+        $findings[] = $this->definitionCategories();
 
         $problems = $this->persisted->problems();
         $findings[] = new Finding('persisted configuration', 'Every persisted store and layer entry is valid', $problems === []
@@ -319,5 +320,31 @@ final readonly class DiagnoseSettings
         return new Finding("{$store->name}: categories", 'Settings only use categories of their own store', $count === 0
             ? DoctorResult::pass('Every category link stays inside the store.')
             : DoctorResult::fail(sprintf('%d row(s) point at a category of another store.', $count)));
+    }
+
+    /** Values whose key does not start with their category's slug: a warning, not a failure. */
+    private function categoryKeys(Store $store, DatabaseDriver $database): Finding
+    {
+        $keys = new SchemaInspector($database)->keysOutsideTheirCategory($store->name);
+
+        return new Finding("{$store->name}: category keys", 'Each key starts with its category\'s slug', $keys === []
+            ? DoctorResult::pass('Every categorised key starts with its category\'s slug.')
+            : DoctorResult::warn(sprintf('%d key(s) do not start with their category\'s slug: %s', count($keys), implode(', ', $keys)), ['keys' => $keys]));
+    }
+
+    /** Code and config definitions whose key does not start with their category's slug. */
+    private function definitionCategories(): Finding
+    {
+        $keys = [];
+
+        foreach ($this->definitions->all() as $definition) {
+            if ($definition->category !== null && $definition->key->group() !== $definition->category) {
+                $keys[] = sprintf('%s:%s (%s)', $definition->store, $definition->key, $definition->category);
+            }
+        }
+
+        return new Finding('definitions: category keys', 'Each defined key starts with its category\'s slug', $keys === []
+            ? DoctorResult::pass('Every categorised definition starts with its category\'s slug.')
+            : DoctorResult::warn(sprintf('%d definition(s) do not start with their category\'s slug: %s', count($keys), implode(', ', $keys)), ['keys' => $keys]));
     }
 }

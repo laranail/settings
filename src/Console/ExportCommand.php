@@ -12,11 +12,8 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.export {path?}`: write a store's settings and categories as JSON (G-42), to
- * a file or standard output. Encrypted values are left out unless `--with-secrets` (their
- * ciphertext, importable only under the same APP_KEY or one in APP_PREVIOUS_KEYS) or `--decrypt`
- * (plaintext, which asks you to type the store name, or takes it as `--confirm=<store>`). Runs as
- * the system actor and is audited; never logs a value.
+ * Write a store's settings and categories as JSON, to a file or standard output. Secrets are left
+ * out unless `--with-secrets` (ciphertext) or `--decrypt` (plaintext, after confirming the store name).
  */
 final class ExportCommand extends Command
 {

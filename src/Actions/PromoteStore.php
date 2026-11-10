@@ -30,17 +30,8 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 
 /**
- * Promote a store's runtime file into its database layer (design §7.4): needs `promote`.
- *
- * Only what was written at runtime is copied; the shipped layer is never read, so a later
- * release can still change a shipped default (G-28). Each record goes through the value
- * pipeline again (validated, re-encrypted under the current key). A key that already has a
- * database row is skipped unless forced, as is a key a strict store no longer defines. The
- * records and the audit entry commit together; the runtime file is then archived as
- * `<file>.promoted-<timestamp>.json`, so a second run finds nothing and is a no-op.
- *
- * A cache lock (the cache store's atomic lock) keeps two promotions of one store apart. On a
- * node-local cache store that protects one node only; multi-node installs need a shared one.
+ * Copy a store's runtime file into its database layer, then archive the file as
+ * `<file>.promoted-<timestamp>.json`. Keys that already have a database row are skipped unless forced.
  */
 final readonly class PromoteStore
 {
@@ -102,7 +93,7 @@ final readonly class PromoteStore
             ]],
         );
 
-        // Promoted rows were written past the cache: reset the store's bags.
+        // The rows bypassed the cache, so reset the store's bags.
         $store->forgetCachedStore();
 
         $archive = $request->from === null ? $runtime->archive($store->name, CarbonImmutable::now()) : null;
@@ -161,7 +152,7 @@ final readonly class PromoteStore
         return [$promoted, $skipped];
     }
 
-    /** The first writable JSON layer: where values written before the database existed live. */
+    /** The first writable JSON layer. */
     private function runtime(Store $store): ?JsonDriver
     {
         foreach ($store->layers as $layer) {

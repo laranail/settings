@@ -11,9 +11,8 @@ use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 
 /**
- * The shared shape of the settings models: the primary key follows `ids.type` (bigint keys are
- * assigned by the database, uuid and ulid keys are generated on create), and in column-mode
- * tenancy every query is limited to the current tenant and every new row is stamped with it.
+ * Keys the model per `ids.type` and, in column-mode tenancy, scopes queries and new rows to the
+ * current tenant.
  *
  * @phpstan-require-extends Model
  */

@@ -22,10 +22,7 @@ use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
-/**
- * Reject a change request (§16.7): needs `approve` on its setting. Nothing is written; the
- * decision and its reason are recorded on the request and in the audit trail.
- */
+/** Reject a change request; needs `approve` on its setting. */
 final readonly class RejectChange
 {
     public function __construct(

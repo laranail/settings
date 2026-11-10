@@ -18,12 +18,7 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Database\AuditRepository;
 
-/**
- * Delete audit rows older than `audit.keep_days` from the audit table of every connection a
- * store uses. Returns the number of rows removed. With an actor it needs `prune` (checked
- * against the default store); the prune itself is audited, so the trail records who shortened
- * it.
- */
+/** Delete audit rows older than `audit.keep_days` on every connection; returns the number removed. */
 final readonly class PruneAudit
 {
     public function __construct(

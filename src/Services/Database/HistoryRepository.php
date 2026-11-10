@@ -24,12 +24,10 @@ use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /**
- * The value history table on one connection (§4.3): every read, write and delete of history rows
- * goes through here. A row keeps the payload before and after a change exactly as the values
- * table stored it, so an encrypted value stays encrypted. Rows are looked up by
- * (store, scope, key, locale), never by the row reference, so a forget followed by a set keeps one
- * trail. In column-mode tenancy a row carries the current tenant and a query sees the current
- * tenant's rows only; the retention prune is application-wide.
+ * Reads and writes the value history table on one connection.
+ *
+ * Payloads are kept as the values table stored them, so encrypted values stay encrypted. Rows
+ * are looked up by store, scope, key and locale, so a forget followed by a set keeps one trail.
  */
 final readonly class HistoryRepository
 {
@@ -37,11 +35,7 @@ final readonly class HistoryRepository
         private DatabaseDriver $database,
     ) {}
 
-    /**
-     * The history table of a store: on its active database layer's connection, when the recorded
-     * schema has one. Null otherwise (a file-only store, a store skipped during bootstrap, or a
-     * schema recorded without history).
-     */
+    /** The history table of a store, or null when the store has none. */
     public static function locate(StoreRegistry $stores, StoreName $store): ?self
     {
         $database = $stores->get($store)->database();
@@ -50,8 +44,7 @@ final readonly class HistoryRepository
     }
 
     /**
-     * One row as an entry; a row missing a required column raises DriverFailure rather than
-     * inventing an entry.
+     * Build an entry from one row; a malformed row raises DriverFailure.
      *
      * @param array<array-key, mixed> $row
      */
@@ -99,11 +92,7 @@ final readonly class HistoryRepository
         return $this->database;
     }
 
-    /**
-     * Append one entry. `$before` is the row as it was (null for a first write), `$after` the row
-     * as it is now (null for a forget). Runs on the caller's transaction, so a failed insert rolls
-     * the change back with it.
-     */
+    /** Append one entry in the caller's transaction; `$before` is null for a first write, `$after` for a forget. */
     public function record(
         StoreName $store,
         HistoryOperation $operation,
@@ -141,7 +130,7 @@ final readonly class HistoryRepository
         ] + $this->database->tenantColumns()));
     }
 
-    /** The highest version this identity's history holds (0 when it has none). */
+    /** The highest version in this identity's history, or 0. */
     public function latestVersion(StoreName $store, Scope $scope, Key $key, Locale $locale): int
     {
         $version = $this->database->attempt($store, fn (): mixed => $this->identity($store, $scope, $key, $locale)->max('version'));
@@ -149,7 +138,7 @@ final readonly class HistoryRepository
         return is_numeric($version) ? (int) $version : 0;
     }
 
-    /** The entry that produced this version of the identity's value (never a tombstone), or null. */
+    /** The entry that produced this version of the value, or null. */
     public function find(StoreName $store, Scope $scope, Key $key, Locale $locale, int $version): ?HistoryEntry
     {
         $row = $this->database->attempt($store, fn (): ?object => $this->identity($store, $scope, $key, $locale)
@@ -191,11 +180,7 @@ final readonly class HistoryRepository
         return $query->orderByDesc('version')->orderByDesc('id');
     }
 
-    /**
-     * Delete every tenant's entries the retention policy no longer keeps: older than `$cutoff`,
-     * and/or more than `$keepVersions` versions behind their identity's newest. Returns how many
-     * went. The store names the store in an outage message only.
-     */
+    /** Delete entries older than `$cutoff` or more than `$keepVersions` behind, and return how many. */
     public function prune(?CarbonImmutable $cutoff, ?int $keepVersions, StoreName $store): int
     {
         return $this->database->attempt($store, function () use ($cutoff, $keepVersions): int {
@@ -234,13 +219,11 @@ final readonly class HistoryRepository
     }
 
     /**
-     * Rewrite every encrypted payload in the history, every tenant's (re-encryption): the old and
-     * the new value of each entry. `$rewrite` returns null when it cannot read a payload (counted
-     * as failed, left as it was). Returns [rewritten, failed].
+     * Rewrite every encrypted old and new payload in the history, for every tenant.
      *
-     * @param Closure(string): ?string $rewrite
+     * @param Closure(string): ?string $rewrite returns null when it cannot read a payload
      *
-     * @return array{int, int}
+     * @return array{int, int} rewritten and failed counts
      */
     public function rewriteEncrypted(StoreName $store, Closure $rewrite): array
     {
@@ -278,7 +261,7 @@ final readonly class HistoryRepository
         });
     }
 
-    /** Rename an owner alias in every tenant's history (rescope, G-30); returns how many entries changed. */
+    /** Rename an owner alias in every tenant's history and return how many entries changed. */
     public function rescope(StoreName $store, string $from, string $to): int
     {
         return $this->database->attempt($store, function () use ($store, $from, $to): int {

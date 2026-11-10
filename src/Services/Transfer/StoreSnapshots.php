@@ -19,9 +19,7 @@ use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
- * Reads a store's database layer into an {@see ExportDocument}, and compares a store with one.
- * Values are the stored JSON as it is (lossless whatever the caster), so nothing is cast on the
- * way out; encrypted values follow the export mode. Only the current tenant's rows are read.
+ * Exports a store's current-tenant rows to an {@see ExportDocument} and compares a store with one.
  */
 final readonly class StoreSnapshots
 {
@@ -30,7 +28,7 @@ final readonly class StoreSnapshots
         private ValueEncoder $encoder,
     ) {}
 
-    /** Whether two exported settings hold the same value (and lock). */
+    /** Whether two exported settings hold the same value and lock. */
     public static function same(ExportedSetting $a, ExportedSetting $b): bool
     {
         if ($a->ciphertext !== null || $b->ciphertext !== null) {
@@ -66,9 +64,9 @@ final readonly class StoreSnapshots
     }
 
     /**
-     * Compare the store with a document. Encrypted values are compared by ciphertext only when
-     * both sides hold one (it changes with every encryption, so "changed" may be a re-encryption);
-     * a redacted side cannot be compared.
+     * Compare the store with a document.
+     *
+     * Encrypted values compare by ciphertext, so a re-encryption reads as a change.
      */
     public function diff(Store $store, ExportDocument $document): StoreDiff
     {

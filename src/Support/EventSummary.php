@@ -9,10 +9,8 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 
 /**
- * A package event flattened to identifiers, for the operational log and for alerts: scalar
- * properties as they are, a Subject as store / scope / key / locale / category, an Actor as
- * `actor` (type, alias and id), an enum as its value. Events never carry a value, and this adds
- * none: anything else (an object it does not know) is left out rather than stringified.
+ * Flattens a package event to identifiers for the log and alerts. Unknown objects are left out
+ * rather than stringified.
  */
 final readonly class EventSummary
 {

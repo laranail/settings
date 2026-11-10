@@ -8,10 +8,8 @@ use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 
 /**
- * A store's settings and categories as portable JSON (G-18, G-42): categories by slug, settings by
- * scope, key and locale, never a numeric id, so a document moves between databases whatever their
- * `ids.type`. Encrypted values follow the {@see ExportMode}. `source` names an importer when the
- * document was read from another package (G-43).
+ * A store's settings and categories as portable JSON, identified without numeric ids. `source`
+ * names the importer that produced the document, if any.
  */
 final readonly class ExportDocument
 {

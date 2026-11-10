@@ -12,11 +12,8 @@ use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /**
- * Find the settings of owners that no longer exist (G-7): rows left by bulk deletes, which fire
- * no model events. For each store's owner aliases it lists the owner scopes in the database
- * layer and asks the aliased model which ids still exist, soft-deleted ones included (a
- * soft-deleted owner keeps its settings for a restore). An alias with no model in the morph map
- * is reported, never guessed at. Read-only; {@see PruneOrphans} removes what it finds.
+ * Find settings whose owner no longer exists, such as rows left by bulk deletes. Soft-deleted
+ * owners keep their settings, and aliases missing from the morph map are reported, not guessed.
  */
 final readonly class FindOrphans
 {

@@ -10,11 +10,8 @@ use Simtabi\Laranail\Enumerator\Attributes\Description;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
 /**
- * The closed set of built-in layer drivers.
- *
- * Driver names come from configuration an operator edits, so they resolve through this enum
- * and an exhaustive match, never by interpolating the name into a method or class name.
- * Custom drivers are registered with closures on the DriverFactory.
+ * The built-in layer drivers. Names from configuration resolve through this enum, never by
+ * interpolating a method name; custom drivers register on the DriverFactory.
  */
 enum DriverType: string implements Enumerator
 {

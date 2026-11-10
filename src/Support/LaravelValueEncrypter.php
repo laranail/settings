@@ -12,9 +12,8 @@ use Simtabi\Laranail\Settings\Exceptions\UndecryptableValue;
 use Simtabi\Laranail\Settings\Exceptions\EncryptionUnavailable;
 
 /**
- * Laravel's encrypter, resolved only when a value is encrypted or decrypted, so an application
- * without an APP_KEY yet (before install) still boots and reads its unencrypted settings.
- * Laravel's encrypter already tries APP_PREVIOUS_KEYS when decrypting.
+ * Laravel's encrypter, resolved lazily so an application without an APP_KEY still boots and reads
+ * its unencrypted settings.
  */
 final class LaravelValueEncrypter
 {

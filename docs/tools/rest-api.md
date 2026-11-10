@@ -1,6 +1,6 @@
 # REST API
 
-A JSON API over every capability of the PHP API (§16.10), in this package and off by default.
+A JSON API over every capability of the PHP API, in this package and off by default.
 
 ## Turning it on
 

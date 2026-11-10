@@ -13,33 +13,20 @@ use Simtabi\Laranail\Settings\Data\AlertContext;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /**
- * An alert about a settings event, sent through Laravel's notification channels: mail, the
- * database channel, and Slack when laravel/slack-notification-channel is installed. It carries an
- * {@see AlertContext}, which holds identifiers only (store, key, scope, actor, outcome, time) and
- * never a setting's value, so no channel can show one. Queued on the rule's queue when it names
- * one; sent at once otherwise.
- *
- * The mail is the markdown view `laranail/settings::mail.alert`. Its labels and footer are the
- * `laranail/settings` translations, resolved when the alert is built ({@see texts()}) so a queued
- * copy carries plain strings; an alert built without them reads the translator when it renders.
+ * A notification about a settings event, sent by mail, database or Slack. It carries identifiers
+ * only, never a setting's value.
  */
 final class SettingsAlert extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * The legacy Slack message of laravel/slack-notification-channel (incoming webhooks). Kept as
-     * a string, split so tooling does not turn it into a `::class` of a class that is not installed.
-     */
+    /** Kept as a split string so tooling does not turn it into a `::class` of an optional class. */
     public const string SLACK_MESSAGE = 'Illuminate\\Notifications\\Messages\\' . 'SlackMessage';
 
-    /** The markdown mail view. */
     public const string VIEW = 'laranail/settings::mail.alert';
 
-    /** The translation namespace and file the alert's lines live in. */
     private const string NAMESPACE = 'laranail/settings::settings.';
 
-    /** The message keys an alert reads ({@see texts()}). */
     private const array KEYS = [
         'alert.labels.event',
         'alert.labels.store',
@@ -57,7 +44,7 @@ final class SettingsAlert extends Notification implements ShouldQueue
     /**
      * @param list<string> $channels the channels this copy is sent on
      * @param string $slackMessage the Slack message class to build (the Slack channel package's, by default)
-     * @param array<string, string> $texts translated labels and footer by message key ({@see texts()}); read from the translator when empty
+     * @param array<string, string> $texts translated lines by message key; read from the translator when empty
      */
     public function __construct(
         public readonly AlertContext $context,
@@ -67,8 +54,8 @@ final class SettingsAlert extends Notification implements ShouldQueue
     ) {}
 
     /**
-     * The alert's labels and footer in the current locale, by message key: built once, when the
-     * alert is, so a queued alert serializes strings rather than a translator.
+     * The alert's lines in the current locale, built up front so a queued alert serializes
+     * strings rather than a translator.
      *
      * @return array<string, string>
      */
@@ -84,7 +71,7 @@ final class SettingsAlert extends Notification implements ShouldQueue
         return $texts;
     }
 
-    /** Whether Slack alerts can be sent (the Slack channel package is installed). */
+    /** Whether laravel/slack-notification-channel is installed. */
     public static function slackAvailable(): bool
     {
         return class_exists(self::SLACK_MESSAGE);
@@ -100,8 +87,7 @@ final class SettingsAlert extends Notification implements ShouldQueue
     {
         return new MailMessage()
             ->subject($this->context->headline())
-            // Larastan resolves views without the package's provider, so it cannot see the
-            // `laranail/settings` namespace this view lives in; PackageLayoutTest proves it exists.
+            // Larastan cannot see the package's view namespace; PackageLayoutTest proves it exists.
             ->markdown(self::VIEW, [ // @phpstan-ignore argument.type
                 'headline' => $this->context->headline(),
                 'lines'    => $this->lines(),
@@ -121,10 +107,7 @@ final class SettingsAlert extends Notification implements ShouldQueue
         return $this->toArray($notifiable);
     }
 
-    /**
-     * The Slack message (incoming webhook), only when the Slack channel package is installed;
-     * the alert is never routed to Slack otherwise.
-     */
+    /** The Slack message; only built when the Slack channel package is installed. */
     public function toSlack(object $notifiable): ?object
     {
         if (! class_exists($this->slackMessage)) {

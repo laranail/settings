@@ -12,8 +12,7 @@ use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
- * Which definition applies to a key (D-6): one registered at runtime for this request, then code
- * and config, then the definitions table. Scoped, like the runtime configuration it reads.
+ * Finds the definition for a key: runtime first, then code and config, then the definitions table.
  */
 #[Scoped]
 final readonly class Definitions
@@ -29,10 +28,7 @@ final readonly class Definitions
         return $this->findInCode($store->name, $key) ?? $this->database->find($store, $key);
     }
 
-    /**
-     * Runtime, then code and config, without the definitions table: what an alert listener reads,
-     * so delivering an alert never queries the database.
-     */
+    /** Find a definition without querying the definitions table. */
     public function findInCode(StoreName $store, Key $key): ?Definition
     {
         return $this->runtime->findDefinition($store, $key) ?? $this->registry->find($store, $key);

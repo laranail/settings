@@ -11,14 +11,14 @@ use Illuminate\Http\Resources\Attributes\PreserveKeys;
 use Simtabi\Laranail\Settings\Data\ConfigurationEntry;
 
 /**
- * A persisted store or layer entry (§16.11), as the configuration file would hold it.
+ * A persisted store or layer entry, as the configuration file would hold it.
  *
  * @property ConfigurationEntry $resource
  */
 #[PreserveKeys]
 final class ConfigurationEntryResource extends JsonResource
 {
-    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    /** Always wrapped in `data`, whatever the application sets. */
     public static $wrap = 'data';
 
     /** @return array<string, mixed> */

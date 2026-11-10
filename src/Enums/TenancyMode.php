@@ -9,9 +9,7 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Attributes\Description;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
-/**
- * How settings are kept apart per tenant (Amendment B, `tenancy.mode`).
- */
+/** How settings are kept apart per tenant (`tenancy.mode`). */
 enum TenancyMode: string implements Enumerator
 {
     use HasEnumeratorBehavior;

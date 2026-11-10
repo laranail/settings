@@ -16,6 +16,7 @@ use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Events\SettingSaved;
 use Simtabi\Laranail\Settings\Events\SettingLocked;
 use Simtabi\Laranail\Settings\Events\SettingSaving;
@@ -35,24 +36,15 @@ use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 
 /**
- * Every write path: set, forget, lock, unlock. Checks run before anything is stored, in this
- * order: definition (strict stores) → owner allowed → lock and precedence → locale → value
- * pipeline → the first writable layer, with the version continued from the existing record
- * (or from a trashed row, in a store with soft deletes, so the write restores it).
+ * Every write path: set, forget, lock and unlock.
  *
- * A plain set that loses a race (another writer changed the row between the read and the
- * write) is retried once when `writes.retry_on_conflict` is on, re-reading the row under a row
- * lock; a write that names the version it expects is never retried.
- *
- * On a database layer whose schema has the history table (§4.3), every change also appends a
- * history entry in the same transaction as the row, so a failed history insert rolls the change
- * back. The entry keeps the payload as stored (encrypted values stay encrypted) and names the
- * causer given to {@see causedBy()}. A row created again after a forget continues its version
- * from the history, so "version N" always means one value.
+ * Checks the definition, owner, lock, precedence, locale and value before writing to the first
+ * writable layer. Where the schema has a history table, each change appends a history entry in
+ * the same transaction.
  */
 final readonly class SettingWriter
 {
-    /** @param bool $retryOnConflict `writes.retry_on_conflict`; a retry is logged */
+    /** @param bool $retryOnConflict retry a plain set once after a concurrent change */
     public function __construct(
         private ValuePipeline $pipeline,
         private Dispatcher $events,
@@ -64,15 +56,14 @@ final readonly class SettingWriter
         private ?string $reason = null,
     ) {}
 
-    /** A copy whose history entries name this causer and reason (null causer: the system). */
+    /** A copy whose history entries name this causer and reason; null is the system. */
     public function causedBy(?Actor $causer, ?string $reason = null): self
     {
         return new self($this->pipeline, $this->events, $this->clock, $this->log, $this->retryOnConflict, $causer, $reason);
     }
 
     /**
-     * Write a value a rollback recovered, as a new version, only if the row is still at
-     * `$expectedVersion`; its history entry is a `rollback`. Lock rules apply as for a set.
+     * Write a recovered value as a new version, recorded as a `rollback`.
      *
      * @throws ConcurrentModification
      */
@@ -81,15 +72,14 @@ final readonly class SettingWriter
         return $this->write($store, $key, $locale, $owner, $definition, $value, $overrideLock, $expectedVersion, HistoryOperation::Rollback);
     }
 
-    /** Store a value and return the stored record. A locked row refuses it. */
+    /** Store a value and return the stored record. */
     public function set(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value): Record
     {
         return $this->write($store, $key, $locale, $owner, $definition, $value, overrideLock: false);
     }
 
     /**
-     * Store a value only if this scope's row is still at `$expectedVersion` (0: no row yet).
-     * Anything else raises {@see ConcurrentModification}; it is never retried.
+     * Store a value only if the row is still at `$expectedVersion` (0 for no row); never retried.
      *
      * @throws ConcurrentModification
      */
@@ -98,17 +88,13 @@ final readonly class SettingWriter
         return $this->write($store, $key, $locale, $owner, $definition, $value, $overrideLock, $expectedVersion);
     }
 
-    /**
-     * Store a value over a row lock. Only for a caller that has already established the right
-     * to (an actor holding `override_lock` on a store whose locks are overridable); the lock
-     * stays in place. Definition locks and precedence still refuse.
-     */
+    /** Store a value over a row lock, for a caller already allowed to override it. */
     public function setOverridingLock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, mixed $value): Record
     {
         return $this->write($store, $key, $locale, $owner, $definition, $value, overrideLock: true);
     }
 
-    /** Remove this scope's own value; returns the removed record, or null when there was none. */
+    /** Remove this scope's own value and return the removed record, if any. */
     public function forget(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition): ?Record
     {
         return $this->remove($store, $key, $locale, $owner, $definition, overrideLock: false);
@@ -128,10 +114,7 @@ final readonly class SettingWriter
         return $store->writableLayer()->driver->load($store->name, [$scope])->find($scope, $key, $locale)?->locked === true;
     }
 
-    /**
-     * Lock one row against writes; a lock with no value yet is kept as a value-less row. The
-     * definition, when given, supplies the row's group, category and visibility.
-     */
+    /** Lock one row against writes, creating a value-less row when none exists. */
     public function lock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition = null): Record
     {
         return $this->storeLock($store, $key, $locale, $owner, locked: true, definition: $definition);
@@ -155,11 +138,12 @@ final readonly class SettingWriter
                 }
 
                 $scope = $this->scope($owner);
-                $this->log->info(sprintf('laranail/settings retried a write of [%s] in store [%s] for scope [%s] after a concurrent change.', $key, $store->name, $scope), [
-                    'store' => $store->name->value,
-                    'key'   => $key->value,
-                    'scope' => $scope->value,
-                ]);
+                $this->log->info(sprintf('laranail/settings retried a write of [%s] in store [%s] for scope [%s] after a concurrent change.', $key, $store->name, $scope), LogContext::of(
+                    $store->name->value,
+                    $key->value,
+                    $scope->value,
+                    $this->causer,
+                ));
             }
         }
     }
@@ -203,11 +187,7 @@ final readonly class SettingWriter
         return $record;
     }
 
-    /**
-     * The version a write continues: the live row's, else (soft deletes) the trashed row's, so
-     * the write restores it instead of colliding with it, else the newest version in the history
-     * (a row created again after a forget continues its trail), else 0.
-     */
+    /** The version a write continues: the live row's, the trashed row's, the history's, or 0. */
     private function baseVersion(Layer $layer, Store $store, Scope $scope, Key $key, Locale $locale, ?Record $existing): int
     {
         if ($existing instanceof Record) {
@@ -219,10 +199,7 @@ final readonly class SettingWriter
         return max($trashed, $this->history($layer)?->latestVersion($store->name, $scope, $key, $locale) ?? 0);
     }
 
-    /**
-     * Store a record and, where the layer keeps history, its history entry, in one transaction
-     * (a savepoint inside the caller's), so a failed history insert undoes the row.
-     */
+    /** Store a record and its history entry in one transaction. */
     private function persist(Store $store, Layer $layer, HistoryOperation $operation, ?Record $before, Record $after): void
     {
         $history = $this->history($layer);

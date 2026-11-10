@@ -9,9 +9,7 @@ use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 
-/**
- * A resolver from a closure, registered at runtime with `configuration()->resolveActorsUsing()`.
- */
+/** Resolves the actor with a closure set through `configuration()->resolveActorsUsing()`. */
 final readonly class ClosureActorResolver implements ActorResolver
 {
     /** @param Closure(?Request): ?Actor $callback */

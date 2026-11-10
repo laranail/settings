@@ -17,7 +17,7 @@ use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 use Simtabi\Laranail\Settings\Http\Resources\HistoryEntryResource;
 use Simtabi\Laranail\Settings\Http\Requests\RollbackSettingRequest;
 
-/** `…/settings/{key}/history` and `…/rollback` (§4.3): a setting's versions, and returning to one. */
+/** `…/settings/{key}/history` and `…/rollback`. */
 final readonly class HistoryController
 {
     public function index(PageRequest $request, ReadHistory $history, Addresses $addresses, ApiActor $actors): AnonymousResourceCollection

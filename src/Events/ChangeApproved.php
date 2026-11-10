@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * A change request received an approval (`$remaining` more are needed before it applies). Dispatched after commit; identifiers only, never the proposed value.
- */
+/** A change request received an approval; `$remaining` more are needed. */
 final readonly class ChangeApproved implements ShouldDispatchAfterCommit
 {
     public function __construct(

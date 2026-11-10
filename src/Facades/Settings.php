@@ -49,8 +49,7 @@ use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
- * An application convenience over the {@see SettingsContract} binding. The package's own
- * classes never use it; they take the contract through their constructors.
+ * Static access to the {@see SettingsContract} binding.
  *
  * @method static SettingsContract store(string $name)
  * @method static SettingsContract for(Settable|OwnerRef $owner)
@@ -105,8 +104,8 @@ use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 final class Settings extends Facade
 {
     /**
-     * Replace the binding with the real engine over in-memory layers, recording writes and audit
-     * entries. Install it before resolving the code under test.
+     * Swap the binding for the real engine over in-memory layers, recording writes and audit
+     * entries. Call it before resolving the code under test.
      */
     public static function fake(): SettingsFake
     {
@@ -122,8 +121,6 @@ final class Settings extends Facade
         $access = $access->withAuditor($access->auditor()->alsoTo($log->audit));
         $guard = new WriteGuard($access, $app->make(SettingWriter::class), $app->make(ProposeChange::class));
 
-        // The real engine, with the in-memory stores, the recording access guard and the writes
-        // that go through it; every other collaborator is the container's.
         $fake = new SettingsFake($app->make(SettingsManager::class, [
             'stores'          => $stores,
             'resolver'        => new Resolver($stores, $app->make(ValuePipeline::class), self::fallbackLocale($app->make('config')->get('app.fallback_locale'))),

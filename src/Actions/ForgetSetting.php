@@ -12,10 +12,7 @@ use Simtabi\Laranail\Settings\Data\ChangeProposal;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 
-/**
- * Remove a scope's own value so reads fall through again: needs `forget` (and `override_lock`
- * over a locked row the store lets be overridden).
- */
+/** Remove a scope's own value so reads fall through to the next scope or layer. */
 final readonly class ForgetSetting
 {
     public function __construct(

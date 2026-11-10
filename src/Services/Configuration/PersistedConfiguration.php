@@ -13,6 +13,7 @@ use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
 use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Illuminate\Database\ConnectionResolverInterface;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
@@ -25,14 +26,10 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /**
- * Store and layer configuration saved through the API (§16.11, `configuration.persisted`), kept in
- * the `settings_stores` table on the default store's connection. Read on first use, never at boot,
- * once per request or job (bound `scoped`); an entry that fails validation is logged and skipped,
- * so a bad row can never stop the application from booting. Writes are validated the same way
- * first and refused with InvalidConfiguration.
+ * Store and layer configuration saved in the `settings_stores` table.
  *
- * A persisted store may not change the layers of a store the configuration file defines: moving a
- * store's data between drivers is `promote`'s job, not an edit's.
+ * Read on first use, never at boot. An invalid entry is logged and skipped so a bad row cannot
+ * stop the application from booting.
  */
 #[Scoped]
 final class PersistedConfiguration
@@ -46,10 +43,9 @@ final class PersistedConfiguration
     private int $generation = 0;
 
     /**
-     * @param ConnectionResolverInterface $db the default store's database connection is read from it
      * @param DriverFactory $drivers validates an entry by building the stores it would produce
      * @param mixed $enabled `configuration.persisted`
-     * @param array<array-key, mixed> $configStores `laranail.settings.stores`, which a persisted entry may not re-layer
+     * @param array<array-key, mixed> $configStores `laranail.settings.stores`
      * @param array<array-key, mixed> $configLayers `laranail.settings.layers`
      */
     public function __construct(
@@ -72,7 +68,7 @@ final class PersistedConfiguration
         return filter_var($this->enabled, FILTER_VALIDATE_BOOL) && $this->shape()->storesTable;
     }
 
-    /** Changes whenever an entry is saved or deleted, so registries rebuild. */
+    /** Changes whenever an entry is saved or deleted so registries rebuild. */
     public function generation(): int
     {
         return $this->generation;
@@ -90,7 +86,7 @@ final class PersistedConfiguration
         return $this->load()['layers'];
     }
 
-    /** @return list<string> why entries were skipped on the last read (doctor) */
+    /** @return list<string> why entries were skipped on the last read */
     public function problems(): array
     {
         $this->load();
@@ -99,7 +95,7 @@ final class PersistedConfiguration
     }
 
     /**
-     * Save a store entry, as the configuration file would hold it.
+     * Save a store entry in the configuration file's shape.
      *
      * @param array<array-key, mixed> $config
      *
@@ -122,7 +118,7 @@ final class PersistedConfiguration
         $this->save('layer', $name, $config);
     }
 
-    /** Remove a persisted entry; returns whether there was one. */
+    /** Remove a persisted entry and return whether there was one. */
     public function delete(string $kind, string $name): bool
     {
         $this->assertEnabled();
@@ -241,7 +237,7 @@ final class PersistedConfiguration
     {
         $this->problems[] = $problem;
 
-        $this->log->warning('laranail/settings skipped a persisted configuration entry: ' . $problem);
+        $this->log->warning('laranail/settings skipped a persisted configuration entry: ' . $problem, LogContext::of());
     }
 
     private function changed(): void
@@ -273,7 +269,7 @@ final class PersistedConfiguration
         return $this->shapes->current();
     }
 
-    /** The connection of the default store's first database layer, as the configuration file names it. */
+    /** The connection of the default store's first database layer. */
     private function connection(): Connection
     {
         $default = $this->configStores[$this->default] ?? null;

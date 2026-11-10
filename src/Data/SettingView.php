@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-/**
- * A setting as an API answers it: where it was found and at which version of the handle's own
- * row (0: no row of its own), and its value unless the actor may not see it (`redacted`).
- */
+/** A setting as the API returns it; `version` is 0 when the scope has no row of its own. */
 final readonly class SettingView
 {
     public function __construct(

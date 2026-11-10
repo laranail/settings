@@ -8,10 +8,7 @@ use Simtabi\Laranail\Enumerator\Attributes\Label;
 use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
-/**
- * What an audit entry records: every {@see Ability}, plus configuration changes and the
- * governance operations (proposals and their decisions, re-encryption, rescoping, settings migrations).
- */
+/** What an audit entry records: every {@see Ability}, plus configuration and maintenance operations. */
 enum AuditAction: string implements Enumerator
 {
     use HasEnumeratorBehavior;

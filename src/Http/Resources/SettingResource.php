@@ -13,15 +13,15 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
 /**
- * A setting as the API returns it. A value the actor may not see is left out (`redacted` true),
- * never masked; `version` is the version of the addressed row (0: it has none) and backs the ETag.
+ * A setting as the API returns it. A value the actor may not see is left out and `redacted` set;
+ * `version` (0 when no row exists) backs the ETag.
  *
  * @property SettingView $resource
  */
 #[PreserveKeys]
 final class SettingResource extends JsonResource
 {
-    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    /** Always wrapped in `data`, whatever the application sets. */
     public static $wrap = 'data';
 
     /** @return array<string, mixed> */

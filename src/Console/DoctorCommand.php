@@ -13,11 +13,8 @@ use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorReporter;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.doctor`: per database store, whether it is ready, whether its tables have
- * drifted from what this release uses, and whether any rows break the rules the database cannot
- * enforce (class-name scopes, unlisted aliases, cross-store categories), and drift between the
- * configuration, the recorded schema file and the database. Exits non-zero on a failure, so it
- * can gate a deploy. `--fix` first refreshes the definitions table's system rows.
+ * Check each database store's readiness, schema drift and the rows the database cannot guard.
+ * Exits non-zero on a failure; `--fix` refreshes the definitions table's system rows first.
  */
 final class DoctorCommand extends Command
 {

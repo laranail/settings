@@ -6,11 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
-/**
- * How to promote a store: overwrite keys that already have a database row (`force`), and/or
- * replay an archived runtime file (`from`, a path on the runtime layer's disk) instead of the
- * live one, for a database restored from a backup taken before the original promotion.
- */
+/** Promotion options: `force` overwrites existing rows; `from` replays an archived runtime file. */
 final readonly class PromotionRequest
 {
     public function __construct(

@@ -10,15 +10,9 @@ use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Events\CategoryMoved;
 use Simtabi\Laranail\Settings\Events\CategorySaved;
 use Simtabi\Laranail\Settings\Events\CategorySaving;
-use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
-use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
-/**
- * Put a category under another of the same store, or at the top level with a null parent:
- * needs `manage_categories`. A cycle raises {@see CategoryCycle}; a parent from another store
- * raises {@see CategoryStoreMismatch}.
- */
+/** Move a category under another in the same store, or to the top level with a null parent. */
 final readonly class MoveCategory
 {
     public function __construct(

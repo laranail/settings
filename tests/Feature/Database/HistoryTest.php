@@ -29,7 +29,7 @@ use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
- * §4.3: every set, forget, lock, unlock and rollback appends the value before and after, as
+ * Every set, forget, lock, unlock and rollback appends the value before and after, as
  * stored, in the same transaction as the change; history is queried by (store, scope, key,
  * locale); a rollback is a write; a diff decrypts only for an actor allowed to see the value.
  */

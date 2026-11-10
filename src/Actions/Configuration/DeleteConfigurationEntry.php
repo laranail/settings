@@ -14,7 +14,7 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
-/** Remove a persisted store or layer (§16.11): needs `manage_stores`; audited. Returns whether one was there. */
+/** Remove a persisted store or layer; returns whether one existed. */
 final readonly class DeleteConfigurationEntry
 {
     public function __construct(

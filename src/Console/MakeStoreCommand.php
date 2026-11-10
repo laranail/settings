@@ -11,8 +11,7 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.make-store`: write the migration for a new database store and print the
- * configuration entry to add. Nothing is created at runtime (G-3).
+ * Write the migration for a new database store and print the configuration entry to add.
  */
 final class MakeStoreCommand extends Command
 {

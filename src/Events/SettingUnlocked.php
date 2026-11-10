@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * One scope's row was unlocked. Dispatched after the surrounding transaction commits;
- * identifiers only, never the value.
- */
+/** A setting was unlocked. */
 final readonly class SettingUnlocked implements ShouldDispatchAfterCommit
 {
     public function __construct(

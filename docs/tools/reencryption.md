@@ -1,6 +1,6 @@
 # Re-encryption and rescoping
 
-Two maintenance commands that rewrite stored rows: re-encrypting secrets after a key rotation (§6), and renaming an owner alias (G-30).
+Two maintenance commands that rewrite stored rows: re-encrypting secrets after a key rotation, and renaming an owner alias.
 
 ## After rotating `APP_KEY`
 
@@ -24,7 +24,7 @@ The `scope` of a stored value embeds its owner's morph alias (`user:42`). After 
 
 ```bash
 php artisan laranail::settings.rescope user member
-php artisan laranail::settings.rescope 'App\Models\User' user     # rows from before the alias allow-list (G-6)
+php artisan laranail::settings.rescope 'App\Models\User' user     # rows written with a class name instead of an alias
 ```
 
 Every scope `<from>:<id>` becomes `<to>:<id>` in every database store, with `settable_type` and the per-row slug of `slug_per_row`, in the history, and in change requests, in chunks of 500. The audit trail is left as it was: it records what happened under the old name. Then update the stores' `owners` lists to the new alias. A row whose new identity already exists makes the database refuse the rename, inside a transaction, so nothing changes.

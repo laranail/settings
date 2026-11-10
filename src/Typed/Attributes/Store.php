@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Typed\Attributes;
 
 use Attribute;
 
-/**
- * The store a typed settings class reads and writes (default: the handle's store).
- */
+/** The store a typed settings class uses instead of the handle's. */
 #[Attribute(Attribute::TARGET_CLASS)]
 final readonly class Store
 {

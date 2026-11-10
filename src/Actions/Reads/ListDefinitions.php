@@ -13,11 +13,7 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 
-/**
- * A store's definitions (code, configuration and the definitions table; D-6), in key order, for
- * UIs and API clients: needs `view` on the store. A definition never carries a value, but an
- * encrypted one's default stays in code and is left out.
- */
+/** List a store's definitions in key order; an encrypted definition's default is left out. */
 final readonly class ListDefinitions
 {
     public function __construct(

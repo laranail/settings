@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data\Transfer;
 
-/**
- * What an import did, or (dry run) would do: settings created, updated and unchanged by identity
- * (`scope|key|locale`), the ones skipped with the reason, the categories created, and the change
- * requests opened for settings that need approval.
- */
+/** What an import did, or would do in a dry run. */
 final readonly class ImportReport
 {
     /**

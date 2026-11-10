@@ -12,10 +12,7 @@ use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 
-/**
- * A storage layer. Bulk reads only: the resolver loads every scope it needs in one call, so a
- * request costs one read per layer rather than one per key.
- */
+/** A storage layer. Reads load every requested scope in one call. */
 interface Driver
 {
     /**

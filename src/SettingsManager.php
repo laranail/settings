@@ -74,10 +74,8 @@ use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
- * The {@see Settings} implementation: an immutable handle over the store, owner, locale and
- * actor it targets. Reads go through the {@see Resolver} after the {@see AccessGuard} has
- * checked them; writes go through the write actions, which authorize and audit. Every fluent
- * method returns a copy, so a handle is never changed in place.
+ * The {@see Settings} implementation: an immutable handle over a store, owner, locale and actor.
+ * Fluent methods return a copy.
  */
 final class SettingsManager implements Settings
 {
@@ -94,10 +92,6 @@ final class SettingsManager implements Settings
 
     private ?string $reason = null;
 
-    /**
-     * Every collaborator is required and built by the container; what a handle targets (store,
-     * owner, locale, actor, reason) is set on a copy by the fluent methods ({@see with()}).
-     */
     public function __construct(
         private readonly StoreRegistry $stores,
         private readonly DefinitionRegistry $registry,
@@ -518,8 +512,7 @@ final class SettingsManager implements Settings
     }
 
     /**
-     * The store, key, definition and subject of a read, after checking `view` (or that an actor
-     * is not required) and the strict-store rule.
+     * The store, key, definition and subject of a read, after the access and strict-store checks.
      *
      * @return array{Store, Key, ?Definition, Subject}
      */
@@ -579,10 +572,7 @@ final class SettingsManager implements Settings
         return $this->selectedLocale ?? Locale::none();
     }
 
-    /**
-     * A definition registered at runtime for this request wins over the shared registry (code and
-     * config); the definitions table answers only for keys neither covers (D-6).
-     */
+    /** Runtime definitions win over the registry; the definitions table answers only for the rest. */
     private function definition(Store $store, Key $key): ?Definition
     {
         return $this->definitions->find($store, $key);

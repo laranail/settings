@@ -8,10 +8,7 @@ use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * The package's table names: `tables.prefix` (D-4) prepended to `tables.categories`,
- * `tables.audit`, `tables.definitions`, `tables.history`, `tables.change_requests`,
- * `tables.stores` and each store's values table (`stores.<name>.table`, default the store name).
- * Every name is validated, because it is interpolated into SQL identifiers.
+ * The package's table names, prefixed and validated for use as SQL identifiers.
  */
 final readonly class SchemaNames
 {
@@ -67,25 +64,25 @@ final readonly class SchemaNames
         return $this->prefix . $this->audit;
     }
 
-    /** The optional definitions table (D-6). */
+    /** The optional definitions table. */
     public function definitions(): string
     {
         return $this->prefix . $this->definitions;
     }
 
-    /** The value history table (§4.3), one per connection like the audit table. */
+    /** The value history table, one per connection. */
     public function history(): string
     {
         return $this->prefix . $this->history;
     }
 
-    /** The change requests table (§16.7), one per connection like the history table. */
+    /** The change requests table, one per connection. */
     public function changeRequests(): string
     {
         return $this->prefix . $this->changeRequests;
     }
 
-    /** The persisted configuration table (§16.11), on the default store's connection. */
+    /** The persisted configuration table, on the default store's connection. */
     public function stores(): string
     {
         return $this->prefix . $this->storesTable;
@@ -97,7 +94,7 @@ final readonly class SchemaNames
         return ['prefix' => $this->prefix, 'categories' => $this->categories, 'audit' => $this->audit, 'definitions' => $this->definitions, 'history' => $this->history, 'change_requests' => $this->changeRequests, 'stores' => $this->storesTable];
     }
 
-    /** A store's values table: its configured table, or its name, after the prefix. */
+    /** A store's values table: its configured table or its name, prefixed. */
     public function store(StoreName $store, ?string $configured = null): string
     {
         return $this->prefix . ($configured ?? $store->value);

@@ -6,7 +6,7 @@ namespace Simtabi\Laranail\Settings\Http\Requests\Concerns;
 
 use Simtabi\Laranail\Settings\Data\Http\AddressInput;
 
-/** What every setting request reads from its URL: store, key, owner alias and id, `?locale=`. */
+/** Reads the store, key, owner and `?locale=` a setting request addresses. */
 trait ReadsAddress
 {
     /** @return array<string, list<string>> */

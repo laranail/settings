@@ -15,8 +15,7 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
 
 /**
- * What the importers share: another package's key made into a valid key (lower case, `-` and
- * spaces to `_`), and global values gathered into a document.
+ * Normalises another package's keys and gathers global values into an export document.
  */
 final readonly class ImportedKeys
 {
@@ -31,7 +30,7 @@ final readonly class ImportedKeys
     }
 
     /**
-     * Global values as a document of the store.
+     * Global values as an export document.
      *
      * @param array<string, array{mixed, bool}> $values key => [value, locked]
      */

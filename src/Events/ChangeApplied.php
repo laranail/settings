@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * An approved change request was written through the normal write pipeline as `$version`. Dispatched after commit; identifiers only, never the proposed value.
- */
+/** An approved change request was written as `$version`. */
 final readonly class ChangeApplied implements ShouldDispatchAfterCommit
 {
     public function __construct(

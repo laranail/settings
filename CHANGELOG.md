@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `laranail::settings.show {key} [--store=] [--owner=] [--locale=] [--reveal]`: prints how one
+  setting resolves (value, layer, scope, type, version, locked, encrypted and sensitive flags, and
+  the latest audit entry), through the same `ExplainSetting` action as `explain()`. Sensitive and
+  encrypted values print as `[protected]` unless `--reveal` is given.
+- `doctor` warns, without failing, about a stored value or a code or config definition whose key's
+  first segment is not its category's slug (`<store>: category keys`, `definitions: category keys`).
+- `Logging\LogContext`: every operational log entry's context now starts with `store`, `key`,
+  `scope`, `actor` and `channel`, in that order and `null` where the entry has none. Refusals,
+  write retries, cache failures, alert failures, skipped persisted entries, runtime configuration
+  changes and log-sink audit entries all use it, so one log query finds every entry about a setting.
+
 - Consumer conveniences on the `Settings` contract, each a thin delegation onto the existing read
   and write paths: `missing()`, `many()` (keys or `key => default` pairs), `setMany()` and
   `forgetMany()` (one write each, not atomic), `remember()` (read-through: writes a computed value
@@ -198,6 +209,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Prepared for the public release. Source, config, migration, route, helper and test comments are
+  rewritten as short plain docblocks, with no references to internal planning documents; the
+  design rationale they carried is now in `docs/architecture.md`. Comment lines in `src/` went
+  from 3,784 to 2,743. No behaviour changed.
+- The migration builds each table in one method with a flat column list; the values table's
+  indexes moved to `indexValues()`. Every column, type, index name and foreign key is unchanged,
+  verified by diffing the SQLite schema of the default and the full shape before and after.
+- The service provider is split into one private method per concern (`registerDrivers()`,
+  `registerStores()`, `registerCache()`, `registerLogging()`, `registerAudit()`,
+  `registerAccess()`, `registerAlerts()`, `bootReadinessFlush()`, `bootListeners()`, …), so
+  `register()` and `boot()` read as a table of contents. No binding changed.
+- README: the Tests, Static analysis and MIT badges, with a note that the package is not on
+  Packagist; `.gitattributes` also export-ignores `.claude`.
 - The package is wired the way Laravel wires an application (conventions review, 2026-11-10).
   `routes/api.php` declares every REST route by hand in named, nested groups, each `http.routes`
   switch an `if` around its group; the service provider loads it once, under `http.prefix`/v1 and

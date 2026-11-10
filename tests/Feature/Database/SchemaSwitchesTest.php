@@ -19,7 +19,7 @@ function valueColumns(string $table = 'settings'): array
     return Schema::getColumnListing($table);
 }
 
-it('gives every row a shared slug and its own uid by default (D-1 slug_uid)', function (): void {
+it('gives every row a shared slug and its own uid by default', function (): void {
     useDatabase(['stores.settings.owners' => ['user']]);
 
     settings()->set('mail.from_address', 'a@acme.test');
@@ -31,7 +31,7 @@ it('gives every row a shared slug and its own uid by default (D-1 slug_uid)', fu
         ->and($rows->pluck('uid')->unique())->toHaveCount(2);
 });
 
-it('gives each row a unique sha1 slug and no uid in slug_per_row mode (D-1)', function (): void {
+it('gives each row a unique sha1 slug and no uid in slug_per_row mode', function (): void {
     useDatabase(['identity.mode' => 'slug_per_row', 'stores.settings.owners' => ['user']]);
 
     settings()->set('mail.from_address', 'a@acme.test');
@@ -48,7 +48,7 @@ it('gives each row a unique sha1 slug and no uid in slug_per_row mode (D-1)', fu
     expect($unique)->toHaveCount(1);
 });
 
-it('keeps only a uid in uid_only mode (D-1)', function (): void {
+it('keeps only a uid in uid_only mode', function (): void {
     useDatabase(['identity.mode' => 'uid_only']);
 
     settings()->set('site.name', 'Acme');
@@ -58,7 +58,7 @@ it('keeps only a uid in uid_only mode (D-1)', function (): void {
         ->and(settings()->get('site.name'))->toBe('Acme');
 });
 
-it('keys every package table by uuid or ulid, with matching category keys (D-5)', function (string $type, int $length): void {
+it('keys every package table by uuid or ulid, with matching category keys', function (string $type, int $length): void {
     useDatabase(['ids.type' => $type, 'definitions.table' => true]);
 
     $category = settings()->categories()->create(new NewCategory('mail', 'Mail'));
@@ -76,7 +76,7 @@ it('keys every package table by uuid or ulid, with matching category keys (D-5)'
     'ulid' => ['ulid', 26],
 ]);
 
-it('follows laranail.db-tools.id_type when ids.type is not set (D-5)', function (): void {
+it('follows laranail.db-tools.id_type when ids.type is not set', function (): void {
     config()->set('laranail.db-tools.id_type', 'ULID');
     useDatabase();
 
@@ -92,7 +92,7 @@ it('refuses an ids.type it does not know', function (): void {
     expect(fn () => app(SchemaShapeRepository::class)->configured())->toThrow(InvalidConfiguration::class, 'laranail.settings.ids.type');
 });
 
-it('types settable_id like the owners\' keys when ids.owner_key is typed (D-5)', function (): void {
+it('types settable_id like the owners\' keys when ids.owner_key is typed', function (): void {
     useDatabase(['ids.owner_key' => 'typed', 'stores.settings.owners' => ['user']]);
 
     settings()->for(new OwnerRef('user', 42))->set('theme', 'dark');
@@ -102,7 +102,7 @@ it('types settable_id like the owners\' keys when ids.owner_key is typed (D-5)',
         ->and(fn () => settings()->for(new OwnerRef('user', 'abc'))->set('theme', 'light'))->toThrow(OwnerNotAllowed::class, 'bigint');
 });
 
-it('stores titles as per-locale JSON in json translations mode (D-8)', function (): void {
+it('stores titles as per-locale JSON in json translations mode', function (): void {
     useDatabase(['translations.mode' => 'json']);
 
     $categories = settings()->categories();
@@ -129,7 +129,7 @@ it('keeps plain titles in lang mode, where translations are not stored', functio
         ->and(fn (): NewCategory => new NewCategory('x', 'X', translations: ['fr' => ' ']))->toThrow(InvalidIdentifier::class);
 });
 
-it('prefixes every table and honours each override, including the foreign-table check (D-4)', function (): void {
+it('prefixes every table and honours each override, including the foreign-table check', function (): void {
     useDatabase([
         'tables.prefix'         => 'app_',
         'tables.categories'     => 'setting_groups',
@@ -160,7 +160,7 @@ it('prefixes every table and honours each override, including the foreign-table 
     expect(app(FindForeignTables::class)->handle())->toBe([DB::getDefaultConnection() . '.app_setting_log']);
 });
 
-it('runs the definitions migration as a no-op while the table is off (D-6)', function (): void {
+it('runs the definitions migration as a no-op while the table is off', function (): void {
     useDatabase();
 
     expect(Schema::hasTable('settings_definitions'))->toBeFalse();

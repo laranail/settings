@@ -11,10 +11,7 @@ use Simtabi\Laranail\Settings\Data\Decision;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 
-/**
- * An authorizer from a closure. Returning null abstains; `true` and `false` are shorthand for
- * allow and deny.
- */
+/** Authorizes with a closure that returns a Decision, true, false, or null to abstain. */
 final readonly class ClosureAuthorizer implements Authorizer
 {
     /** @param Closure(Actor, Ability, Subject): (Decision|bool|null) $callback */

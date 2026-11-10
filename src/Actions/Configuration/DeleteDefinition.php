@@ -18,10 +18,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Database\DefinitionsRepository;
 use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 
-/**
- * Delete a definition saved through the API (§16.11): needs `manage_definitions`; definitions from
- * code or configuration are never deleted here. Audited. Returns whether one was there.
- */
+/** Delete a definition saved through the API; returns whether one existed. */
 final readonly class DeleteDefinition
 {
     public function __construct(

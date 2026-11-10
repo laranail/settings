@@ -11,8 +11,8 @@ use Simtabi\Laranail\Settings\Actions\MigrateSettings;
 use Simtabi\Laranail\Settings\Data\SettingsMigrationStep;
 
 /**
- * What a settings migration (G-17) calls: rename, move, delete and add keys, in the default store
- * unless a store is named. Each step runs through {@see MigrateSettings} as the system actor.
+ * Renames, moves, deletes and adds keys for a settings migration, as the system actor. Uses the
+ * default store unless one is named.
  */
 final readonly class SettingsMigrator
 {
@@ -30,13 +30,13 @@ final readonly class SettingsMigrator
         return $this->migrate->handle(new SettingsMigrationStep(SettingsMigrationStep::RENAME, $name, new Key($from), $name, new Key($to)), $this->actor);
     }
 
-    /** Move a key from one store to another (optionally under a new key). */
+    /** Move a key to another store, optionally under a new key. */
     public function move(string $key, string $fromStore, string $toStore, ?string $toKey = null): int
     {
         return $this->migrate->handle(new SettingsMigrationStep(SettingsMigrationStep::RENAME, new StoreName($fromStore), new Key($key), new StoreName($toStore), new Key($toKey ?? $key)), $this->actor);
     }
 
-    /** Remove a key everywhere: every owner and locale. */
+    /** Remove a key for every owner and locale. */
     public function delete(string $key, ?string $store = null): int
     {
         return $this->migrate->handle(new SettingsMigrationStep(SettingsMigrationStep::DELETE, $this->store($store), new Key($key)), $this->actor);

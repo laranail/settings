@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
-/**
- * An owner of settings by morph alias and id, never by class name, so renaming a model class
- * does not orphan its settings and resolving parents needs no model loading.
- */
+/** An owner of settings by morph alias and id, so renaming a model class orphans nothing. */
 final readonly class OwnerRef
 {
     public string $alias;

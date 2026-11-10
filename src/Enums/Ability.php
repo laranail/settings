@@ -9,9 +9,8 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
 /**
- * Everything an actor can be authorized to do. Each case is checked as the gate
- * `laranail-settings.<value>` by the gate authorizer and, for a token-bearing actor, must also be
- * among the token's abilities as `settings:<value>` (or `settings:*`).
+ * Everything an actor can be authorized to do: the gate `laranail-settings.<value>`, and for a
+ * token-bearing actor the token ability `settings:<value>`.
  */
 enum Ability: string implements Enumerator
 {

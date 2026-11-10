@@ -9,12 +9,9 @@ use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Data\Decision;
 use Simtabi\Laranail\Settings\Enums\Ability;
 
-/**
- * The single authorization seam. Called only for a handle that carries a non-system actor;
- * trusted code without an actor never reaches it.
- */
+/** Decides abilities for a handle with a non-system actor. */
 interface Authorizer
 {
-    /** Allow, deny, require verification or approval, or abstain to let the next authorizer decide. */
+    /** Allow, deny, require verification or approval, or abstain for the next authorizer. */
     public function authorize(Actor $actor, Ability $ability, Subject $subject): Decision;
 }

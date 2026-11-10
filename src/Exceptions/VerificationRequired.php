@@ -7,10 +7,7 @@ namespace Simtabi\Laranail\Settings\Exceptions;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
 
-/**
- * The actor is allowed, but must prove their identity again first (step-up verification), for
- * example by confirming their password. Retry once verified.
- */
+/** The actor must verify their identity again before this ability. */
 final class VerificationRequired extends SettingsException
 {
     public const int STATUS = 428;

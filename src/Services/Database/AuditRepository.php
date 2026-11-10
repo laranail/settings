@@ -20,10 +20,7 @@ use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /**
- * The audit table on one connection (§16.8): every read, write and delete of audit rows goes
- * through here, so the audit sink, the audit query and the retention prune agree on the table,
- * the columns, the tenant filter and the row format. In column-mode tenancy a row carries the
- * current tenant and a query sees the current tenant's rows only; the prune is application-wide.
+ * Reads and writes the audit table on one connection, scoped to the current tenant.
  */
 final readonly class AuditRepository
 {
@@ -31,11 +28,7 @@ final readonly class AuditRepository
         private DatabaseDriver $database,
     ) {}
 
-    /**
-     * The audit table a store's entries go to: its own active database layer, else the default
-     * store's (entries of a store without a database still land somewhere queryable). Null when
-     * neither has one.
-     */
+    /** The audit table for a store: its own database layer's, else the default store's, else null. */
     public static function locate(StoreRegistry $stores, ?StoreName $store): ?self
     {
         $database = ($store instanceof StoreName ? $stores->get($store) : $stores->default())->database() ?? $stores->default()->database();
@@ -44,8 +37,7 @@ final readonly class AuditRepository
     }
 
     /**
-     * One row as an entry; a row missing a required column raises DriverFailure rather than
-     * inventing an entry.
+     * Build an entry from one row; a malformed row raises DriverFailure.
      *
      * @param array<array-key, mixed> $row
      */
@@ -92,7 +84,7 @@ final readonly class AuditRepository
         return $this->database;
     }
 
-    /** Write one entry. Its store names the store in an outage message only. */
+    /** Write one entry. */
     public function insert(AuditEntry $entry): void
     {
         $this->database->attempt(new StoreName($entry->store ?? 'audit'), fn (): bool => $this->table()->insert([
@@ -145,10 +137,7 @@ final readonly class AuditRepository
         return $query->orderByDesc('occurred_at')->orderByDesc('id');
     }
 
-    /**
-     * Delete every tenant's rows older than the cutoff (retention is one policy for the whole
-     * application). The store names the store in an outage message only.
-     */
+    /** Delete every tenant's rows older than the cutoff. */
     public function prune(CarbonImmutable $cutoff, StoreName $store): int
     {
         return $this->database->attempt($store, fn (): int => $this->table()->where('occurred_at', '<', $cutoff)->delete());

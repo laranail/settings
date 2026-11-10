@@ -9,10 +9,8 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 
 /**
- * Reads another package's settings into an export document (G-43), which the normal import then
- * writes through the write pipeline. An importer only reads; it never writes, and it needs none of
- * the package it reads from. `$source` is what that package keeps (a connection, a table, a
- * file), in the form the importer documents.
+ * Reads another package's settings into an export document for the normal import to write.
+ * `$source` is a connection, table or file, as the importer documents.
  */
 interface Importer
 {

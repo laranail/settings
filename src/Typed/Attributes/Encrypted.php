@@ -6,8 +6,6 @@ namespace Simtabi\Laranail\Settings\Typed\Attributes;
 
 use Attribute;
 
-/**
- * The property's setting is encrypted at rest: `register()` defines it encrypted.
- */
+/** Stores the property's setting encrypted. */
 #[Attribute(Attribute::TARGET_PROPERTY)]
 final readonly class Encrypted {}

@@ -1,6 +1,6 @@
 # Importers
 
-Three importers read another package's settings into an export document (G-43), which the normal [import](import-export.md) then writes. None of those packages is needed.
+Three importers read another package's settings into an export document, which the normal [import](import-export.md) then writes. None of those packages is needed.
 
 ## Shipped importers
 

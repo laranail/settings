@@ -20,7 +20,7 @@ use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
- * §16.10: the REST API runs the actions the PHP API runs, answers problem details, ETags and
+ * The REST API runs the actions the PHP API runs, answers problem details, ETags and
  * If-Match, 202 for approvals, cursor pages, idempotent retries, and every response it gives
  * matches its shape (tests/Support/ApiSchemas.php).
  */

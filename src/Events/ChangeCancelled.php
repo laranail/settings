@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * A change request was cancelled by its requester; nothing was written. Dispatched after commit; identifiers only, never the proposed value.
- */
+/** A change request was cancelled by its requester. */
 final readonly class ChangeCancelled implements ShouldDispatchAfterCommit
 {
     public function __construct(

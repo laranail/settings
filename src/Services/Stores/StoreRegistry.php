@@ -31,8 +31,7 @@ use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
 /**
- * Builds and validates every store from configuration on first use. Configuration errors are
- * raised here, naming the config path, rather than surfacing later as a wrong value.
+ * Builds and validates every store from configuration on first use.
  */
 final class StoreRegistry
 {
@@ -45,8 +44,8 @@ final class StoreRegistry
     /**
      * @param array<array-key, mixed> $storeConfig `laranail.settings.stores`
      * @param array<array-key, mixed> $layerConfig `laranail.settings.layers`
-     * @param ?Dispatcher $events told ({@see LayerSkipped}) when bootstrap mode skips a layer
-     * @param list<string> $sources `configuration.sources`: the merge order of config, database (persisted) and runtime entries, later wins
+     * @param ?Dispatcher $events receives {@see LayerSkipped} when bootstrap mode skips a layer
+     * @param list<string> $sources merge order of config, database and runtime entries; later wins
      */
     public function __construct(
         private readonly DriverFactory $drivers,
@@ -62,16 +61,13 @@ final class StoreRegistry
         private readonly array $sources = ['config', 'database', 'runtime'],
     ) {}
 
-    /** A copy whose every layer is replaced by one driver (used by the fake). */
+    /** A copy whose every layer is replaced by one driver. */
     public function withEveryLayer(Driver $driver): self
     {
         return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->events, $this->cache, $this->persisted, $this->sources);
     }
 
-    /**
-     * Build every store and every defined layer, raising InvalidConfiguration for the first
-     * problem. Runtime configuration calls this before accepting a change.
-     */
+    /** @throws InvalidConfiguration for the first problem in any store or layer */
     public function validate(): void
     {
         $this->all();
@@ -91,7 +87,7 @@ final class StoreRegistry
         return $this->all()[$name->value] ?? throw new UnknownStore(sprintf('Store [%s] is not configured in laranail.settings.stores.', $name));
     }
 
-    /** Where a store's global values live: the store itself, or a dedicated store's fallback. */
+    /** The store holding a store's global values: itself, or a dedicated store's fallback. */
     public function globalOf(Store $store): Store
     {
         return $store->fallback instanceof StoreName ? $this->get($store->fallback) : $store;
@@ -199,9 +195,9 @@ final class StoreRegistry
     }
 
     /**
-     * A layer built for one store: a database layer learns the store's table, in a store in
-     * bootstrap mode it is put behind the bootstrap gate, and with caching on it is read through
-     * the settings cache (outside the gate, so a skipped layer is never cached).
+     * Build a layer for one store, with the bootstrap gate and settings cache where configured.
+     *
+     * The cache wraps the gate, so a skipped layer is never cached.
      */
     private function storeLayer(string $name, string $storePath, StoreName $store, ?string $table, bool $bootstrap): Layer
     {
@@ -223,7 +219,7 @@ final class StoreRegistry
         return new Layer($name, new BootstrapGatedDriver($layer->driver, $store, $this->evidence ?? new InstallationEvidence(false), $this->events, $name), $layer->type);
     }
 
-    /** @param array<string, mixed> $extra options the store adds (the database table) */
+    /** @param array<string, mixed> $extra options the store adds */
     private function layer(string $name, string $storePath, array $extra = []): Layer
     {
         $config = $this->layerConfigs()[$name] ?? null;
@@ -258,7 +254,7 @@ final class StoreRegistry
 
     /**
      * @param array<array-key, mixed> $config
-     * @param Closure(): array<array-key, mixed> $persisted read only when `database` is a source
+     * @param Closure(): array<array-key, mixed> $persisted
      * @param array<array-key, mixed> $runtime
      *
      * @return array<array-key, mixed>
@@ -311,7 +307,7 @@ final class StoreRegistry
         return $globs;
     }
 
-    /** @return list<string> a list of strings, or InvalidConfiguration naming `$path` */
+    /** @return list<string> */
     private function strings(mixed $value, string $path): array
     {
         $strings = is_array($value) ? array_values(array_filter($value, is_string(...))) : null;

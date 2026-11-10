@@ -15,8 +15,7 @@ use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
- * Builds audit entries and hands each to every configured sink, then to any sink added at
- * runtime with `auditTo()`. A call without an actor is recorded as `system`.
+ * Builds audit entries and sends each to every configured and runtime sink.
  */
 final readonly class Auditor
 {
@@ -27,7 +26,7 @@ final readonly class Auditor
         private ?RuntimeConfiguration $runtime = null,
     ) {}
 
-    /** A copy that also writes to these sinks (the fake uses it to record entries in memory). */
+    /** A copy that also writes to these sinks. */
     public function alsoTo(AuditSink ...$sinks): self
     {
         return new self([...$this->sinks, ...array_values($sinks)], $this->clock, $this->runtime);

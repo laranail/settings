@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * Dispatched after the surrounding database transaction commits, if any. Carries identifiers
- * only, never the value, so a queued listener cannot leak a secret into the jobs table.
- */
+/** A setting is about to be saved. */
 final readonly class SettingSaving implements ShouldDispatchAfterCommit
 {
     public function __construct(

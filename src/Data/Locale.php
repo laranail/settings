@@ -7,10 +7,7 @@ namespace Simtabi\Laranail\Settings\Data;
 use Stringable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
-/**
- * A setting's locale. The empty locale means "not localised". Others are normalised to
- * `ll` or `ll_CC` (`pt-br`, `PT_BR` → `pt_BR`) so two spellings never become two rows.
- */
+/** A setting's locale, normalised to `ll` or `ll_CC`; empty means not localised. */
 final readonly class Locale implements Stringable
 {
     public string $value;

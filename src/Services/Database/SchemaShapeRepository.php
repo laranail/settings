@@ -12,17 +12,12 @@ use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * The schema-shape file (`database/settings-schema.php`, or `schema.path`): where `install` and
- * `make-store` record the shape their migrations produce, and where the runtime and the
- * migrations read it back. Application code, so it works on a read-only filesystem once written.
- *
- * Bound `scoped`: the file is read once per request or job, never at boot.
+ * Reads and writes the schema-shape file that `install` and `make-store` record.
  */
 final class SchemaShapeRepository
 {
     private ?SchemaShape $current = null;
 
-    /** @param Repository $config the configuration the configured shape is described by */
     public function __construct(
         private readonly Filesystem $files,
         private readonly string $path,
@@ -69,15 +64,16 @@ final class SchemaShapeRepository
         return SchemaShape::fromConfig(is_array($settings) ? $settings : [], $this->config->get('laranail.db-tools.id_type'));
     }
 
-    /** What the runtime and the migrations use: the recorded shape, else the configured one. */
+    /** The recorded shape, else the configured one. */
     public function current(): SchemaShape
     {
         return $this->current ??= $this->recorded() ?? $this->configured();
     }
 
     /**
-     * Record the configured shape. Anything already recorded wins: its switches and its stores
-     * describe tables that may already exist, so only stores new to the file are added.
+     * Record the configured shape, keeping anything already recorded.
+     *
+     * Recorded entries describe tables that may already exist, so only new stores are added.
      */
     public function record(): SchemaShape
     {
@@ -94,7 +90,7 @@ final class SchemaShapeRepository
         return $shape;
     }
 
-    /** Record one more store (make-store); the rest of the file is kept as it is. */
+    /** Record one more store, keeping the rest of the file. */
     public function recordStore(StoreSchema $store): SchemaShape
     {
         $shape = ($this->recorded() ?? $this->configured())->withStore($store);

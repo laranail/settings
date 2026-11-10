@@ -25,7 +25,7 @@ function auditKeys(array $entries): array
     return array_map(static fn (AuditEntry $entry): string => $entry->action->value . ':' . ($entry->key ?? '-'), $entries);
 }
 
-it('queries the audit trail by owner, store, key, action, outcome and time, newest first (§16.8)', function (): void {
+it('queries the audit trail by owner, store, key, action, outcome and time, newest first', function (): void {
     $this->travelTo(now()->subDays(3));
     settings()->set('site.name', 'Old');
     $this->travelBack();

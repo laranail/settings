@@ -14,17 +14,9 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /**
- * Generate a new database store (G-3: no runtime DDL): one migration for it, a copy of the
- * package's migration (`create_laranail_settings_tables.php`) with its `$only` line naming the
- * store and, with a connection, its `$pinnedConnection` line naming that connection. The copy
- * creates the store's values table and, on a connection of its own, that connection's categories
- * and audit tables (each connection keeps its own). Returns the file written and the
- * configuration entry to add by hand.
- *
- * The store's shape (mode, soft deletes, owner table) is recorded in the schema file (§4.0):
- * taken from its configuration entry when it has one, else the default polymorphic shape on the
- * given connection. The file's switches (key type, identity, translations, tenancy) are kept, so
- * the new table's `category_id` always matches the categories key it points at.
+ * Generate the migration for a new database store: a copy of the package migration with its
+ * `$only` (and optionally `$pinnedConnection`) line rewritten, and record the store's shape.
+ * Returns the file written and the configuration entry to add.
  */
 final readonly class MakeStore
 {
@@ -36,8 +28,7 @@ final readonly class MakeStore
     private const string CONNECTION_LINE = 'private ?string $pinnedConnection = null;';
 
     /**
-     * @param string $migration the package migration file make-store copies (a directory, as
-     *                          before 0.1's single migration, means that directory's copy of it)
+     * @param string $migration the package migration file to copy, or a directory holding it
      * @param string $migrations the application's migrations directory
      */
     public function __construct(

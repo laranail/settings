@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * A store's runtime file was promoted: counts only, never values.
- */
+/** A store's runtime file was promoted into its database layer. */
 final readonly class StorePromoted implements ShouldDispatchAfterCommit
 {
     public function __construct(

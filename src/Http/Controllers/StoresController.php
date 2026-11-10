@@ -13,7 +13,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Simtabi\Laranail\Settings\Http\Resources\DefinitionResource;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 
-/** `/stores` and `/stores/{store}/definitions`: what an API client can read and write. */
+/** `/stores` and `/stores/{store}/definitions`. */
 final readonly class StoresController
 {
     public function index(PageRequest $request, ListStores $stores, ApiActor $actors): AnonymousResourceCollection

@@ -19,11 +19,10 @@ use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
 
 /**
- * Records in a JSON file on a filesystem disk, one file per store (`{store}` in the path).
+ * Stores records in a JSON file on a filesystem disk, one file per store.
  *
- * Writes go to a temporary file that is then moved over the real one, which is an atomic rename
- * on local disks. There is no cross-process lock: concurrent writers can lose an update, which
- * is acceptable for the install-time runtime layer this driver exists for, and is documented.
+ * Writes replace the file through an atomic rename. There is no cross-process lock, so concurrent
+ * writers can lose an update.
  */
 final readonly class JsonDriver implements Driver
 {
@@ -64,7 +63,7 @@ final readonly class JsonDriver implements Driver
     }
 
     /**
-     * Every record in the store's file, for promotion to the database.
+     * Every record in the store's file.
      *
      * @return list<Record>
      */
@@ -74,8 +73,7 @@ final readonly class JsonDriver implements Driver
     }
 
     /**
-     * Every record in another file on the same disk: a promoted archive being replayed. The path
-     * comes from an operator, so it may not climb out of the disk.
+     * Every record in another file on the same disk; the path may not leave the disk.
      *
      * @return list<Record>
      */
@@ -94,10 +92,7 @@ final readonly class JsonDriver implements Driver
         return $exists ? array_values($this->readPath($path)) : throw new DriverFailure(sprintf('Settings file [%s] does not exist.', $path));
     }
 
-    /**
-     * Move the store's file aside as `<file>.promoted-<timestamp>.json` once its records are in
-     * the database. Returns the archive's path, or null when there was no file.
-     */
+    /** Move the store's file aside after promotion and return the archive's path, if any. */
     public function archive(StoreName $store, CarbonImmutable $at): ?string
     {
         $path = $this->path($store);

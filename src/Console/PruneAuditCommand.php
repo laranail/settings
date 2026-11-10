@@ -12,7 +12,7 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.prune-audit`: delete audit rows older than `audit.keep_days` (or `--days`).
+ * Delete audit rows older than `audit.keep_days` (or `--days`).
  */
 final class PruneAuditCommand extends Command
 {

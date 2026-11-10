@@ -7,10 +7,7 @@ namespace Simtabi\Laranail\Settings\Audit;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 
-/**
- * Keeps entries in memory for the current process: used by `Settings::fake()` and by tests that
- * assert on the audit trail.
- */
+/** Keeps audit entries in memory, for `Settings::fake()` and tests. */
 final class InMemoryAuditSink implements AuditSink
 {
     /** @var list<AuditEntry> */

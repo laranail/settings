@@ -7,9 +7,7 @@ namespace Simtabi\Laranail\Settings\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Simtabi\Laranail\Settings\Data\NewCategory;
 
-/**
- * `POST /stores/{store}/categories`: a new category, optionally under a parent.
- */
+/** `POST /stores/{store}/categories`. */
 final class StoreCategoryRequest extends FormRequest
 {
     public function authorize(): bool

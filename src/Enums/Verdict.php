@@ -9,9 +9,8 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
 /**
- * The kind of {@see \Simtabi\Laranail\Settings\Data\Decision} an authorizer returns. `abstain`
- * means "no opinion": the next authorizer in a chain decides, and if none does,
- * `authorization.undefined` applies.
+ * The kind of {@see \Simtabi\Laranail\Settings\Data\Decision} an authorizer returns. When every
+ * authorizer abstains, `authorization.undefined` decides.
  */
 enum Verdict: string implements Enumerator
 {

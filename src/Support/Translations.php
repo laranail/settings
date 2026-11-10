@@ -7,10 +7,8 @@ namespace Simtabi\Laranail\Settings\Support;
 use Simtabi\Laranail\Settings\Enums\TranslationsMode;
 
 /**
- * How titles, labels and descriptions are stored (D-8, `translations.mode`): under `lang` the
- * text itself; under `json` a JSON map of locale to text, where `''` is the text for any locale.
- * One reader and one writer for categories, definitions and the factories, so the format cannot
- * drift between them. Stateless.
+ * Reads and writes titles, labels and descriptions per `translations.mode`: plain text, or a JSON
+ * map of locale to text where `''` applies to any locale.
  */
 final readonly class Translations
 {
@@ -26,7 +24,7 @@ final readonly class Translations
     /**
      * The text as the column holds it.
      *
-     * @param array<string, string> $translations locale => text (json mode only)
+     * @param array<string, string> $translations locale => text, used in json mode
      */
     public function store(string $text, array $translations = []): string
     {
@@ -62,8 +60,7 @@ final readonly class Translations
     }
 
     /**
-     * Every text by locale; `['' => stored]` under `lang`, or when the stored value is not a
-     * JSON map with at least one text.
+     * Every text by locale; `['' => stored]` when the value is not a JSON map of texts.
      *
      * @return array<string, string>
      */

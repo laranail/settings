@@ -11,9 +11,7 @@ use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 
 /**
- * Who a REST request acts as: the configured actor resolver (the guard, or Sanctum with its
- * token abilities as a ceiling), on the `rest` channel. A request nobody is authenticated for is
- * refused; the API never runs as trusted code.
+ * Resolves the actor of a REST request on the `rest` channel. The API never runs as trusted code.
  */
 final readonly class ApiActor
 {

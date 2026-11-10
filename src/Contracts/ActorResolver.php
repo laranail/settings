@@ -7,10 +7,7 @@ namespace Simtabi\Laranail\Settings\Contracts;
 use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Data\Actor;
 
-/**
- * Turns the current request (or context) into an {@see Actor}. The host's own middleware does
- * the authenticating; a resolver only reads its result.
- */
+/** Turns the current request into an {@see Actor}; authentication itself is the host's. */
 interface ActorResolver
 {
     /** The authenticated actor, or null when nobody is authenticated. */

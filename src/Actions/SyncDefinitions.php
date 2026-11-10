@@ -19,12 +19,9 @@ use Simtabi\Laranail\Settings\Services\Database\DefinitionsRepository;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
- * Copy every code and config definition into the definitions table as an `is_system` row (D-6,
- * §4.4), so UIs can list them; remove system rows whose definition is gone. Rows edited at
- * runtime (not `is_system`) are never touched; one that shares a key with a code definition is
- * reported as a conflict, because code wins in the merge. Needs `manage_definitions` when an
- * actor is present; audited. Stores without an active database layer, or a schema without the
- * table, are skipped.
+ * Copy code and config definitions into the definitions table as system rows and remove system
+ * rows whose definition is gone. Runtime rows are never touched; one sharing a key with a code
+ * definition is reported as a conflict.
  *
  * @phpstan-type SyncReport array{synced: int, removed: int, conflicts: list<string>, skipped: list<string>}
  */

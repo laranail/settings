@@ -11,9 +11,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * The recorded shape of one store's values table (§4.0): its mode (D-3), soft deletes (D-9),
- * configured table and connection, and, for a dedicated store, the owner table its `owner_id`
- * points at and the store that holds its global values.
+ * The recorded shape of one store's values table.
  */
 final readonly class StoreSchema
 {
@@ -47,9 +45,7 @@ final readonly class StoreSchema
     }
 
     /**
-     * Read one `laranail.settings.stores.<name>` entry. `$connection` is the store's database
-     * layer connection (resolved by the caller from its layers); `$ownerKeyType` is the owner
-     * key type when the entry does not set one (laranail.db-tools.id_type).
+     * Read one `laranail.settings.stores.<name>` entry.
      *
      * @param array<array-key, mixed> $config
      */

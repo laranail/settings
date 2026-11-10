@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Exceptions;
 
-/**
- * A strict store was asked for a key that has no definition.
- */
+/** A strict store has no definition for this key. */
 final class UnknownSetting extends SettingsException
 {
     public const int STATUS = 404;

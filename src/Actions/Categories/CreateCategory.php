@@ -12,10 +12,7 @@ use Simtabi\Laranail\Settings\Events\CategorySaved;
 use Simtabi\Laranail\Settings\Events\CategorySaving;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
-/**
- * Create a category in a store, optionally under a parent of the same store: needs
- * `manage_categories`.
- */
+/** Create a category, optionally under a parent in the same store. */
 final readonly class CreateCategory
 {
     public function __construct(

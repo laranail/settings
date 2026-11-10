@@ -19,12 +19,8 @@ use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
- * Rename an owner alias in stored settings (G-30), after the application renamed it in its morph
- * map: every scope `<from>:<id>` becomes `<to>:<id>` in every database store (with `settable_type`
- * and per-row slugs), in the history and in change requests, in chunks (G-44). `$from` may be a
- * class name, which is how rows written before the alias allow-list look (G-6). The audit trail is
- * left as it was: it records what happened under the old name. Needs `manage_stores`; audited.
- * Update the stores' `owners` lists to the new alias as well.
+ * Rename an owner alias in stored values, history and change requests after the application
+ * renamed it in its morph map. `$from` may be a class name. The audit trail is left unchanged.
  */
 final readonly class RescopeOwners
 {

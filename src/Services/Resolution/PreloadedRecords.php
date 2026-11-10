@@ -10,11 +10,7 @@ use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
 
 /**
- * Records loaded ahead of time for a list of owners (`preload()`, `withSettings()`), so reading a
- * page of owners costs one query per store instead of one per owner (G-9). Held for the request
- * only (the resolver that owns it is scoped) and dropped for a scope when that scope is written.
- * Records are kept per tenant, so a tenant switch inside one request or job can never answer one
- * tenant's read from another tenant's preload.
+ * Records preloaded for a list of owners, kept per tenant for the current request.
  */
 final class PreloadedRecords
 {
@@ -23,7 +19,7 @@ final class PreloadedRecords
 
     /**
      * @param list<Scope> $scopes
-     * @param array<string, RecordSet> $loaded layer => records, as the store loaded them for these scopes
+     * @param array<string, RecordSet> $loaded layer => records
      */
     public function remember(StoreName $store, array $scopes, array $loaded, string $tenant = ''): void
     {

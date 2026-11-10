@@ -11,14 +11,14 @@ use Illuminate\Http\Resources\Attributes\PreserveKeys;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 
 /**
- * What an import created, updated, left alone and skipped (G-42).
+ * What an import created, updated, left alone and skipped.
  *
  * @property ImportReport $resource
  */
 #[PreserveKeys]
 final class ImportReportResource extends JsonResource
 {
-    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    /** Always wrapped in `data`, whatever the application sets. */
     public static $wrap = 'data';
 
     /** @return array<string, mixed> */

@@ -1,6 +1,6 @@
 # Persisted configuration
 
-Stores, layers and definitions saved in the database and edited through the PHP and REST APIs (§16.11), beside the configuration file.
+Stores, layers and definitions saved in the database and edited through the PHP and REST APIs, beside the configuration file.
 
 ## Turning it on
 

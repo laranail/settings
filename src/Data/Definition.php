@@ -7,10 +7,7 @@ namespace Simtabi\Laranail\Settings\Data;
 use Simtabi\Laranail\Settings\Enums\Precedence;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 
-/**
- * What a key is: its type, default, rules, flags and who may override it. Immutable; build one
- * with {@see \Simtabi\Laranail\Settings\Definitions\DefinitionBuilder}.
- */
+/** A key's type, default, rules and flags; build one with {@see \Simtabi\Laranail\Settings\Definitions\DefinitionBuilder}. */
 final readonly class Definition
 {
     /**

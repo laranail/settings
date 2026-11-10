@@ -19,11 +19,8 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 
 /**
- * Apply the history retention policy (G-29) to the history table of every connection a store
- * uses: drop entries older than `history.keep_days`, and entries more than
- * `history.keep_versions` versions behind their setting's newest. Either rule may be off (null),
- * not both. Needs `prune` when an actor is present (checked against the default store); the prune
- * is audited, so the trail records who shortened the history. Returns the number removed.
+ * Delete history entries older than `history.keep_days` or more than `history.keep_versions`
+ * behind their setting's newest, on every connection. Returns the number removed.
  */
 final readonly class PruneHistory
 {

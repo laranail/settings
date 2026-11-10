@@ -8,13 +8,7 @@ use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
-/**
- * One entry of `laranail.settings.alerts.rules`: which events it answers (by short class name,
- * `SettingSaved`, or FQCN), narrowed by key globs (`mail.*`), stores, sensitive keys only and
- * outcomes (`allowed`, `denied`); and where it sends: mail addresses, a Slack webhook (when
- * laravel/slack-notification-channel is installed), and a database notifiable model. `queue`
- * names the queue to send on; null sends at once.
- */
+/** One entry of `alerts.rules`: which events it answers, and where it sends them. */
 final readonly class AlertRule
 {
     /**

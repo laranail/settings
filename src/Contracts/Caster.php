@@ -7,9 +7,7 @@ namespace Simtabi\Laranail\Settings\Contracts;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
-/**
- * Converts a setting value to a JSON-encodable form for storage, and back.
- */
+/** Converts a setting value to a JSON-encodable form and back. */
 interface Caster
 {
     /** @throws InvalidSettingValue when the value cannot be represented as this type */

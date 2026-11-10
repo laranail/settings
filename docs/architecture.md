@@ -79,13 +79,22 @@ them. The design borrows from each and credits them here as each idea lands.
 Driver names arrive from configuration, and in multi-tenant installs possibly from database rows.
 Resolving them through an enum with an exhaustive `match` (the pattern `laranail/captcha` uses)
 means a name that is not a known driver resolves to nothing, rather than being interpolated into a
-method call. Custom drivers are registered with closures, never class names.
+method call. Custom drivers are registered with closures, never class names. The same holds for a stored
+`type`: it must be a registered caster alias, and the rules a definitions-table row carries are
+filtered through `definitions.allowed_rules`, so no row can make the package run arbitrary code.
 
 ## Why fail closed after installation?
 
 A short database outage on a live install must not quietly serve shipped defaults (for example a
 maintenance flag) or scatter writes into each server's local file. Falling back is allowed only on
-positive evidence that installation is still in progress.
+positive evidence that installation is still in progress: the operator's `bootstrap` flag, or
+laranail/installer-headless reporting an install under way. Its `isInstalled()` is not used,
+because it probes the database, and an outage would read as "not installed". A required layer
+that cannot be reached raises `DriverUnavailable`.
+
+The encrypter is resolved only when a value is encrypted or decrypted, so an application without
+an `APP_KEY` yet still boots and reads its unencrypted settings. Decryption also tries the keys in
+`APP_PREVIOUS_KEYS`.
 
 ## Why version-checked writes?
 
@@ -96,12 +105,23 @@ index, which the driver reports as `ConcurrentModification`. A plain upsert cann
 version, so it is not used. The insert runs in a savepoint, because on Postgres a failed
 statement would otherwise abort the whole surrounding transaction.
 
+A write tries an update at the expected version, then the restore of a trashed row at that
+version, then an insert. The one retry of a plain `set()` re-reads the row `FOR UPDATE`, because
+under MySQL's REPEATABLE READ a plain re-read returns the old snapshot. A row created again after
+a forget continues its version from the history, so "version N" always names one value. An
+approved change request is applied against the version it was opened at, and a rollback is
+written as a new version through the same pipeline, so it can itself be rolled back.
+
 ## Why is the audit row in the write's transaction?
 
 An audit trail that can miss a change is not an audit trail. With a database layer, the change
 and its audit row commit together, so a failed audit insert rolls the change back. Denials and
 failures are written outside any transaction, because there is nothing to roll back and the
 record of the refusal must survive it.
+
+`AuditedTransaction` is the single commit path for every write action, category change and
+promotion. On failure it rolls back, records a `failed` entry outside the transaction and
+rethrows the original exception, which still wins if recording the failure fails too.
 
 ## Why is `scope` a column, not just `settable_type` and `settable_id`?
 
@@ -114,7 +134,7 @@ Postgres. `settable_*` remain for reporting and for an application's own `morphT
 
 The package is used from controllers, jobs, commands and other packages, and it cannot know which of those calls are on a person's behalf. So the caller says: `as($user)` makes every operation, reads included, go through one `Authorizer` seam (Laravel's gate by default, so a host's existing policies and `Gate::before` rules apply), and is audited with who did it and why. Code that passes no actor is the application itself and keeps working unchanged, audited as `system`; a host that wants every call attributed turns on `authorization.require_actor`, and trusted code then has to say `asSystem()`. Undefined abilities deny, so forgetting to define a gate fails closed. A token is a ceiling on top of the gate, never a grant, so a leaked token cannot exceed its owner.
 
-Every write is one `final` action (`Actions\SetSetting`, …) that authorizes, writes and audits. The PHP API delegates to it today; console commands and the REST API will delegate to the same actions, so the rules cannot drift between channels.
+Every write is one `final` action (`Actions\SetSetting`, …) that authorizes, writes and audits. The PHP API, the console commands and the REST API all delegate to these actions, so the rules cannot drift between channels.
 
 ## Why are the table shapes switches, and why are they recorded?
 
@@ -184,19 +204,26 @@ costs nothing. Another tenancy package adds its event to the list.
 
 The cache holds each scope's raw rows (a "bag"), never resolved values. A resolved value depends
 on every scope the cascade walked (owner, team, tenant, global), so caching it would make a write
-to `team:7` stale in every user's entry that inherited from it, with no cheap way to find them
-(G-32). A bag depends on one scope only: the write invalidates exactly one entry and every
+to `team:7` stale in every user's entry that inherited from it, with no cheap way to find them.
+A bag depends on one scope only: the write invalidates exactly one entry and every
 inheriting user resolves the new value on the next read, in memory, from bags that are still
 valid. Resolution stays a pure function of the bags, so `explain()` and the cascade behave the
 same cached or not.
 
 Invalidation replaces a random generation token instead of deleting the entry, so a
 stale-while-revalidate refresh started before a write can only land under a generation no reader
-uses any more (R-23), and an evicted token cannot revive an old entry the way a restarted counter
-could (R-41). The key hashes connection, database, tenant, store, table and scope as a
+uses any more, and an evicted token cannot revive an old entry the way a restarted counter
+could. The key hashes connection, database, tenant, store, table and scope as a
 length-prefixed tuple, so neither a shared cache store nor a `:` inside a scope can make two
-tenants or databases meet (G-37, R-63). While a transaction is open on a layer's connection the
-layer bypasses the cache, so nothing uncommitted is ever cached.
+tenants or databases meet. While a transaction is open on a layer's connection the
+layer bypasses the cache, so nothing uncommitted is ever cached; so does a layer in bootstrap
+mode, so the empty answers before installation are never cached.
+
+A bag holds every row of its scope, not only the autoload rows, because a cached bag is treated
+as complete: a partial bag would turn a non-autoload value into a miss. It is stored as plain
+arrays, never objects, so the cache never unserializes a package class (applications may restrict
+`cache.serializable_classes`), and an entry written by another release, or a corrupted one, reads
+as a miss, never as an empty scope.
 
 Measured with `composer bench` (phpbench 1.7, PHP 8.5.7, SQLite file database, 200 revolutions x
 5 iterations per subject; one revolution is one request reading ten settings through
@@ -222,11 +249,77 @@ The package ships no views, Blade components, Livewire, Filament or assets. A se
 
 ## Why the REST API lives in the package
 
-The API is a channel, not a product: every endpoint runs an action the PHP API already runs, with the same authorizer, verifier, audit, locks and approvals. Shipped as a separate `settings-http` package it would have to reach into those actions from outside and drift a release behind the engine whenever an action changed; the design moved it in (D-26) so one pull request changes a capability in every channel at once. The routes are declared by hand in `routes/api.php`, each controller method takes the action it runs as a parameter, and a test reading the live router fails when a route names no controller method, a controller method is not routed, or one does not delegate to an action. It costs nothing until it is used: no route is registered, no middleware or rate limiter defined, unless `http.enabled` is on, and it adds no dependency (Sanctum stays a suggestion). It returns JSON only, so the package stays headless.
+The API is a channel, not a product: every endpoint runs an action the PHP API already runs, with the same authorizer, verifier, audit, locks and approvals. Shipped as a separate `settings-http` package it would have to reach into those actions from outside and drift a release behind the engine whenever an action changed; it lives here so one pull request changes a capability in every channel at once. The routes are declared by hand in `routes/api.php`, each controller method takes the action it runs as a parameter, and a test reading the live router fails when a route names no controller method, a controller method is not routed, or one does not delegate to an action. It costs nothing until it is used: no route is registered, no middleware or rate limiter defined, unless `http.enabled` is on, and it adds no dependency (Sanctum stays a suggestion). It returns JSON only, so the package stays headless.
 
 ## Why change requests are a table
 
 A write that needs approval has to outlive the request that proposed it: the approver acts later, from another request, maybe another server, and a queue or a cache entry can be evicted before anyone looks. So a proposal is a row, written in the same transaction as its `pending` audit entry, on the store's own connection (one table per connection, like the history), with the proposed value stored exactly as the values table would store it, encrypted for an encrypted definition. Keeping the base version on the row is what makes applying it safe: the approval writes through the version-checked update, so a setting that changed in the meantime is never overwritten and the request becomes `stale`. Requests are keyed by ULID, so the table never depends on `ids.type`, and the table is a schema switch (`approvals.table`) like the history.
+
+## Why code definitions win over the definitions table
+
+The definitions table holds `is_system` copies of code and config definitions for admin screens,
+and they are never read back: code stays the source of truth, so a synced copy from an older
+release cannot override a new release's default. A row edited at runtime only answers for a key no
+code definition covers.
+
+## Why owners are stored by morph alias
+
+Owners are referenced by alias and id (`user:7`), never by class name. Renaming a model class
+orphans nothing, resolving a parent loads no model, and an alias read from the database is never
+instantiated as a class. `rescope` renames an alias in values, history and change requests, and
+leaves the audit trail as it was, because the trail records what happened under the old name.
+
+## Why keys and locales are normalised
+
+Keys are lower-cased and may not contain hyphens, which keeps the key-to-slug mapping one-to-one
+(`mail.host` and `mail-host`). Locales normalise to `ll` or `ll_CC`, so two spellings never become
+two rows. The identity columns are binary-collated so MySQL compares them the way the other
+databases do.
+
+## Why events carry no values
+
+Every event carries identifiers only, so a queued listener cannot leak a secret into the jobs
+table. Most events dispatch after commit. `AccessWasDenied` and `VerificationWasRequired`
+dispatch at once, because the refusal usually rolls the surrounding transaction back and a
+security listener must still hear of it.
+
+## Why alerts never throw
+
+An alert reports a change that has already committed, so an alert that cannot be sent is logged
+rather than raised. When the throttle's cache fails the alert is sent anyway: a repeated alert is
+better than a missed one.
+
+## Why persisted configuration loads lazily
+
+Persisted stores and layers are read on first use, never at boot, and an invalid row is logged and
+skipped (`doctor` lists it), so a bad row cannot stop the application from booting. A persisted
+entry may not re-layer a store the configuration file defines, because moving data between drivers
+is `promote`'s job.
+
+## Why promotion never copies shipped defaults
+
+`promote` copies only values written to the runtime file before installation, so a later release
+can still change a shipped default. The runtime file is archived afterwards, so a second run does
+nothing. Its lock is only as wide as the cache store, so a multi-server install needs a shared
+cache.
+
+## Why install checks for foreign tables
+
+A bare `settings` table plausibly belongs to the application. Installing over it would fail half
+way or write into it, so `install` recognises the package's tables by columns only they have and
+refuses to run over anything else. An unreachable database is not reported as foreign.
+
+## Why `settings()` is namespaced
+
+A global `settings()` function is a name many packages and applications already define, and a
+second definition either fatals or silently wins. The helper lives in the package's namespace.
+
+## Why the models get a static context
+
+Eloquent builds models with `new static`, so nothing can be injected into them. The provider gives
+`ModelContext` closures that resolve the scoped schema, tenant and default store on each call, so
+no request or tenant state is held statically. The engine never reads through the models; they
+exist for factories, seeders, admin screens and tests.
 
 ## How the container builds it
 

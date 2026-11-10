@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-/**
- * The input of {@see \Simtabi\Laranail\Settings\Actions\SetSetting}: a target and the value to
- * store there. `expectedVersion`, when set, makes the write conditional on the row still being
- * at that version (0: no row yet), as a REST `If-Match` will; such a write is never retried.
- */
+/** A value to write; `expectedVersion` (0 for no row yet) makes the write conditional. */
 final readonly class SettingWrite
 {
     public function __construct(

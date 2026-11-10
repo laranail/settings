@@ -1,6 +1,6 @@
 # Import and export
 
-A store as one portable JSON document: categories by slug, settings by scope, key and locale, never by a numeric id (G-42).
+A store as one portable JSON document: categories by slug, settings by scope, key and locale, never by a numeric id.
 
 ## The document
 
@@ -22,7 +22,7 @@ A store as one portable JSON document: categories by slug, settings by scope, ke
 
 A value is the stored JSON exactly as it is, so nothing is lost whatever its type. Only the current tenant's rows are exported.
 
-## Secrets (G-10)
+## Secrets
 
 | Mode | Encrypted values | How |
 |---|---|---|

@@ -26,7 +26,7 @@ A read through the cascade (owner, parents, global) costs, per distinct store in
 A bag's key is `<prefix>:<sha1>:<sha1 of its generation>`. The first hash covers connection
 name, database name, tenant, store, table and scope as a length-prefixed tuple, so
 `a` + `b:c` and `a:b` + `c` never meet, and neither do two tenants or two databases that both
-have a `global` scope (G-37). The tenant comes from the configured `TenantDiscriminator` in every
+have a `global` scope. The tenant comes from the configured `TenantDiscriminator` in every
 tenancy mode, `none` included.
 
 ## Invalidation

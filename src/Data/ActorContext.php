@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Illuminate\Http\Request;
 
-/**
- * Where an actor's call came from: client address, user agent, request id and the reason given.
- * Recorded in the audit trail; never carries a setting's value.
- */
+/** Where an actor's call came from: client address, user agent, request id and reason. */
 final readonly class ActorContext
 {
     /** User agents are cut to this length, matching the audit column. */

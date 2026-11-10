@@ -4,12 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-/**
- * One step of a settings migration (G-17): copy every value of `fromKey` in `fromStore` (every
- * owner and locale) to `toKey` in `toStore` and remove the original (a rename or a move); or, with
- * no destination, remove the key everywhere (`delete`); or, with a value and no source rows,
- * store it as the global value unless one exists (`add`).
- */
+/** One settings migration step: a rename or move, a delete, or adding a global value. */
 final readonly class SettingsMigrationStep
 {
     public const string RENAME = 'rename';

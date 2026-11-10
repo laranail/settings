@@ -10,8 +10,7 @@ use Illuminate\Container\Attributes\Singleton;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 /**
- * Encodes values as JSON for storage. A stored null becomes the string `null`, which keeps it
- * distinct from "no value" (a null payload).
+ * Encodes values as JSON. A stored null becomes the string `null`, distinct from no value.
  */
 #[Singleton]
 final readonly class ValueEncoder

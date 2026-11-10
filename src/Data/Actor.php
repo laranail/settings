@@ -11,11 +11,8 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Enums\ActorType;
 
 /**
- * Who is acting and how: the authentication object every checked operation runs as.
- *
- * The authenticatable itself is held for authorizers that need it (gates, `can()`), and is
- * never serialised: a queued actor keeps its type, alias and id, and the receiving job
- * rehydrates the user if it needs one.
+ * Who is acting and through which channel. The authenticatable is kept for authorizers but never
+ * serialised; a queued actor keeps only its type, alias and id.
  */
 final readonly class Actor
 {
@@ -33,11 +30,7 @@ final readonly class Actor
         public ActorContext $context = new ActorContext,
     ) {}
 
-    /**
-     * Serialise without the authenticatable, so a queued payload never carries a model.
-     *
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function __serialize(): array
     {
         return [
@@ -75,8 +68,7 @@ final readonly class Actor
     }
 
     /**
-     * An actor for an authenticated user. Passing token abilities makes it a token actor, whose
-     * token must also grant each ability (an extra ceiling, never a grant by itself).
+     * An actor for a user; passing token abilities makes it a token actor.
      *
      * @param list<string>|null $abilities
      */
@@ -143,7 +135,7 @@ final readonly class Actor
     }
 
     /**
-     * Identifiers only: what the audit trail and logs record about the actor.
+     * The identifiers the audit trail and logs record.
      *
      * @return array{type: string, alias: string|null, id: string|null, channel: string}
      */
@@ -154,7 +146,7 @@ final readonly class Actor
 
     private static function aliasOf(Authenticatable $user): string
     {
-        // A morph alias when the host maps one; never trusted as a class to instantiate.
+        // The alias is recorded, never instantiated as a class.
         if (method_exists($user, 'getMorphClass')) {
             $alias = $user->getMorphClass();
 

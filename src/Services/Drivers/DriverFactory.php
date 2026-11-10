@@ -24,9 +24,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 
 /**
- * Builds a layer's driver. Built-in names resolve through {@see DriverType} and an exhaustive
- * match (the allow-list); anything else must have been registered with {@see extend()}, as a
- * closure, never a class name.
+ * Builds a layer's driver from a built-in {@see DriverType} or a closure registered with {@see extend()}.
  */
 final class DriverFactory
 {
@@ -57,8 +55,7 @@ final class DriverFactory
     }
 
     /**
-     * A copy that can also build these custom drivers (runtime configuration uses it, so a
-     * driver registered for one request never reaches the shared factory).
+     * A copy that can also build these custom drivers, leaving the shared factory unchanged.
      *
      * @param array<string, Closure(LayerConfig): Driver> $drivers
      */
@@ -98,11 +95,7 @@ final class DriverFactory
         };
     }
 
-    /**
-     * The database layer. `connection` is optional (null = the default connection); `table` is
-     * set by the store registry from `stores.<name>.table`. The driver reads the recorded schema
-     * shape through `$shape` on use. Nothing connects here.
-     */
+    /** Build the database layer without connecting. */
     private function database(LayerConfig $layer): DatabaseDriver
     {
         if (! $this->db instanceof ConnectionResolverInterface || ! $this->probe instanceof Closure) {
@@ -137,8 +130,7 @@ final class DriverFactory
         $disk = $this->stringOption($layer, 'disk');
         $path = $this->stringOption($layer, 'path');
 
-        // The runtime file may hold settings written before install; never put it where the web
-        // server serves files from.
+        // The runtime file may hold settings written before install; never serve it publicly.
         if ($this->config->get(sprintf('filesystems.disks.%s.visibility', $disk)) === 'public') {
             throw new InvalidConfiguration(sprintf('laranail.settings.layers.%s.disk: [%s] is public; use a private disk.', $layer->name, $disk));
         }

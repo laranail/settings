@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Simtabi\Laranail\Settings\Stores\Store;
 
-/**
- * The input of every write action: one key in one resolved store, for one owner (or global)
- * and locale, with its definition and the reason given for the change.
- */
+/** The target of a write: store, key, owner, locale, definition and reason. */
 final readonly class SettingTarget
 {
     public function __construct(
@@ -21,10 +18,7 @@ final readonly class SettingTarget
         public ?string $reason = null,
     ) {}
 
-    /**
-     * The subject abilities are checked against. A key matched by the store's `approvals.keys`
-     * needs approval as if its definition said so (§16.7).
-     */
+    /** The subject abilities are checked against; a key in `approvals.keys` needs approval. */
     public function subject(): Subject
     {
         $subject = Subject::of($this->store->name, $this->key, $this->locale, $this->owner, $this->definition);

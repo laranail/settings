@@ -34,13 +34,8 @@ use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
- * Import an export file (G-42) or an importer's document (G-43): needs `import` (step-up
- * verification applies by default). A dry run unless the request says apply. Categories are
- * created first, by slug, parents before children; then each setting is written through the
- * normal write pipeline as the actor (validation, casting, encryption, history, one audit row per
- * key), so a setting that needs approval opens a change request instead. All of it runs in one
- * transaction: one failed write leaves the store as it was. Redacted values are skipped; locks and
- * system categories are applied only when the request is trusted (G-10).
+ * Import an export or importer document in one transaction, as a dry run unless the request
+ * applies it. Locks and system categories in the document apply only to a trusted import.
  */
 final readonly class ImportStore
 {
@@ -172,7 +167,7 @@ final readonly class ImportStore
         while ($pending !== []) {
             $ready = array_values(array_filter($pending, static fn (ExportedCategory $category): bool => ! $category->parent instanceof CategorySlug || isset($known[$category->parent->value])));
 
-            // A parent the file names but does not hold: create the child at the top level.
+            // The parent is missing from the file, so create the child at the top level.
             $ready = $ready === [] ? [array_shift($pending)] : $ready;
 
             foreach ($ready as $category) {

@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * The settings of owners that no longer exist were removed: how many owners, how many rows.
- */
+/** The settings of owners that no longer exist were removed. */
 final readonly class OrphansPruned implements ShouldDispatchAfterCommit
 {
     public function __construct(

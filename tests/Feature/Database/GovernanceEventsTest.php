@@ -14,7 +14,7 @@ use Simtabi\Laranail\Settings\Events\DefinitionsSynced;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
- * The events Phase 4 added for maintenance and categories: dispatched once the change is made,
+ * Maintenance and category events: dispatched once the change is made,
  * carrying counts and identifiers only.
  */
 

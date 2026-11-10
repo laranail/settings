@@ -14,7 +14,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
- * The rules from the design (§7.10) that a reviewer would otherwise have to remember.
+ * Structural rules a reviewer would otherwise have to remember.
  */
 arch('every source file declares strict types')
     ->expect('Simtabi\Laranail\Settings')
@@ -46,10 +46,8 @@ arch('no debugging calls ship')
     ->not->toBeUsed();
 
 /*
- * Headless (design §16.1, D-16): no Blade components, Livewire, Filament or published assets. An
- * admin interface is a separate companion package, so nothing here may render a page. The one
- * view is the alert mail's markdown body (resources/views/mail/alert.blade.php), which the
- * notification names by string and the mailer renders.
+ * Headless: no Blade components, Livewire, Filament or published assets. The one view is the alert
+ * mail's markdown body, which the notification names by string and the mailer renders.
  */
 arch('the package is headless: no view, Blade, Livewire or Filament reference')
     ->expect('Simtabi\Laranail\Settings')
@@ -103,8 +101,7 @@ it('ships only the alert mail view and no assets, components or composers', func
 });
 
 /*
- * Every write capability is one final action with a single public entry point, shared by every
- * channel (design §16.2, D-17).
+ * Every write capability is one final action with a single public entry point, shared by every channel.
  */
 arch('actions are final and expose handle()')
     ->expect('Simtabi\Laranail\Settings\Actions')

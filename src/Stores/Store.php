@@ -17,18 +17,13 @@ use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 
 /**
  * A configured store: its layers in read order, the owner aliases it accepts, and its policies.
- * `locksOverridable` (`locks.overridable`) lets an actor holding `override_lock` write a locked
- * setting; it is off by default, so a lock binds everyone. `bootstrap` lets the database layer be
- * skipped while the application is being installed (§7.4); `table` is the configured values
- * table (`stores.<name>.table`), null for the store name. A `dedicated` store (D-3) holds owner
- * rows only; its global values are read from `fallback`.
  */
 final readonly class Store
 {
     /**
      * @param list<Layer> $layers
      * @param list<string> $owners
-     * @param list<string> $approvalKeys key globs whose writes become change requests (`approvals.keys`)
+     * @param list<string> $approvalKeys key globs whose writes become change requests
      */
     public function __construct(
         public StoreName $name,
@@ -44,13 +39,13 @@ final readonly class Store
         public array $approvalKeys = [],
     ) {}
 
-    /** Whether `approvals.keys` makes a write of this key a change request (§16.7). */
+    /** Whether a write of this key becomes a change request. */
     public function requiresApproval(Key $key): bool
     {
         return array_any($this->approvalKeys, static fn (string $glob): bool => fnmatch($glob, $key->value, FNM_NOESCAPE));
     }
 
-    /** Whether this store can hold change requests: its database layer is active and has the table. */
+    /** Whether this store has an active database layer with a change requests table. */
     public function acceptsChangeRequests(): bool
     {
         return $this->database()?->shape()->changeRequestsTable ?? false;
@@ -61,13 +56,13 @@ final readonly class Store
         return $this->mode === StoreMode::Dedicated;
     }
 
-    /** Whether any layer of this store is a database layer, whether or not it is active. */
+    /** Whether any layer of this store is a database layer, active or not. */
     public function hasDatabaseLayer(): bool
     {
         return array_any($this->layers, fn (Layer $layer): bool => $layer->driver instanceof DatabaseBacked);
     }
 
-    /** The first active database layer's driver, or null (none, or skipped during bootstrap). */
+    /** The first active database layer's driver, or null. */
     public function database(): ?DatabaseDriver
     {
         foreach ($this->layers as $layer) {
@@ -80,10 +75,9 @@ final readonly class Store
     }
 
     /**
-     * The first active database layer's driver, or StoreNotWritable: "Store [x] has no active
-     * database layer" followed by `$why` (`; categories are kept in the database`).
+     * The first active database layer's driver.
      *
-     * @throws StoreNotWritable
+     * @throws StoreNotWritable with `$why` appended to the message
      */
     public function requireDatabase(string $why): DatabaseDriver
     {
@@ -91,8 +85,7 @@ final readonly class Store
     }
 
     /**
-     * Run a write and everything that must commit with it (the audit row) in one transaction on
-     * the store's database connection. A store without an active database layer just runs it.
+     * Run a write and its audit row in one transaction on the store's database connection.
      *
      * @template T
      *
@@ -130,10 +123,7 @@ final readonly class Store
         return array_any($this->layers, fn (Layer $layer): bool => $layer->driver instanceof CachingDriver);
     }
 
-    /**
-     * Forget one scope's cached bag in every cached layer (after the surrounding transaction
-     * commits), for writes that reach the database without passing through the cache.
-     */
+    /** Forget one scope's cached bag in every cached layer once the transaction commits. */
     public function forgetCached(Scope $scope): void
     {
         foreach ($this->cachedLayers() as $driver) {
@@ -150,8 +140,7 @@ final readonly class Store
     }
 
     /**
-     * Load these scopes into the cache of every active cached layer (one read per layer on a
-     * miss, none on a hit); returns how many records the cached layers hold for them.
+     * Load these scopes into every cached layer and return how many records they hold.
      *
      * @param list<Scope> $scopes
      */
@@ -169,7 +158,7 @@ final readonly class Store
     }
 
     /**
-     * Every layer's records for these scopes, in layer order: one read per layer.
+     * Every layer's records for these scopes, one read per layer.
      *
      * @param list<Scope> $scopes
      *

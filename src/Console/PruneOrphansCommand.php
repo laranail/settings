@@ -12,8 +12,7 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.prune-orphans`: remove the settings of owners that no longer exist, which
- * bulk deletes leave behind because they fire no model events.
+ * Remove the settings of owners that no longer exist, which bulk deletes leave behind.
  */
 final class PruneOrphansCommand extends Command
 {

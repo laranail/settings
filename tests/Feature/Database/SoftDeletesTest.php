@@ -14,7 +14,7 @@ beforeEach(function (): void {
     useDatabase(['stores.settings.soft_deletes' => true, 'stores.settings.owners' => ['user'], 'categories.soft_deletes' => true]);
 });
 
-it('trashes a forgotten row instead of deleting it, and reads past it (D-9)', function (): void {
+it('trashes a forgotten row instead of deleting it, and reads past it', function (): void {
     settings()->set('site.name', 'Acme');
     settings()->forget('site.name');
 
@@ -23,7 +23,7 @@ it('trashes a forgotten row instead of deleting it, and reads past it (D-9)', fu
         ->and(DB::table('settings')->value('deleted_at'))->not->toBeNull();
 });
 
-it('restores a trashed row on the next set, continuing its version, never as a conflict (D-9)', function (): void {
+it('restores a trashed row on the next set, continuing its version, never as a conflict', function (): void {
     $audit = auditInMemory();
     settings()->set('site.name', 'One');
     settings()->set('site.name', 'Two');

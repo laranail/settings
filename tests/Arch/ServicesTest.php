@@ -11,12 +11,9 @@ use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 
 /*
- * The Services namespace (Phase 4 plan §1): stateful collaborators that own I/O or a body of
- * rules live under Services\, and nowhere else. Contract implementations (drivers, sinks,
- * authorizers, casters, verifiers, resolvers, discriminators) stay beside their kind, so nothing
- * under Services\ implements a plug-in contract; and a repository or registry anywhere else is a
- * service that was filed in the wrong place. The classes moved in 0.1 have no old name left:
- * the aliases were removed before the first tag, so nothing resolves under the old namespaces.
+ * Stateful collaborators that own I/O or a body of rules live under Services\, and nowhere else.
+ * Contract implementations stay beside their kind, so nothing under Services\ implements a plug-in
+ * contract, and no class resolves under the namespaces it moved out of.
  */
 
 const PLUGIN_CONTRACTS = [

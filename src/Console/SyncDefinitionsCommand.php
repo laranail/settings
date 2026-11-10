@@ -11,9 +11,8 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.sync-definitions`: copy code and config definitions into the optional
- * definitions table as read-only system rows (D-6), and remove system rows nothing defines any
- * more. Rows edited at runtime are left alone.
+ * Copy code and config definitions into the definitions table as read-only system rows, and remove
+ * system rows nothing defines any more. Rows edited at runtime are left alone.
  */
 final class SyncDefinitionsCommand extends Command
 {

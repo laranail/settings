@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * A category's title changed (its slug, the identifier, did not). Dispatched after commit,
- * besides CategorySaved.
- */
+/** A category's title changed. */
 final readonly class CategoryRenamed implements ShouldDispatchAfterCommit
 {
     public function __construct(

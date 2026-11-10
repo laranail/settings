@@ -13,10 +13,8 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.history {key}`: list a setting's versions (newest first, no values), show
- * the value at two versions (`--diff=3..5`), or roll it back to one (`--rollback=3`). Runs as the
- * system actor, so the rollback and its audit entry name this command. An encrypted or sensitive
- * value prints as `[protected]` unless `--reveal` is given.
+ * List a setting's versions, compare two (`--diff=3..5`) or roll back to one (`--rollback=3`).
+ * Sensitive values print as `[protected]` unless `--reveal` is given.
  */
 final class HistoryCommand extends Command
 {

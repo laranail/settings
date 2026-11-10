@@ -10,10 +10,7 @@ use Simtabi\Laranail\Settings\Data\Decision;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 
-/**
- * Asks each authorizer in order; the first that does not abstain decides. When all abstain the
- * chain abstains, and `authorization.undefined` applies.
- */
+/** Asks each authorizer in order; the first that does not abstain decides. */
 final readonly class ChainAuthorizer implements Authorizer
 {
     /** @param list<Authorizer> $authorizers */

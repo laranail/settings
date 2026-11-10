@@ -27,8 +27,7 @@ use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 use Simtabi\Laranail\Settings\Http\Resources\ChangeRequestResource;
 
 /**
- * `/stores/{store}/changes` (§16.7): list, read, propose, approve, reject and cancel change
- * requests, as the PHP API does. A proposal answers 202.
+ * `/stores/{store}/changes`: list, read, propose, approve, reject and cancel change requests.
  */
 final readonly class ChangesController
 {

@@ -17,19 +17,16 @@ use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 
 /**
- * The database layer of a store in bootstrap mode (`stores.<name>.bootstrap`). The layer is
- * skipped only while there is positive evidence that the application is being installed AND the
- * database is not ready; a skipped layer reads nothing and accepts no writes, so writes go to
- * the next writable layer (the runtime file). Without evidence it is exactly the database layer:
- * an outage then raises DriverUnavailable, never a silent fallback (G-36).
+ * The database layer of a store in bootstrap mode, skipped while the application is being installed.
  *
- * Nothing is checked at construction; the first read or write decides.
+ * Without evidence of an install it behaves as the database layer, so an outage still raises
+ * DriverUnavailable.
  */
 final class BootstrapGatedDriver implements DatabaseBacked
 {
     private bool $reported = false;
 
-    /** @param ?Dispatcher $events told ({@see LayerSkipped}) the first time the layer named `$layer` is skipped */
+    /** @param ?Dispatcher $events receives {@see LayerSkipped} the first time the layer is skipped */
     public function __construct(
         private readonly DatabaseDriver $inner,
         private readonly StoreName $store,

@@ -8,15 +8,13 @@ use JsonException;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 
 /**
- * JSON for the package's own columns (titles, rules, owner lists, audit meta), with one set of
- * flags: unescaped Unicode and slashes, so a stored value reads as it was written. An encoding
- * failure is a DriverFailure naming what was being stored. Stateless.
+ * Encodes and decodes the package's own JSON columns, with unescaped Unicode and slashes.
  */
 final readonly class Json
 {
     /**
      * @param array<array-key, mixed> $value
-     * @param string $what what is being encoded, for the error (`A definition`, `An audit entry's meta`)
+     * @param string $what what is being encoded, for the error message
      *
      * @throws DriverFailure
      */
@@ -30,8 +28,7 @@ final readonly class Json
     }
 
     /**
-     * A JSON list of strings, or [] for null, invalid JSON or anything that is not a list of
-     * strings (non-string entries are dropped).
+     * A JSON list of strings; [] for null or invalid JSON, and non-string entries dropped.
      *
      * @return list<string>
      */

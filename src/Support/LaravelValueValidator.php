@@ -9,8 +9,8 @@ use Illuminate\Contracts\Validation\Factory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 /**
- * Validates a raw value against a definition's rules with Laravel's validator, before casting,
- * so rules such as `email` and `in:` see what the caller passed.
+ * Validates a value against a definition's rules before casting, so rules see what the caller
+ * passed.
  */
 final readonly class LaravelValueValidator
 {

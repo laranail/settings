@@ -16,7 +16,7 @@ use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
- * §13: the schema switches, kept tested. Every pair of switch values meets in at least one shape
+ * The schema switches. Every pair of switch values meets in at least one shape
  * (pairwise), and each shape runs the same scenario: migrate, write global and owner values,
  * categories, a forget followed by a set, locks, the definitions table, then `doctor` against the
  * recorded schema. Runs on SQLite with the rest of the suite and, being in the `database` group,
@@ -66,10 +66,8 @@ it('covers every pair of switch values with a counted set of shapes', function (
         }
     }
 
-    // 141 pairs among the eight Phase 2b switches, plus tenancy's 2 values × the other 18
-    // values = 177, plus history's 2 values × the other 20 values = 217 (Phase 4), plus the
-    // change requests table's 2 values × the other 22 values = 261 (Phase 4b); the full product
-    // doubles again from 2,304 to 4,608, and the pairwise set stays at 11 shapes.
+    // 141 pairs among the first eight switches, plus 2 × 18 for tenancy, 2 × 20 for history and
+    // 2 × 22 for the change requests table = 261. The full product is 4,608 shapes; pairwise is 11.
     expect(count($shapes))->toBe(getenv('LARANAIL_SETTINGS_MATRIX') === 'full' ? 4608 : 11)
         ->and(count($all))->toBe(261)
         ->and(array_diff_key($all, $covered))->toBe([]);
@@ -133,7 +131,7 @@ it('runs every shape end to end and reports no drift', function (array $shape): 
         expect(app(SyncDefinitions::class)->handle()['synced'])->toBe(1);
     }
 
-    // History (§4.3): the forget left a tombstone, so the row created again continued the trail.
+    // History: the forget left a tombstone, so the row created again continued the trail.
     $trail = $shape['history'] ? settings()->for($user)->history()->key('theme')->get() : [];
 
     $exit = Artisan::call('laranail::settings.doctor', ['--json' => true]);

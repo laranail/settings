@@ -7,10 +7,7 @@ namespace Simtabi\Laranail\Settings\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Simtabi\Laranail\Settings\Data\ConfigurationEntry;
 
-/**
- * `PUT /configuration/{stores|layers}/{name}`: a persisted store or layer entry, as the
- * configuration file would hold it.
- */
+/** `PUT /configuration/{stores|layers}/{name}`. */
 final class SaveConfigurationRequest extends FormRequest
 {
     public function authorize(): bool

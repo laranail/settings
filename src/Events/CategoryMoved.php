@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * A category was moved under another parent (null: to the top level). Dispatched after
- * commit, besides CategorySaved, which cannot say what changed.
- */
+/** A category was moved under another parent, or to the top level when the parent is null. */
 final readonly class CategoryMoved implements ShouldDispatchAfterCommit
 {
     public function __construct(

@@ -17,11 +17,8 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 
 /**
- * The value of one setting at two versions: needs `view_history`. A value that is encrypted, or
- * whose definition is sensitive, is decrypted only for an actor holding `view_sensitive` (or a
- * trusted call without an actor, which reads every value as `get()` does); anyone else gets a
- * redacted diff that says only whether the stored payloads differ. Nothing is decrypted before
- * that decision.
+ * Compare one setting at two versions. Sensitive values are decrypted only for an actor with
+ * `view_sensitive`; anyone else gets a redacted diff saying only whether they differ.
  */
 final readonly class DiffHistory
 {

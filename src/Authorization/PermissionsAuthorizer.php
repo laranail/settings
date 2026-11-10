@@ -13,9 +13,8 @@ use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * Maps each ability to a permission name and asks the user's own `can()`, so
- * spatie/laravel-permission, Bouncer or any `can()`-aware package works without a dependency.
- * Names may use `{ability}`, `{store}` and `{key}`. An unmapped ability abstains.
+ * Maps each ability to a permission name and asks the user's `can()`. Names may use
+ * `{ability}`, `{store}` and `{key}`; an unmapped ability abstains.
  */
 final readonly class PermissionsAuthorizer implements Authorizer
 {

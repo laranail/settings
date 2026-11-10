@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-/**
- * What an ability is checked against: the store, key, owner and locale, plus the flags of the
- * key's definition. Never carries a value. Gates receive it as their argument.
- */
+/** What an ability is checked against; gates receive it as their argument. */
 final readonly class Subject
 {
     public function __construct(

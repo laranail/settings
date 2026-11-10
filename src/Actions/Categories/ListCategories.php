@@ -12,7 +12,7 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
-/** A store's categories, by sort order then slug: needs `view` on the store. */
+/** List a store's categories by sort order, then slug. */
 final readonly class ListCategories
 {
     public function __construct(

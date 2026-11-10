@@ -16,6 +16,7 @@ use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
@@ -30,12 +31,9 @@ use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
- * Enforces access for one call: the actor requirement, the token ceiling, the authorizer, the
- * undefined-ability policy and step-up verification. Every denial is logged, audited and
- * announced ({@see AccessWasDenied}, {@see VerificationWasRequired}) before it is thrown. Trusted
- * calls (no actor, or an explicit system actor) are never authorized.
+ * Enforces access for one call: actor requirement, token ceiling, authorizer and verification.
  *
- * Bound `scoped`: it reads the runtime configuration of the current request.
+ * Every denial is logged, audited and dispatched as an event before it is thrown.
  */
 final readonly class AccessGuard
 {
@@ -53,7 +51,7 @@ final readonly class AccessGuard
         private ?Dispatcher $events = null,
     ) {}
 
-    /** A guard that denies every actor and audits nowhere: the safe default for anything built by hand. */
+    /** A guard that denies every actor and audits nowhere. */
     public static function closed(): self
     {
         return new self(
@@ -65,7 +63,7 @@ final readonly class AccessGuard
         );
     }
 
-    /** A copy auditing through another auditor (the fake records entries in memory with it). */
+    /** A copy auditing through another auditor. */
     public function withAuditor(Auditor $auditor): self
     {
         return new self(
@@ -87,7 +85,7 @@ final readonly class AccessGuard
         return $this->auditor;
     }
 
-    /** The actor the configured (or runtime) resolver finds for this request, if any. */
+    /** The actor the resolver finds for this request, if any. */
     public function resolveActor(?Request $request = null): ?Actor
     {
         return ($this->runtime?->actorResolver() ?? $this->resolver)->resolve($request);
@@ -98,10 +96,7 @@ final readonly class AccessGuard
         return $this->runtime?->actorRequirement() ?? $this->requireActor;
     }
 
-    /**
-     * The decision for an actor, with the token ceiling applied and abstentions resolved by
-     * `authorization.undefined`. Never throws and never audits.
-     */
+    /** The decision for an actor, without throwing or auditing. */
     public function decide(Actor $actor, Ability $ability, Subject $subject): Decision
     {
         if ($actor->isSystem()) {
@@ -121,7 +116,7 @@ final readonly class AccessGuard
         return $decision;
     }
 
-    /** Whether the actor may do this right now, without throwing or auditing (used to redact). */
+    /** Whether the actor may do this, without throwing or auditing. */
     public function allows(Actor $actor, Ability $ability, Subject $subject): bool
     {
         return $this->decide($actor, $ability, $subject)->isAllowed();
@@ -200,13 +195,10 @@ final readonly class AccessGuard
 
     private function refuse(?Actor $actor, Ability $ability, Subject $subject, string $outcome, ?string $reason): void
     {
-        $this->logger->warning(sprintf('laranail/settings refused [%s]: %s', $ability->value, $outcome), [
-            'store'  => $subject->store->value,
-            'key'    => $subject->key?->value,
-            'scope'  => $subject->scope()->value,
-            'actor'  => $actor?->toArray(),
-            'reason' => $reason,
-        ]);
+        $this->logger->warning(
+            sprintf('laranail/settings refused [%s]: %s', $ability->value, $outcome),
+            LogContext::of($subject->store->value, $subject->key?->value, $subject->scope()->value, $actor, extra: ['reason' => $reason]),
+        );
 
         $this->auditor->record(
             AuditAction::fromAbility($ability),
@@ -216,8 +208,7 @@ final readonly class AccessGuard
             meta: ['refusal' => $outcome, 'detail' => $reason],
         );
 
-        // At once, not after commit: the refusal throws, so a surrounding transaction is about to
-        // roll back, and whoever listens for refusals must hear of this one regardless.
+        // Dispatched now, not after commit: the throw rolls back any surrounding transaction.
         $this->events?->dispatch($outcome === 'verification_required' && $actor instanceof Actor
             ? new VerificationWasRequired($ability, $subject, $actor)
             : new AccessWasDenied($ability, $subject, $actor, $outcome, $reason));

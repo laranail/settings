@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Countable;
 
-/**
- * The records one layer returned for a set of scopes, indexed by (scope, key, locale).
- */
+/** The records one layer returned, indexed by scope, key and locale. */
 final readonly class RecordSet implements Countable
 {
     /** @var array<string, Record> */
