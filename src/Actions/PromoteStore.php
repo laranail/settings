@@ -19,7 +19,6 @@ use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Illuminate\Contracts\Cache\Factory as Caches;
 use Simtabi\Laranail\Settings\Drivers\JsonDriver;
-use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Events\StorePromoted;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
@@ -28,8 +27,8 @@ use Simtabi\Laranail\Settings\Support\ValuePipeline;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
+use Simtabi\Laranail\Settings\Support\AuditedTransaction;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
  * Promote a store's runtime file into its database layer (design §7.4): needs `promote`.
@@ -65,8 +64,7 @@ final readonly class PromoteStore
 
         $this->access->authorize($actor, Ability::Promote, $subject);
 
-        $database = $store->database()
-            ?? throw new StoreNotWritable(sprintf('Store [%s] has no active database layer to promote into.', $store->name));
+        $database = $store->requireDatabase(' to promote into.');
         $runtime = $this->runtime($store);
 
         if (! $runtime instanceof JsonDriver) {
@@ -93,27 +91,18 @@ final readonly class PromoteStore
 
         $this->events->dispatch(new StorePromoting($store->name->value));
 
-        try {
-            [$promoted, $skipped] = $store->transaction(function () use ($store, $request, $actor, $subject, $database, $records): array {
-                [$promoted, $skipped] = $this->copy($store, $request, $database, $records);
-
-                $this->access->auditor()->record(AuditAction::Promote, AuditOutcome::Allowed, $subject, $actor, meta: [
-                    'promoted' => count($promoted),
-                    'skipped'  => count($skipped),
-                    'replayed' => $request->from,
-                ]);
-
-                return [$promoted, $skipped];
-            });
-        } catch (SettingsException $exception) {
-            try {
-                $this->access->auditor()->record(AuditAction::Promote, AuditOutcome::Failed, $subject, $actor, meta: ['error' => $exception::class]);
-            } catch (SettingsException) {
-                // The original failure is rethrown below.
-            }
-
-            throw $exception;
-        }
+        [$promoted, $skipped] = new AuditedTransaction($this->access)->run(
+            $store,
+            AuditAction::Promote,
+            $subject,
+            $actor,
+            fn (): array => $this->copy($store, $request, $database, $records),
+            static fn (array $result): array => ['meta' => [
+                'promoted' => count($result[0]),
+                'skipped'  => count($result[1]),
+                'replayed' => $request->from,
+            ]],
+        );
 
         $archive = $request->from === null ? $runtime->archive($store->name, CarbonImmutable::now()) : null;
 

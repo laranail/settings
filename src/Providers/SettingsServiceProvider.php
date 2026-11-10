@@ -40,6 +40,7 @@ use Simtabi\Laranail\Settings\Audit\LogAuditSink;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Actions\FindOrphans;
 use Simtabi\Laranail\Settings\Audit\AutoAuditSink;
 use Simtabi\Laranail\Settings\Audit\NullAuditSink;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
@@ -54,6 +55,7 @@ use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Support\ConfigValues;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Database\ConnectionResolverInterface;
@@ -86,6 +88,7 @@ use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 use Simtabi\Laranail\Package\Tools\Commands\InstallCommand;
 use Simtabi\Laranail\Settings\Authorization\GateAuthorizer;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Tenancy\TenantDiscriminators;
 use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Database\SchemaReadinessProbe;
@@ -96,11 +99,9 @@ use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Tenancy\NullTenantDiscriminator;
 use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
 use Simtabi\Laranail\Settings\Actions\Categories\CategoryActions;
 use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
-use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 use Simtabi\Laranail\Settings\Authentication\SanctumActorResolver;
 use Simtabi\Laranail\Settings\Authorization\PermissionsAuthorizer;
 use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
@@ -125,8 +126,6 @@ use Simtabi\Laranail\Package\Tools\Support\Definitions\AutoSeederDefinition;
  */
 final class SettingsServiceProvider extends PackageServiceProvider
 {
-    private const string STANCL = 'Stancl\\Tenancy\\Tenancy';
-
     public function configurePackage(Package $package): void
     {
         $package
@@ -339,6 +338,11 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(AccessGuard::class),
         ));
 
+        $this->app->scoped(FindOrphans::class, static fn (Application $app): FindOrphans => new FindOrphans(
+            $app->make(StoreRegistry::class),
+            static fn (string $alias): ?string => Relation::getMorphedModel($alias),
+        ));
+
         $this->app->scoped(PruneOrphans::class, static fn (Application $app): PruneOrphans => new PruneOrphans(
             $app->make(StoreRegistry::class),
             $app->make(StoreActions::class)->flush,
@@ -488,58 +492,29 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
     private static function integer(Application $app, string $key, int $default): int
     {
-        $value = $app->make(Repository::class)->get($key, $default);
-
-        return is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : $default;
+        return self::config($app)->integer($key, $default);
     }
 
     /** @return list<string> */
     private static function strings(Application $app, string $key): array
     {
-        return array_values(array_filter(self::array($app, $key), is_string(...)));
+        return self::config($app)->strings($key);
     }
 
     private static function string(Application $app, string $key, string $default): string
     {
-        $value = $app->make(Repository::class)->get($key, $default);
-
-        return is_string($value) ? $value : $default;
+        return self::config($app)->string($key, $default);
     }
 
     /** @return array<array-key, mixed> */
     private static function array(Application $app, string $key): array
     {
-        $value = $app->make(Repository::class)->get($key, []);
-
-        return is_array($value) ? $value : [];
+        return self::config($app)->array($key);
     }
 
-    /** stancl/tenancy's current tenant key, or null when tenancy is not initialised. */
-    private static function stanclTenant(Application $app): mixed
+    private static function config(Application $app): ConfigValues
     {
-        $tenancy = $app->make(self::STANCL);
-
-        if (! is_object($tenancy) || ! property_exists($tenancy, 'initialized') || $tenancy->initialized !== true || ! property_exists($tenancy, 'tenant')) {
-            return null;
-        }
-
-        $tenant = $tenancy->tenant;
-
-        return is_object($tenant) && method_exists($tenant, 'getTenantKey') ? $tenant->getTenantKey() : null;
-    }
-
-    /** spatie/laravel-multitenancy's current tenant key (its container binding), or null. */
-    private static function spatieTenant(Application $app): mixed
-    {
-        $binding = $app->make(Repository::class)->get('multitenancy.current_tenant_container_key', 'currentTenant');
-
-        if (! is_string($binding) || ! $app->bound($binding)) {
-            return null;
-        }
-
-        $tenant = $app->make($binding);
-
-        return is_object($tenant) && method_exists($tenant, 'getKey') ? $tenant->getKey() : null;
+        return new ConfigValues($app->make(Repository::class));
     }
 
     /**
@@ -551,25 +526,10 @@ final class SettingsServiceProvider extends PackageServiceProvider
     private function registerTenancy(): void
     {
         $this->app->scoped(TenantDiscriminator::class, static function (Application $app): TenantDiscriminator {
-            $driver = $app->make(Repository::class)->get('laranail.settings.tenancy.discriminator', 'auto');
-            $path = 'laranail.settings.tenancy.discriminator';
+            $binding = $app->make(Repository::class)->get('multitenancy.current_tenant_container_key', 'currentTenant');
 
-            if ($driver === 'auto') {
-                $driver = match (true) {
-                    class_exists(self::STANCL)                           => 'stancl',
-                    class_exists('Spatie\\Multitenancy\\Models\\Tenant') => 'spatie',
-                    default                                              => 'null',
-                };
-            }
-
-            return match ($driver) {
-                'null', null => new NullTenantDiscriminator,
-                'stancl'     => class_exists(self::STANCL)
-                    ? new ClosureTenantDiscriminator(static fn (): mixed => self::stanclTenant($app))
-                    : throw new InvalidConfiguration($path . ': [stancl] needs stancl/tenancy.'),
-                'spatie' => new ClosureTenantDiscriminator(static fn (): mixed => self::spatieTenant($app)),
-                default  => self::instance($app, $driver, TenantDiscriminator::class, $path),
-            };
+            return new TenantDiscriminators($app, is_string($binding) ? $binding : 'currentTenant')
+                ->make($app->make(Repository::class)->get('laranail.settings.tenancy.discriminator', 'auto'));
         });
 
         $app = $this->app;

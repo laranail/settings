@@ -12,6 +12,7 @@ use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Database\StoreSchema;
+use Simtabi\Laranail\Settings\Support\ConfigValues;
 use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
@@ -259,16 +260,6 @@ final class StoreRegistry
     /** @return list<string> */
     private function strings(mixed $value, string $path): array
     {
-        if (! is_array($value)) {
-            throw new InvalidConfiguration($path . ': a list of strings is required.');
-        }
-
-        $strings = array_values(array_filter($value, is_string(...)));
-
-        if (count($strings) !== count($value)) {
-            throw new InvalidConfiguration($path . ': a list of strings is required.');
-        }
-
-        return $strings;
+        return ConfigValues::listOfStrings($value, $path);
     }
 }

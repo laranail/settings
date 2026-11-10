@@ -5,6 +5,11 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Migrations\Migration;
+use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
+use Simtabi\Laranail\Settings\Database\SchemaInspector;
 
 /*
  * The package's one migration: every table, in dependency order, for every recorded database
@@ -85,4 +90,26 @@ it('creates the definitions table on the default store\'s connection when it is 
 
     expect(Schema::hasTable('settings_definitions'))->toBeFalse()
         ->and(Schema::hasTable('settings_categories'))->toBeFalse();
+});
+
+it('reports nothing it cannot look at, rather than a finding', function (): void {
+    config()->set('database.connections.unreachable', ['driver' => 'sqlite', 'database' => sys_get_temp_dir() . '/laranail-missing-' . bin2hex(random_bytes(4)) . '/db.sqlite', 'prefix' => '']);
+    useDatabase();
+    $inspector = new SchemaInspector(new DatabaseDriver(
+        app('db'),
+        'unreachable',
+        new SchemaNames,
+        null,
+        true,
+        static fn (): ReadinessProbe => app(ReadinessProbe::class),
+    ));
+    $live = new SchemaInspector(app(StoreRegistry::class)->default()->requireDatabase(''));
+
+    expect($inspector->hasTable('settings'))->toBeNull()
+        ->and($inspector->columns('settings'))->toBeNull()
+        ->and($inspector->idType('settings'))->toBeNull()
+        ->and($live->hasTable('settings'))->toBeTrue()
+        ->and($live->idType('settings'))->not->toBeNull()
+        ->and($live->idType('settings_audit'))->not->toBeNull()
+        ->and($live->idType('no_such_table'))->toBeNull();
 });

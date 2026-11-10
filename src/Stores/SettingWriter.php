@@ -283,6 +283,6 @@ final readonly class SettingWriter
 
     private function scope(?OwnerRef $owner): Scope
     {
-        return $owner?->scope() ?? Scope::global();
+        return Scope::of($owner);
     }
 }

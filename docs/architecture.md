@@ -16,6 +16,22 @@ How `laranail/settings` is shaped, and why.
 - **Categories.** A shared `settings_categories` table, scoped per store, organises settings for
   people and interfaces; `group` remains a lightweight code namespace.
 
+## How the code is layered
+
+| Layer | Holds | Examples |
+|---|---|---|
+| Entry points | resolve inputs and delegate; no work of their own | `SettingsManager`, `CategoryManager`, `AuditQuery`, the console commands, the facade |
+| Actions (`Actions/`) | one intent each, `handle()` only, final and readonly | `SetSetting`, `PromoteStore`, `SyncDefinitions`, `FindOrphans` |
+| Services | the database, the files, a body of rules | `Database\AuditRepository`, `Database\DefinitionsRepository`, `Database\SchemaInspector`, `Database\CategoryRepository`, the drivers, `Stores\SettingWriter`, `Resolution\Resolver`, `Authorization\AccessGuard`, `Tenancy\TenantDiscriminators` |
+| Support (`Support/`) | stateless logic shared by several classes | `AuditedTransaction`, `Translations`, `Json`, `DatabaseValues`, `ConfigValues`, `ValueEncoder` |
+
+An action never builds a query or reads the schema itself; it asks a repository, so the table,
+the tenant filter and the row format live in one place. A change and its audit entry always go
+through `Support\AuditedTransaction`, so every write, category change and promotion commits and
+audits the same way. Only entry points depend on actions. Architecture tests hold each rule,
+and each exemption (the guards the actions run through, the action bundles, `QueryAudit`'s three
+result shapes) carries its reason and fails when it is no longer needed.
+
 ## Why build rather than adopt?
 
 No existing package combines polymorphic owners, per-store categories, multiple tables and a

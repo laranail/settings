@@ -15,7 +15,6 @@ use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
 use Simtabi\Laranail\Settings\Database\CategoryRepository;
-use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 use Simtabi\Laranail\Settings\Actions\Categories\CategoryActions;
 
@@ -79,9 +78,6 @@ final readonly class CategoryManager
     {
         $this->access->authorize($this->actor, Ability::View, new Subject($this->store->name, category: $category));
 
-        $database = $this->store->database()
-            ?? throw new StoreNotWritable(sprintf('Store [%s] has no active database layer; categories are kept in the database.', $this->store->name));
-
-        return new CategoryRepository($database, $this->store->name);
+        return CategoryRepository::of($this->store);
     }
 }

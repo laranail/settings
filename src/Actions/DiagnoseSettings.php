@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Throwable;
-use Illuminate\Database\Query\Builder;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Stores\Store;
@@ -14,6 +12,7 @@ use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
+use Simtabi\Laranail\Settings\Database\SchemaInspector;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
@@ -150,12 +149,10 @@ final readonly class DiagnoseSettings
             $expected[$shape->names->definitions()] = self::DEFINITION_COLUMNS;
         }
 
+        $inspector = new SchemaInspector($database);
+
         foreach ($expected as $table => $columns) {
-            try {
-                $present = $database->connection()->getSchemaBuilder()->getColumnListing($table);
-            } catch (Throwable) {
-                $present = [];
-            }
+            $present = $inspector->columns($table) ?? [];
 
             foreach (array_diff($columns, $present) as $column) {
                 $missing[] = $table . '.' . $column;
@@ -166,7 +163,7 @@ final readonly class DiagnoseSettings
             }
         }
 
-        $idType = $this->idTypeDrift($database, $database->tableFor($store->name), $shape->ids);
+        $idType = $this->idTypeDrift($inspector, $database->tableFor($store->name), $shape->ids);
 
         if ($missing !== []) {
             return new Finding("{$store->name}: schema", 'The tables have every column the recorded schema uses', DoctorResult::fail('Missing columns (publish and run the latest migrations): ' . implode(', ', $missing), ['missing' => $missing]));
@@ -193,25 +190,17 @@ final readonly class DiagnoseSettings
     }
 
     /** A message when the table's `id` column is not of the recorded key type, else null. */
-    private function idTypeDrift(DatabaseDriver $database, string $table, IdType $type): ?string
+    private function idTypeDrift(SchemaInspector $inspector, string $table, IdType $type): ?string
     {
-        try {
-            $columns = $database->connection()->getSchemaBuilder()->getColumns($table);
-        } catch (Throwable) {
+        $typeName = $inspector->idType($table);
+
+        if ($typeName === null) {
             return null;
         }
 
-        foreach ($columns as $column) {
-            if (($column['name'] ?? null) !== 'id') {
-                continue;
-            }
+        $integer = str_contains(strtolower($typeName), 'int');
 
-            $integer = str_contains(strtolower((string) ($column['type_name'] ?? '')), 'int');
-
-            return $integer === ($type === IdType::Bigint) ? null : sprintf('Table [%s] has an id of type [%s], but the recorded key type is [%s].', $table, $column['type_name'] ?? '?', $type->value);
-        }
-
-        return null;
+        return $integer === ($type === IdType::Bigint) ? null : sprintf('Table [%s] has an id of type [%s], but the recorded key type is [%s].', $table, $typeName, $type->value);
     }
 
     private function scopes(Store $store, DatabaseDriver $database): Finding
@@ -244,10 +233,7 @@ final readonly class DiagnoseSettings
 
     private function categories(Store $store, DatabaseDriver $database): Finding
     {
-        $count = $database->attempt($store->name, static fn (): int => $database->connection()->table($database->tableFor($store->name))
-            ->whereNotNull('category_id')
-            ->where(static fn (Builder $query): Builder => $query->whereNull('category_store')->orWhere('category_store', '!=', $store->name->value))
-            ->count());
+        $count = new SchemaInspector($database)->crossStoreCategoryLinks($store->name);
 
         return new Finding("{$store->name}: categories", 'Settings only use categories of their own store', $count === 0
             ? DoctorResult::pass('Every category link stays inside the store.')

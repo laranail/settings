@@ -25,6 +25,7 @@ use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Illuminate\Database\ConnectionResolverInterface;
+use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
@@ -392,12 +393,6 @@ final readonly class DatabaseDriver implements DatabaseBacked
         }
     }
 
-    /** Databases return booleans as bool, int or numeric string. */
-    private function boolean(mixed $value): bool
-    {
-        return in_array($value, [true, 1, '1'], true);
-    }
-
     /** Asked after a failure, so the answer is fresh; a probe that itself fails means not ready. */
     /**
      * Whether the layer is still there after a failure. Outside a transaction the readiness probe
@@ -495,7 +490,8 @@ final readonly class DatabaseDriver implements DatabaseBacked
     private function ownerColumns(StoreName $store, Scope $scope): array
     {
         $schema = $this->schemaOf($store);
-        [$alias, $id] = $scope->isGlobal() ? [null, null] : explode(':', $scope->value, 2);
+        $owner = $scope->owner();
+        [$alias, $id] = $owner instanceof OwnerRef ? [$owner->alias, $owner->id] : [null, null];
 
         if (! $schema->isDedicated()) {
             $shape = $this->shape();
@@ -619,27 +615,17 @@ final readonly class DatabaseDriver implements DatabaseBacked
             locale: new Locale($locale),
             payload: $value,
             type: $type,
-            encrypted: $this->boolean($row['is_encrypted'] ?? false),
-            locked: $this->boolean($row['is_locked'] ?? false),
+            encrypted: DatabaseValues::boolean($row['is_encrypted'] ?? false),
+            locked: DatabaseValues::boolean($row['is_locked'] ?? false),
             version: (int) $version,
             writtenAt: is_string($updated) ? CarbonImmutable::parse($updated) : null,
             group: $group,
-            public: $this->boolean($row['is_public'] ?? false),
+            public: DatabaseValues::boolean($row['is_public'] ?? false),
         );
     }
 
     private function scope(string $value): Scope
     {
-        if ($value === Scope::GLOBAL) {
-            return Scope::global();
-        }
-
-        $parts = explode(':', $value, 2);
-
-        if (count($parts) !== 2) {
-            throw new DriverFailure(sprintf('A row in the settings table has a malformed scope [%s].', $value));
-        }
-
-        return new OwnerRef($parts[0], $parts[1])->scope();
+        return Scope::fromString($value) ?? throw new DriverFailure(sprintf('A row in the settings table has a malformed scope [%s].', $value));
     }
 }

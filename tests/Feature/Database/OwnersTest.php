@@ -9,6 +9,7 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Actions\PruneAudit;
+use Simtabi\Laranail\Settings\Actions\FindOrphans;
 use Simtabi\Laranail\Settings\Actions\PruneOrphans;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
@@ -140,6 +141,18 @@ it('needs prune (and forget) to prune orphans with an actor, and audits the run'
     expect($prune->handle($actor))->toBe(1)
         ->and(json_decode((string) DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'allowed')->value('meta'), true))->toMatchArray(['owners' => 1])
         ->and(DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'denied')->count())->toBe(1);
+});
+
+it('finds orphans with FindOrphans, and through the deprecated PruneOrphans::find()', function (): void {
+    $gone = SettingsOwner::query()->create();
+    $gone->settings()->set('ui.theme', 'dark');
+    SettingsOwner::query()->whereKey($gone->id)->delete();
+
+    $found = app(FindOrphans::class)->handle();
+
+    expect(array_map(static fn (OwnerRef $owner): string => $owner->scope()->value, $found['orphans']['settings'] ?? []))->toBe(['owner:' . $gone->id])
+        ->and(app(PruneOrphans::class)->find())->toEqual($found)
+        ->and(DB::table('settings')->count())->toBe(1);
 });
 
 it('needs prune to prune the audit trail with an actor', function (): void {

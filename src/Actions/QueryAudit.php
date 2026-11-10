@@ -4,27 +4,18 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use JsonException;
-use Carbon\CarbonImmutable;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\LazyCollection;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Data\AuditPage;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
-use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Data\AuditFilter;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
+use Simtabi\Laranail\Settings\Database\AuditRepository;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
 
@@ -79,99 +70,18 @@ final readonly class QueryAudit
         $this->access->authorize($actor, Ability::ViewAudit, new Subject(
             $store->name,
             key: $filter->key,
-            owner: ! $filter->scope instanceof Scope || $filter->scope->isGlobal() ? null : new OwnerRef(...explode(':', $filter->scope->value, 2)),
+            owner: $filter->scope?->owner(),
         ));
 
-        $database = $store->database() ?? $this->stores->default()->database();
+        $audit = AuditRepository::locate($this->stores, $store->name)
+            ?? throw new DriverUnavailable(sprintf('Store [%s] has no active database layer, so its audit trail went to the log and cannot be queried.', $store->name));
 
-        if (! $database instanceof DatabaseDriver) {
-            throw new DriverUnavailable(sprintf('Store [%s] has no active database layer, so its audit trail went to the log and cannot be queried.', $store->name));
-        }
-
-        // In column-mode tenancy a tenant reads its own trail only.
-        $query = $database->scoped($database->connection()->table($database->names()->audit()));
-
-        if ($filter->store instanceof StoreName) {
-            $query->where('store', $filter->store->value);
-        }
-
-        foreach (['scope' => $filter->scope?->value, 'key' => $filter->key?->value, 'action' => $filter->action?->value, 'outcome' => $filter->outcome?->value] as $column => $value) {
-            if ($value !== null) {
-                $query->where($column, $value);
-            }
-        }
-
-        if ($filter->since instanceof CarbonImmutable) {
-            $query->where('occurred_at', '>=', $filter->since);
-        }
-
-        if ($filter->until instanceof CarbonImmutable) {
-            $query->where('occurred_at', '<=', $filter->until);
-        }
-
-        return $query->orderByDesc('occurred_at')->orderByDesc('id');
+        return $audit->query($filter);
     }
 
     /** @param array<array-key, mixed> $row */
     private function entry(array $row): AuditEntry
     {
-        $text = static fn (string $column): ?string => is_string($row[$column] ?? null) ? $row[$column] : null;
-        $number = static fn (string $column): ?int => is_numeric($row[$column] ?? null) ? (int) $row[$column] : null;
-        $id = $text('id');
-        $occurred = $text('occurred_at');
-        $action = AuditAction::tryFrom($text('action') ?? '');
-        $outcome = AuditOutcome::tryFrom($text('outcome') ?? '');
-        $actorType = ActorType::tryFrom($text('actor_type') ?? '');
-        $channel = Channel::tryFrom($text('channel') ?? '');
-
-        if ($id === null || $occurred === null || ! $action instanceof AuditAction || ! $outcome instanceof AuditOutcome || ! $actorType instanceof ActorType || ! $channel instanceof Channel) {
-            throw new DriverFailure(sprintf('Audit row [%s] is malformed.', $id ?? '?'));
-        }
-
-        return new AuditEntry(
-            id: $id,
-            occurredAt: CarbonImmutable::parse($occurred),
-            action: $action,
-            outcome: $outcome,
-            store: $text('store'),
-            scope: $text('scope'),
-            key: $text('key'),
-            locale: $text('locale'),
-            versionFrom: $number('version_from'),
-            versionTo: $number('version_to'),
-            actorType: $actorType,
-            actorAlias: $text('actor_alias'),
-            actorId: $text('actor_id'),
-            channel: $channel,
-            ip: $text('ip'),
-            userAgent: $text('user_agent'),
-            requestId: $text('request_id'),
-            reason: $text('reason'),
-            meta: $this->meta($text('meta')),
-        );
-    }
-
-    /** @return array<string, scalar|null> */
-    private function meta(?string $json): array
-    {
-        if ($json === null) {
-            return [];
-        }
-
-        try {
-            $decoded = json_decode($json, true, 4, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return [];
-        }
-
-        $meta = [];
-
-        foreach (is_array($decoded) ? $decoded : [] as $key => $value) {
-            if (is_scalar($value) || $value === null) {
-                $meta[(string) $key] = $value;
-            }
-        }
-
-        return $meta;
+        return AuditRepository::entry($row);
     }
 }
