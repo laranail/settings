@@ -118,13 +118,14 @@ jobs:
         # Pest's own mutator, not Infection: Infection has no Pest adapter, reads Pest's
         # version as PHPUnit's, writes a config PHPUnit 12 rejects, and cannot map Pest's
         # generated test classes to its JUnit report. The schema matrix (group `matrix`)
-        # covers almost every line, so it is left out; the Tests workflow runs it.
+        # covers almost every line, so it is left out, and group `shared-app` writes into the
+        # testbench application every process shares; the Tests workflow runs both.
         if: github.event_name != 'pull_request' || steps.scope.outputs.paths != ''
         env:
           MUTATE_PATHS: ${{ steps.scope.outputs.paths }}
         run: |
           if [ -n "$MUTATE_PATHS" ]; then
-            vendor/bin/pest --mutate --path="$MUTATE_PATHS" --parallel --processes=8 --exclude-group=matrix --ignore-min-score-on-zero-mutations --min=70
+            vendor/bin/pest --mutate --path="$MUTATE_PATHS" --parallel --processes=8 --exclude-group=matrix,shared-app --ignore-min-score-on-zero-mutations --min=70
           else
-            vendor/bin/pest --mutate --everything --parallel --processes=8 --exclude-group=matrix --min=70
+            vendor/bin/pest --mutate --everything --parallel --processes=8 --exclude-group=matrix,shared-app --min=70
           fi

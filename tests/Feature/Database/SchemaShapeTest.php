@@ -13,6 +13,10 @@ use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
+// Writes into the testbench application shared by every process (config/, database/), so it
+// cannot run beside itself in parallel; the parallel mutation run leaves this group out.
+pest()->group('shared-app');
+
 function shapes(): SchemaShapeRepository
 {
     return app(SchemaShapeRepository::class);
