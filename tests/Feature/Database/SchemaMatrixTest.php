@@ -67,7 +67,7 @@ it('covers every pair of switch values with a counted set of shapes', function (
     expect(count($shapes))->toBe(getenv('LARANAIL_SETTINGS_MATRIX') === 'full' ? 1152 : 10)
         ->and(count($all))->toBe(177)
         ->and(array_diff_key($all, $covered))->toBe([]);
-})->group('matrix');
+})->group('matrix', 'mutation-excluded');
 
 it('runs every shape end to end and reports no drift', function (array $shape): void {
     $dedicated = $shape['mode'] === 'dedicated';
@@ -142,4 +142,4 @@ it('runs every shape end to end and reports no drift', function (array $shape): 
 })->with(fn (): array => array_map(
     static fn (array $shape): array => [$shape],
     array_combine(array_map(static fn (array $shape): string => implode(',', array_map(static fn (mixed $value): string => is_bool($value) ? ($value ? 'on' : 'off') : $value, $shape)), switchShapes()), switchShapes()),
-))->group('matrix');
+))->group('matrix', 'mutation-excluded');

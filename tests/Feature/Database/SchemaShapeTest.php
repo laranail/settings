@@ -15,7 +15,9 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 // Writes into the testbench application shared by every process (config/, database/), so it
 // cannot run beside itself in parallel; the parallel mutation run leaves this group out.
-pest()->group('shared-app');
+// mutation-excluded: Pest's parallel runner honours only the first --exclude-group, so every group
+// the mutation job leaves out also carries this one.
+pest()->group('shared-app', 'mutation-excluded');
 
 function shapes(): SchemaShapeRepository
 {
