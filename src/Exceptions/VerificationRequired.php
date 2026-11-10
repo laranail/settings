@@ -13,6 +13,10 @@ use Simtabi\Laranail\Settings\Enums\Ability;
  */
 final class VerificationRequired extends SettingsException
 {
+    public const int STATUS = 428;
+
+    public const string TYPE = 'verification-required';
+
     public function __construct(
         public readonly Ability $ability,
         public readonly string $store,

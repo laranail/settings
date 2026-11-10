@@ -2,17 +2,14 @@
 
 declare(strict_types=1);
 
-use Illuminate\Config\Repository;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Support\ConfigValues;
 use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Enums\TranslationsMode;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 it('stores and reads titles in both translation modes', function (): void {
     $lang = new Translations(TranslationsMode::Lang);
@@ -56,22 +53,4 @@ it('parses stored scopes and names their owner', function (): void {
         ->and(Scope::fromString('nocolon'))->toBeNull()
         ->and(Scope::global()->owner())->toBeNull()
         ->and(fn (): ?Scope => Scope::fromString('App\\Models\\User:1'))->toThrow(InvalidIdentifier::class);
-});
-
-it('reads configuration leniently, and lists strictly', function (): void {
-    $config = new ConfigValues(new Repository([
-        'a' => ['name' => 'x', 'n' => '12', 'bad' => 1.5, 'list' => ['x', 2, 'y'], 'scalar' => 'no'],
-    ]));
-
-    expect($config->string('a.name', 'd'))->toBe('x')
-        ->and($config->string('a.n', 'd'))->toBe('12')
-        ->and($config->string('a.bad', 'd'))->toBe('d')
-        ->and($config->integer('a.n', 0))->toBe(12)
-        ->and($config->integer('a.bad', 7))->toBe(7)
-        ->and($config->integer('a.missing', 7))->toBe(7)
-        ->and($config->array('a.scalar'))->toBe([])
-        ->and($config->strings('a.list'))->toBe(['x', 'y'])
-        ->and(ConfigValues::listOfStrings(['x', 'y'], 'p'))->toBe(['x', 'y'])
-        ->and(fn (): array => ConfigValues::listOfStrings(['x', 2], 'p.q'))->toThrow(InvalidConfiguration::class, 'p.q: a list of strings is required.')
-        ->and(fn (): array => ConfigValues::listOfStrings('x', 'p.q'))->toThrow(InvalidConfiguration::class, 'p.q');
 });

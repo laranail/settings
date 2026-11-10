@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Closure;
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Record;
@@ -29,6 +27,7 @@ use Simtabi\Laranail\Settings\Support\AuditedTransaction;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 
 /**
  * Promote a store's runtime file into its database layer (design §7.4): needs `promote`.
@@ -45,13 +44,12 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
  */
 final readonly class PromoteStore
 {
-    /** @param Closure(Store, Key): ?Definition $definitions the definition a store has for a key */
     public function __construct(
         private ValuePipeline $pipeline,
         private AccessGuard $access,
         private Dispatcher $events,
         private Caches $caches,
-        private Closure $definitions,
+        private Definitions $definitions,
     ) {}
 
     /**
@@ -126,7 +124,7 @@ final readonly class PromoteStore
         $skipped = [];
 
         foreach ($records as $record) {
-            $definition = ($this->definitions)($store, $record->key);
+            $definition = $this->definitions->find($store, $record->key);
 
             if (! $definition instanceof Definition && $store->strict) {
                 $skipped[$record->identity()] = 'undefined';

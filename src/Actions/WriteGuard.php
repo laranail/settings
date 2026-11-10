@@ -33,7 +33,7 @@ final readonly class WriteGuard
     public function __construct(
         private AccessGuard $access,
         private SettingWriter $writer,
-        private ?ProposeChange $proposer = null,
+        private ProposeChange $proposer,
     ) {}
 
     /**
@@ -52,7 +52,7 @@ final readonly class WriteGuard
 
         if ($subject->requiresApproval) {
             // A store that can hold change requests turns the write into one (§16.7).
-            if ($this->proposer instanceof ProposeChange && $proposal instanceof ChangeProposal && $target->store->acceptsChangeRequests()) {
+            if ($proposal instanceof ChangeProposal && $target->store->acceptsChangeRequests()) {
                 return $this->proposer->handle($proposal, $actor);
             }
 

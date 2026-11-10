@@ -12,9 +12,6 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
-use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 use function Simtabi\Laranail\Settings\settings as settingsHelper;
 
@@ -113,15 +110,10 @@ it('lists the store\'s definitions for a UI, gated by view', function (): void {
     expect(fn (): array => settings()->as(user())->definitions())->toThrow(AccessDenied::class);
 });
 
-it('says how to build a handle that can list definitions', function (): void {
-    $manager = new SettingsManager(
-        app(StoreRegistry::class),
-        app(DefinitionRegistry::class),
-        app(Resolver::class),
-        app(SettingWriter::class),
-    );
+it('lists definitions from a manager the container builds', function (): void {
+    app(DefinitionRegistry::class)->define('site.name')->register();
 
-    expect(fn (): array => $manager->definitions())->toThrow(LogicException::class, 'definitions listing');
+    expect(array_map(static fn (Definition $definition): string => $definition->key->value, app(SettingsManager::class)->definitions()))->toBe(['site.name']);
 });
 
 it('records many writes, forgets and remembered values in the fake', function (): void {

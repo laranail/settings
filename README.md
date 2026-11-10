@@ -96,7 +96,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Drivers and layers](docs/tools/drivers.md) — the built-in drivers and custom ones.
 - [Database](docs/tools/database.md) — the tables, version-checked writes, eager loading and `HasSettings`.
 - [Categories](docs/tools/categories.md) — nested, per-store categories and the rules that guard them.
-- [Commands](docs/tools/commands.md) — install, make-store, promote, doctor, warm, clear-cache, history, export, import, diff, reencrypt, rescope, openapi and the prune commands.
+- [Commands](docs/tools/commands.md) — install, make-store, promote, doctor, warm, clear-cache, history, export, import, diff, reencrypt, rescope and the prune commands.
 - [Owners and inheritance](docs/tools/owners.md) — owner references, store routing and the cascade.
 - [Access control](docs/tools/access-control.md) — actors, abilities, authorizers, guarded locks, sensitive reads and step-up verification.
 - [Audit and logging](docs/tools/audit-and-logging.md) — the audit trail, its sinks and the operational log.
@@ -114,7 +114,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Importers](docs/tools/importers.md) — moving in from spatie/laravel-settings, toolkit's JSON store and akaunting/laravel-setting.
 - [Re-encryption and rescoping](docs/tools/reencryption.md) — after an `APP_KEY` rotation, and after renaming a morph alias.
 - [Persisted configuration](docs/tools/persisted-configuration.md) — stores, layers and definitions kept in the database.
-- [REST API](docs/tools/rest-api.md) — the opt-in JSON API: endpoints, ETags, approvals, problem details, idempotency and OpenAPI.
+- [REST API](docs/tools/rest-api.md) — the opt-in JSON API: endpoints, ETags, approvals, problem details and idempotency.
 - [REST API reference](docs/tools/rest-api-reference.md) — every route: ability, request, response, status codes and problem types.
 - [Typed settings](docs/tools/typed-settings.md) — typed classes over the key-value engine, and settings migrations.
 

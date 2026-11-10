@@ -59,9 +59,9 @@ Messages name the store, key, scope and ability involved, never a value, so they
 | `DriverUnavailable` | `SettingsException` | a required layer is unreachable (the database is down, its table missing) and no bootstrap evidence lets the store skip it; never a silent fall back to defaults | `503 unavailable` |
 | `DriverFailure` | `SettingsException` | a storage layer failed; the underlying exception is the previous one | `500 settings-error` |
 
-`LogicException` (PHP's own) is thrown for a programming error rather than a runtime condition: `flush()` without `for($owner)`, or a hand-built handle missing a collaborator. Resolve `Settings` from the container and it does not happen.
+`LogicException` (PHP's own) is thrown for a programming error rather than a runtime condition: `flush()` without `for($owner)`.
 
-The REST mapping lives in `Http\Support\Problems`; [REST API reference](rest-api-reference.md#problem-types) lists every problem type.
+Each exception names its HTTP status and problem type itself (`STATUS` and `TYPE` constants), and `Http\Support\Problems` renders them; anything without its own is a `500 settings-error`; [REST API reference](rest-api-reference.md#problem-types) lists every problem type.
 
 ---
 

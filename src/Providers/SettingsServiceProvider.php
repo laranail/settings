@@ -4,186 +4,117 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Providers;
 
-use Closure;
 use Override;
 use Throwable;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use Illuminate\Log\LogManager;
-use Illuminate\Routing\Router;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Database\Connection;
 use Illuminate\Filesystem\Filesystem;
-use Simtabi\Laranail\Settings\Data\Key;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Contracts\Session\Session;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Events\Dispatcher;
-use Illuminate\Support\Facades\RateLimiter;
 use Simtabi\Laranail\Package\Tools\Package;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Illuminate\Contracts\Validation\Factory;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Data\AlertRule;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Http\ApiRoutes;
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\SettingsManager;
 use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Translation\Translator;
 use Simtabi\Laranail\Settings\Actions\MakeStore;
-use Simtabi\Laranail\Settings\Actions\WarmCache;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Illuminate\Contracts\Cache\Factory as Caches;
+use Illuminate\Contracts\Foundation\CachesRoutes;
 use Simtabi\Laranail\Settings\Actions\ClearCache;
-use Simtabi\Laranail\Settings\Actions\FlushScope;
-use Simtabi\Laranail\Settings\Actions\PruneAudit;
-use Simtabi\Laranail\Settings\Actions\QueryAudit;
-use Simtabi\Laranail\Settings\Actions\SetSetting;
-use Simtabi\Laranail\Settings\Actions\WriteGuard;
 use Simtabi\Laranail\Settings\Audit\LogAuditSink;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Actions\DiffHistory;
-use Simtabi\Laranail\Settings\Actions\FindOrphans;
-use Simtabi\Laranail\Settings\Actions\LockSetting;
 use Simtabi\Laranail\Settings\Audit\AutoAuditSink;
 use Simtabi\Laranail\Settings\Audit\NullAuditSink;
 use Simtabi\Laranail\Settings\Console\DiffCommand;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
-use Simtabi\Laranail\Settings\Events\LayerSkipped;
 use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Typed\TypedSettings;
 use Illuminate\Cache\Repository as CacheRepository;
-use Simtabi\Laranail\Settings\Actions\PromoteStore;
-use Simtabi\Laranail\Settings\Actions\PruneHistory;
-use Simtabi\Laranail\Settings\Actions\PruneOrphans;
-use Simtabi\Laranail\Settings\Actions\QueryHistory;
-use Simtabi\Laranail\Settings\Actions\StoreActions;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
-use Simtabi\Laranail\Settings\Support\ConfigValues;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Database\ConnectionResolverInterface;
-use Illuminate\Database\Eloquent\Relations\Relation;
-use Simtabi\Laranail\Settings\Actions\ForgetSetting;
-use Simtabi\Laranail\Settings\Actions\UnlockSetting;
 use Simtabi\Laranail\Settings\Console\DoctorCommand;
 use Simtabi\Laranail\Settings\Console\ExportCommand;
 use Simtabi\Laranail\Settings\Console\ImportCommand;
 use Simtabi\Laranail\Settings\Http\Support\Problems;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Filesystem\Factory as Disks;
-use Simtabi\Laranail\Settings\Actions\HistoryActions;
-use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Console\HistoryCommand;
-use Simtabi\Laranail\Settings\Console\OpenApiCommand;
 use Simtabi\Laranail\Settings\Console\PromoteCommand;
 use Simtabi\Laranail\Settings\Console\RescopeCommand;
 use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
 use Simtabi\Laranail\Settings\Typed\SettingsMigrator;
 use Simtabi\Laranail\Settings\Actions\MigrateSettings;
-use Simtabi\Laranail\Settings\Actions\RollbackSetting;
 use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
 use Simtabi\Laranail\Settings\Audit\DatabaseAuditSink;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
-use Simtabi\Laranail\Settings\Contracts\OwnerResolver;
 use Simtabi\Laranail\Settings\Services\Access\Auditor;
 use Simtabi\Laranail\Settings\Typed\SettingsMigration;
-use Simtabi\Laranail\Settings\Actions\DiagnoseSettings;
 use Simtabi\Laranail\Settings\Console\MakeStoreCommand;
 use Simtabi\Laranail\Settings\Console\ReencryptCommand;
 use Simtabi\Laranail\Settings\Console\WarmCacheCommand;
-use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
-use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
-use Simtabi\Laranail\Settings\Contracts\ValueValidator;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
 use Simtabi\Laranail\Settings\Actions\FindForeignTables;
 use Simtabi\Laranail\Settings\Console\ClearCacheCommand;
 use Simtabi\Laranail\Settings\Console\PruneAuditCommand;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Verification\NullVerifier;
-use Simtabi\Laranail\Settings\Actions\Transfer\DiffStore;
 use Simtabi\Laranail\Settings\Listeners\LogSettingsEvent;
 use Simtabi\Laranail\Settings\Console\PruneChangesCommand;
 use Simtabi\Laranail\Settings\Console\PruneHistoryCommand;
 use Simtabi\Laranail\Settings\Console\PruneOrphansCommand;
-use Simtabi\Laranail\Settings\Contracts\BootstrapEvidence;
 use Simtabi\Laranail\Settings\Listeners\SendSettingsAlert;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Services\Transfer\Importers;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 use Simtabi\Laranail\Package\Tools\Commands\InstallCommand;
-use Simtabi\Laranail\Settings\Actions\Transfer\ExportStore;
-use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
 use Simtabi\Laranail\Settings\Authorization\GateAuthorizer;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Owners\MorphMapOwnerResolver;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
-use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
-use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
 use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
-use Simtabi\Laranail\Settings\Database\SchemaReadinessProbe;
-use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
-use Simtabi\Laranail\Settings\Support\LaravelValueValidator;
-use Simtabi\Laranail\Settings\Actions\Approvals\CancelChange;
-use Simtabi\Laranail\Settings\Actions\Approvals\PruneChanges;
-use Simtabi\Laranail\Settings\Actions\Approvals\QueryChanges;
-use Simtabi\Laranail\Settings\Actions\Approvals\RejectChange;
 use Simtabi\Laranail\Settings\Console\SyncDefinitionsCommand;
 use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
-use Simtabi\Laranail\Settings\Actions\Approvals\ApproveChange;
-use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
-use Simtabi\Laranail\Settings\Actions\Categories\MoveCategory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
-use Simtabi\Laranail\Settings\Actions\Transfer\TransferActions;
 use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
-use Simtabi\Laranail\Settings\Services\Transfer\StoreSnapshots;
-use Simtabi\Laranail\Settings\Actions\Approvals\ApprovalActions;
-use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
-use Simtabi\Laranail\Settings\Actions\Categories\DeleteCategory;
-use Simtabi\Laranail\Settings\Actions\Categories\RenameCategory;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
-use Simtabi\Laranail\Settings\Actions\Categories\CategoryActions;
-use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 use Simtabi\Laranail\Settings\Authentication\SanctumActorResolver;
 use Simtabi\Laranail\Settings\Authorization\PermissionsAuthorizer;
 use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
-use Simtabi\Laranail\Settings\Actions\Configuration\SaveDefinition;
+use Illuminate\Contracts\Notifications\Dispatcher as Notifications;
 use Simtabi\Laranail\Package\Tools\Providers\PackageServiceProvider;
 use Simtabi\Laranail\Settings\Services\Tenancy\TenantDiscriminators;
-use Simtabi\Laranail\Settings\Actions\Configuration\DeleteDefinition;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 use Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder;
 use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Verification\PasswordConfirmationVerifier;
-use Simtabi\Laranail\Settings\Actions\Configuration\ConfigurationActions;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
-use Simtabi\Laranail\Settings\Actions\Configuration\SaveConfigurationEntry;
-use Illuminate\Contracts\Notifications\Dispatcher as NotificationDispatcher;
 use Simtabi\Laranail\Package\Tools\Support\Definitions\AutoSeederDefinition;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
-use Simtabi\Laranail\Settings\Actions\Configuration\DeleteConfigurationEntry;
-use Simtabi\Laranail\Settings\Actions\Configuration\ListConfigurationEntries;
 
 /**
  * Registers laranail/settings with the host application.
@@ -193,10 +124,13 @@ use Simtabi\Laranail\Settings\Actions\Configuration\ListConfigurationEntries;
  * touches the database or the filesystem at boot: stores, drivers and definitions are built on
  * first use, and the encrypter is resolved only when a value is encrypted or decrypted.
  *
- * Everything derived from a request (the actor resolver, the runtime configuration, the access
- * guard, the auditor and the log) is bound `scoped`, so Octane and queue workers start each
- * request and job clean. Configuration naming an unknown driver, sink or level raises
- * InvalidConfiguration with its config path on first use.
+ * Most classes are autowired: their lifetime is a `#[Scoped]` or `#[Singleton]` attribute on the
+ * class, and their configuration a `#[Config]` attribute on the parameter. What is bound here is
+ * what configuration chooses or validates (drivers, sinks, authorizers, verifiers, resolvers,
+ * cache stores), and the few services whose collaborators are closures on purpose. Everything
+ * derived from a request is scoped, so Octane and queue workers start each request and job clean.
+ * Configuration naming an unknown driver, sink or level raises InvalidConfiguration with its
+ * config path on first use.
  */
 final class SettingsServiceProvider extends PackageServiceProvider
 {
@@ -206,6 +140,11 @@ final class SettingsServiceProvider extends PackageServiceProvider
             ->name('laranail/settings')
             ->setPublishTagId('settings')
             ->hasConfigFile('settings')
+            // `laranail/settings::settings.*` (resources/lang) and the one view, the alert mail
+            // (`laranail/settings::mail.alert`); both publishable. The REST API's routes are
+            // loaded in packageBooted(), behind the http.enabled switch.
+            ->hasTranslations()
+            ->hasViews()
             ->hasMigrations(['create_laranail_settings_tables'])
             // Runs with the host's `php artisan db:seed`; the seeder itself honours seed.enabled.
             // Foreign keys stay checked (a child category needs its parent) and events fire (the
@@ -213,7 +152,33 @@ final class SettingsServiceProvider extends PackageServiceProvider
             ->hasPackageSeeders(AutoSeederDefinition::make('laranail/settings:defaults')
                 ->seeders([DefaultCategoriesSeeder::class])
                 ->options(['disable_foreign_key_checks' => false, 'fire_events' => true]))
-            ->hasCommands([PromoteCommand::class, PruneOrphansCommand::class, PruneAuditCommand::class, PruneHistoryCommand::class, HistoryCommand::class, MakeStoreCommand::class, DoctorCommand::class, SyncDefinitionsCommand::class, WarmCacheCommand::class, ClearCacheCommand::class, PruneChangesCommand::class, ExportCommand::class, ImportCommand::class, DiffCommand::class, ReencryptCommand::class, RescopeCommand::class, OpenApiCommand::class])
+            // The REST API's limit: `http.rate_limit` requests a minute per user (or IP); 0 is none.
+            ->registerRateLimiter('laranail-settings', static function (Request $request): Limit {
+                $perMinute = config()->integer('laranail.settings.http.rate_limit', 60);
+                $user = $request->user()?->getAuthIdentifier();
+
+                return $perMinute > 0
+                    ? Limit::perMinute($perMinute)->by(is_scalar($user) ? 'user:' . $user : 'ip:' . $request->ip())
+                    : Limit::none();
+            })
+            ->hasCommands([
+                PromoteCommand::class,
+                PruneOrphansCommand::class,
+                PruneAuditCommand::class,
+                PruneHistoryCommand::class,
+                PruneChangesCommand::class,
+                HistoryCommand::class,
+                MakeStoreCommand::class,
+                DoctorCommand::class,
+                SyncDefinitionsCommand::class,
+                WarmCacheCommand::class,
+                ClearCacheCommand::class,
+                ExportCommand::class,
+                ImportCommand::class,
+                DiffCommand::class,
+                ReencryptCommand::class,
+                RescopeCommand::class,
+            ])
             ->hasInstallCommand(static function (InstallCommand $command): void {
                 $command
                     ->startWith(static function (InstallCommand $command): void {
@@ -229,34 +194,48 @@ final class SettingsServiceProvider extends PackageServiceProvider
     }
 
     #[Override]
+    public function packageRegistered(): void
+    {
+        $this->app->scoped(Settings::class, SettingsManager::class);
+
+        $this->registerTenancy();
+        $this->registerStores();
+        $this->registerDefinitions();
+        $this->registerAccess();
+        $this->registerHttp();
+        $this->registerTyped();
+    }
+
+    #[Override]
     public function packageBooted(): void
     {
-        // db-tools memoises readiness in a singleton: forget it once the schema may have changed
-        // and at the start of every queued job (and Octane request, when Octane is installed).
         $app = $this->app;
-        $flush = static function () use ($app): void {
-            $app->make(ReadinessProbe::class)->flush();
-        };
         $events = $app->make(Dispatcher::class);
+        $config = $app->make(Repository::class);
 
-        $events->listen(MigrationsEnded::class, $flush);
-        $events->listen(JobProcessing::class, $flush);
-        $events->listen('Laravel\\Octane\\Events\\RequestReceived', $flush);
+        // db-tools memoises readiness in a singleton: forget it once the schema may have changed,
+        // at the start of every queued job and Octane request, and on the tenant switches the
+        // tenancy packages announce (`readiness.flush_on`; db-tools has no hook of its own).
+        $flush = static function () use ($app): void {
+            $app->make(SchemaReadinessInterface::class)->flush();
+        };
 
-        // Tenant switches (db-tools has no hook of its own): the tenancy packages' events, by name.
-        foreach (self::strings($app, 'laranail.settings.readiness.flush_on') as $event) {
+        foreach ([MigrationsEnded::class, JobProcessing::class, 'Laravel\\Octane\\Events\\RequestReceived', ...self::strings($config, 'laranail.settings.readiness.flush_on')] as $event) {
             $events->listen($event, $flush);
         }
 
-        // Built-in listeners (`listeners.*`): registered by class, so nothing is built until an
-        // event fires. Reading configuration here touches neither the database nor the cache.
-        $config = $app->make(Repository::class);
-
-        // The REST API (§16.10): nothing is registered unless it is switched on.
-        if (filter_var($config->get('laranail.settings.http.enabled', false), FILTER_VALIDATE_BOOL)) {
-            $this->bootHttp($app, $config);
+        // Each typed settings class `typed.classes` lists resolves loaded, through the request's handle.
+        foreach (self::strings($config, 'laranail.settings.typed.classes') as $class) {
+            if (is_subclass_of($class, TypedSettings::class)) {
+                $app->bind($class, static fn (Application $app): TypedSettings => $class::load($app->make(Settings::class)));
+            }
         }
 
+        if (filter_var($config->get('laranail.settings.http.enabled', false), FILTER_VALIDATE_BOOL)) {
+            $this->bootHttp($config);
+        }
+
+        // The built-in listeners, registered by class: nothing is built until an event fires.
         if ($config->get('laranail.settings.listeners.log', false) === true) {
             $events->listen(LogSettingsEvent::EVENTS, LogSettingsEvent::class);
         }
@@ -266,270 +245,26 @@ final class SettingsServiceProvider extends PackageServiceProvider
         }
     }
 
-    #[Override]
-    public function packageRegistered(): void
+    /** `cache.enabled`: on unless set to a false value. */
+    private static function cacheEnabled(Application $app): bool
     {
-        $this->registerTenancy();
-
-        $this->app->singleton(CasterRegistry::class);
-        $this->app->singleton(ValueEncoder::class);
-        $this->app->singleton(RecordSerializer::class);
-
-        $this->app->singleton(ValueValidator::class, static fn (Application $app): ValueValidator => new LaravelValueValidator($app->make(Factory::class)));
-
-        $this->app->singleton(ValueEncrypter::class, static fn (Application $app): ValueEncrypter => new LaravelValueEncrypter(
-            static fn (): StringEncrypter => $app->make(StringEncrypter::class),
-        ));
-
-        $this->app->singleton(DefinitionRegistry::class, static fn (Application $app): DefinitionRegistry => new DefinitionRegistry(
-            new StoreName(self::string($app, 'laranail.settings.default', 'settings')),
-            $app->make(CasterRegistry::class),
-            in_array('config', self::definitionSources($app), true) ? self::array($app, 'laranail.settings.definitions') : [],
-        ));
-
-        $this->app->singleton(ReadinessProbe::class, static fn (Application $app): ReadinessProbe => new SchemaReadinessProbe(
-            $app->make(SchemaReadinessInterface::class),
-        ));
-
-        $this->app->singleton(DriverFactory::class, static fn (Application $app): DriverFactory => new DriverFactory(
-            $app->make(Disks::class),
-            $app->make(Repository::class),
-            new ReadOnlyValues($app->make(ValueEncoder::class)),
-            $app->make(RecordSerializer::class),
-            $app->basePath(),
-            $app->make(ConnectionResolverInterface::class),
-            SchemaNames::fromConfig(self::array($app, 'laranail.settings.tables')),
-            static fn (): ReadinessProbe => $app->make(ReadinessProbe::class),
-            static fn (): SchemaShape => $app->make(SchemaShapeRepository::class)->current(),
-            static fn (): ?string => $app->make(TenantDiscriminator::class)->current(),
-        ));
-
-        // The recorded schema shape (§4.0). Scoped: read once per request or job, never at boot.
-        $this->app->scoped(SchemaShapeRepository::class, static function (Application $app): SchemaShapeRepository {
-            $path = $app->make(Repository::class)->get('laranail.settings.schema.path');
-
-            return new SchemaShapeRepository(
-                $app->make(Filesystem::class),
-                is_string($path) && $path !== '' ? $path : $app->databasePath('settings-schema.php'),
-                static fn (): SchemaShape => SchemaShape::fromConfig(
-                    self::array($app, 'laranail.settings'),
-                    $app->make(Repository::class)->get('laranail.db-tools.id_type'),
-                ),
-            );
-        });
-
-        // Evidence that the application is being installed: the operator's flag, or
-        // laranail/installer-headless (suggested, so class_exists-guarded) reporting an install
-        // in progress. Read on first use, never at boot.
-        $this->app->scoped(BootstrapEvidence::class, static function (Application $app): BootstrapEvidence {
-            $installer = 'Simtabi\\Laranail\\Installer\\Headless\\Support\\InstallationState';
-
-            return new InstallationEvidence(
-                $app->make(Repository::class)->get('laranail.settings.bootstrap', false) === true,
-                class_exists($installer) ? static function () use ($app, $installer): bool {
-                    $state = $app->make($installer);
-
-                    return is_object($state) && method_exists($state, 'isInstalling') && $state->isInstalling() === true;
-                } : null,
-            );
-        });
-
-        // Scoped: rebuilt per request and per queued job under Octane and Horizon, so no
-        // per-request state can survive into the next one.
-        $this->app->scoped(RuntimeConfiguration::class, static fn (Application $app): RuntimeConfiguration => new RuntimeConfiguration(
-            $app->make(DriverFactory::class),
-            self::string($app, 'laranail.settings.default', 'settings'),
-            self::array($app, 'laranail.settings.stores'),
-            self::array($app, 'laranail.settings.layers'),
-            $app->make(CasterRegistry::class),
-            static function (string $change) use ($app): void {
-                $app->make(OperationalLogger::class)->info('laranail/settings runtime configuration: ' . $change);
-                $app->make(Auditor::class)->record(AuditAction::Configure, AuditOutcome::Allowed, null, null, meta: ['change' => $change]);
-            },
-        ));
-
-        $this->app->scoped(StoreRegistry::class, static fn (Application $app): StoreRegistry => new StoreRegistry(
-            $app->make(DriverFactory::class),
-            self::string($app, 'laranail.settings.default', 'settings'),
-            self::array($app, 'laranail.settings.stores'),
-            self::array($app, 'laranail.settings.layers'),
-            runtime: $app->make(RuntimeConfiguration::class),
-            evidence: $app->make(BootstrapEvidence::class),
-            onLayerSkipped: static function (string $store, string $layer, string $reason) use ($app): void {
-                $app->make(Dispatcher::class)->dispatch(new LayerSkipped($store, $layer, $reason));
-            },
-            cache: self::cacheEnabled($app) ? $app->make(SettingsCache::class) : null,
-            persisted: $app->make(PersistedConfiguration::class),
-            sources: self::configurationSources($app),
-        ));
-
-        $this->app->singleton(ValuePipeline::class);
-
-        $this->app->scoped(Resolver::class, static fn (Application $app): Resolver => new Resolver(
-            $app->make(StoreRegistry::class),
-            $app->make(ValuePipeline::class),
-            self::string($app, 'app.fallback_locale', 'en'),
-            tenant: $app->make(TenantDiscriminator::class),
-        ));
-
-        $this->app->singleton(SettingWriter::class, static fn (Application $app): SettingWriter => new SettingWriter(
-            $app->make(ValuePipeline::class),
-            $app->make(Dispatcher::class),
-            self::clock(),
-            $app->make(Repository::class)->get('laranail.settings.writes.retry_on_conflict', true) !== false,
-            static function (Store $store, Key $key, Scope $scope) use ($app): void {
-                $app->make(OperationalLogger::class)->info(sprintf('laranail/settings retried a write of [%s] in store [%s] for scope [%s] after a concurrent change.', $key, $store->name, $scope), [
-                    'store' => $store->name->value,
-                    'key'   => $key->value,
-                    'scope' => $scope->value,
-                ]);
-            },
-        ));
-
-        $this->registerAccess();
-        $this->registerCache();
-        $this->registerListeners();
-
-        $this->registerPersistedConfiguration();
-        $this->registerApprovals();
-        $this->registerTransfer();
-        $this->registerHttp();
-        $this->registerTyped();
-
-        $this->app->scoped(SettingActions::class, static fn (Application $app): SettingActions => SettingActions::using(
-            $app->make(SettingWriter::class),
-            $app->make(AccessGuard::class),
-            $app->make(ApprovalActions::class)->propose,
-        ));
-
-        $this->app->scoped(StoreActions::class, static function (Application $app): StoreActions {
-            $access = $app->make(AccessGuard::class);
-            $events = $app->make(Dispatcher::class);
-            $flush = new FlushScope($access, $events);
-
-            return new StoreActions(
-                CategoryActions::using($access, $events),
-                new PromoteStore(
-                    $app->make(ValuePipeline::class),
-                    $access,
-                    $events,
-                    $app->make(Caches::class),
-                    self::definitionLookup($app),
-                ),
-                $flush,
-                new WarmCache($access),
-                new ClearCache(
-                    $access,
-                    self::cacheEnabled($app) ? $app->make(SettingsCache::class) : null,
-                    new StoreName(self::string($app, 'laranail.settings.default', 'settings')),
-                ),
-            );
-        });
-
-        $this->app->scoped(WarmCache::class, static fn (Application $app): WarmCache => $app->make(StoreActions::class)->warmCache ?? new WarmCache($app->make(AccessGuard::class)));
-        $this->app->scoped(ClearCache::class, static fn (Application $app): ClearCache => $app->make(StoreActions::class)->clearCache ?? new ClearCache($app->make(AccessGuard::class), null));
-
-        $this->app->scoped(DatabaseDefinitions::class, static fn (Application $app): DatabaseDefinitions => new DatabaseDefinitions(
-            $app->make(CasterRegistry::class),
-            $app->make(ValueEncoder::class),
-            self::strings($app, 'laranail.settings.definitions.allowed_rules'),
-            in_array('database', self::definitionSources($app), true),
-        ));
-
-        $this->app->scoped(SyncDefinitions::class, static fn (Application $app): SyncDefinitions => new SyncDefinitions(
-            $app->make(StoreRegistry::class),
-            $app->make(DefinitionRegistry::class),
-            $app->make(ValueEncoder::class),
-            $app->make(AccessGuard::class),
-            $app->make(Dispatcher::class),
-        ));
-
-        $this->app->scoped(QueryAudit::class, static fn (Application $app): QueryAudit => new QueryAudit(
-            $app->make(StoreRegistry::class),
-            $app->make(AccessGuard::class),
-        ));
-
-        $this->app->scoped(FindOrphans::class, static fn (Application $app): FindOrphans => new FindOrphans(
-            $app->make(StoreRegistry::class),
-            static fn (string $alias): ?string => Relation::getMorphedModel($alias),
-        ));
-
-        $this->app->scoped(PruneOrphans::class, static fn (Application $app): PruneOrphans => new PruneOrphans(
-            $app->make(StoreRegistry::class),
-            $app->make(StoreActions::class)->flush,
-            static fn (string $alias): ?string => Relation::getMorphedModel($alias),
-            $app->make(AccessGuard::class),
-            $app->make(Dispatcher::class),
-        ));
-
-        $this->app->scoped(HistoryActions::class, static function (Application $app): HistoryActions {
-            $access = $app->make(AccessGuard::class);
-            $writer = $app->make(SettingWriter::class);
-            $pipeline = $app->make(ValuePipeline::class);
-
-            return new HistoryActions(
-                new QueryHistory($app->make(StoreRegistry::class), $access),
-                new RollbackSetting($writer, new WriteGuard($access, $writer), $pipeline, $app->make(Dispatcher::class)),
-                new DiffHistory($access, $pipeline),
-            );
-        });
-
-        $this->app->scoped(PruneHistory::class, static fn (Application $app): PruneHistory => new PruneHistory(
-            $app->make(StoreRegistry::class),
-            $app->make(AccessGuard::class),
-            $app->make(Dispatcher::class),
-        ));
-
-        $this->app->scoped(PruneAudit::class, static fn (Application $app): PruneAudit => new PruneAudit(
-            $app->make(StoreRegistry::class),
-            $app->make(AccessGuard::class),
-            $app->make(Dispatcher::class),
-        ));
-
-        $this->app->bind(MakeStore::class, static fn (Application $app): MakeStore => new MakeStore(
-            $app->make(Filesystem::class),
-            dirname(__DIR__, 2) . '/database/migrations/' . MakeStore::MIGRATION . '.php',
-            $app->databasePath('migrations'),
-            $app->make(SchemaShapeRepository::class),
-        ));
-
-        $this->app->scoped(Settings::class, static fn (Application $app): Settings => new SettingsManager(
-            $app->make(StoreRegistry::class),
-            $app->make(DefinitionRegistry::class),
-            $app->make(Resolver::class),
-            $app->make(SettingWriter::class),
-            actions: $app->make(SettingActions::class),
-            access: $app->make(AccessGuard::class),
-            runtime: $app->make(RuntimeConfiguration::class),
-            storeActions: $app->make(StoreActions::class),
-            auditQuery: $app->make(QueryAudit::class),
-            databaseDefinitions: $app->make(DatabaseDefinitions::class),
-            historyActions: $app->make(HistoryActions::class),
-            approvalActions: $app->make(ApprovalActions::class),
-            transferActions: $app->make(TransferActions::class),
-            configurationActions: $app->make(ConfigurationActions::class),
-            listDefinitions: $app->make(ListDefinitions::class),
-        ));
-
-        $this->app->bind(DiagnoseSettings::class, static fn (Application $app): DiagnoseSettings => new DiagnoseSettings(
-            $app->make(StoreRegistry::class),
-            $app->make(SchemaShapeRepository::class),
-            $app->make(ValueEncrypter::class),
-            static fn (): array => $app->make(PersistedConfiguration::class)->problems(),
-        ));
+        return filter_var($app->make(Repository::class)->get('laranail.settings.cache.enabled', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true;
     }
 
-    /**
-     * The definition a key resolves to, as a handle resolves it: runtime definitions first, then
-     * code and config, then the definitions table (D-6).
-     *
-     * @return Closure(Store, Key): ?Definition
-     */
-    private static function definitionLookup(Application $app): Closure
+    /** A Laravel cache repository by store name (null: the default store), or InvalidConfiguration naming `$path`. */
+    private static function cacheStore(Application $app, mixed $name, string $path): CacheRepository
     {
-        return static fn (Store $store, Key $key): ?Definition => $app->make(RuntimeConfiguration::class)->findDefinition($store->name, $key)
-            ?? $app->make(DefinitionRegistry::class)->find($store->name, $key)
-            ?? $app->make(DatabaseDefinitions::class)->find($store, $key);
+        if ($name !== null && (! is_string($name) || $name === '')) {
+            throw new InvalidConfiguration($path . ': a cache store name, or null for the default store.');
+        }
+
+        try {
+            $cache = $app->make(Caches::class)->store($name);
+        } catch (InvalidArgumentException $exception) {
+            throw new InvalidConfiguration(sprintf('%s: %s', $path, $exception->getMessage()), $exception->getCode(), previous: $exception);
+        }
+
+        return $cache instanceof CacheRepository ? $cache : throw new InvalidConfiguration(sprintf('%s: [%s] is not a Laravel cache repository.', $path, get_debug_type($cache)));
     }
 
     /**
@@ -538,9 +273,9 @@ final class SettingsServiceProvider extends PackageServiceProvider
      *
      * @return list<string>
      */
-    private static function configurationSources(Application $app): array
+    private static function configurationSources(Repository $config): array
     {
-        $sources = $app->make(Repository::class)->get('laranail.settings.configuration.sources', ['config', 'database', 'runtime']);
+        $sources = $config->get('laranail.settings.configuration.sources', ['config', 'database', 'runtime']);
         $names = is_array($sources) ? array_values(array_filter($sources, is_string(...))) : null;
 
         if ($names === null || count($names) !== count($sources) || array_diff($names, ['config', 'database', 'runtime']) !== [] || count(array_unique($names)) !== count($names)) {
@@ -550,10 +285,72 @@ final class SettingsServiceProvider extends PackageServiceProvider
         return $names;
     }
 
-    /** `cache.enabled`: on unless set to a false value. */
-    private static function cacheEnabled(Application $app): bool
+    /**
+     * `definitions.sources` (D-6): which of `code`, `config` and `database` are read. Code
+     * definitions are registered in code and are always read.
+     *
+     * @return list<string>
+     */
+    private static function definitionSources(Repository $config): array
     {
-        return filter_var($app->make(Repository::class)->get('laranail.settings.cache.enabled', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true;
+        $sources = $config->get('laranail.settings.definitions.sources', ['code', 'config', 'database']);
+        $names = is_array($sources) ? array_values(array_filter($sources, is_string(...))) : null;
+
+        if ($names === null || count($names) !== count($sources) || array_diff($names, ['code', 'config', 'database']) !== []) {
+            throw new InvalidConfiguration('laranail.settings.definitions.sources: a list of code, config and database.');
+        }
+
+        return $names;
+    }
+
+    /** @return list<string> the strings of the array at `$key` (other entries dropped) */
+    private static function strings(Repository $config, string $key): array
+    {
+        return array_values(array_filter($config->array($key, []), is_string(...)));
+    }
+
+    private static function authorizer(Application $app, mixed $driver, string $path): Authorizer
+    {
+        return match ($driver) {
+            'gate'        => new GateAuthorizer($app->make(Gate::class)),
+            'permissions' => new PermissionsAuthorizer($app->make(Repository::class)->array('laranail.settings.authorization.permissions', [])),
+            default       => self::instance($app, $driver, Authorizer::class, $path),
+        };
+    }
+
+    private static function auditSink(Application $app, mixed $sink, string $path): AuditSink
+    {
+        // The database sink finds its store per entry, so it reaches the registry through a
+        // closure: the registry's own collaborators audit through this sink.
+        $database = static fn (): DatabaseAuditSink => new DatabaseAuditSink(static fn (): StoreRegistry => $app->make(StoreRegistry::class));
+
+        return match ($sink) {
+            'auto'     => new AutoAuditSink($database(), new LogAuditSink($app->make(OperationalLogger::class))),
+            'database' => $database(),
+            'log'      => new LogAuditSink($app->make(OperationalLogger::class)),
+            'null'     => new NullAuditSink,
+            default    => self::instance($app, $sink, AuditSink::class, $path),
+        };
+    }
+
+    /**
+     * A custom implementation named by class in config: it must exist and implement the contract.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $contract
+     *
+     * @return T
+     */
+    private static function instance(Application $app, mixed $class, string $contract, string $path): object
+    {
+        if (! is_string($class) || ! class_exists($class) || ! is_subclass_of($class, $contract)) {
+            throw new InvalidConfiguration(sprintf('%s: [%s] is not a built-in name or a class implementing %s.', $path, is_scalar($class) ? $class : get_debug_type($class), $contract));
+        }
+
+        $instance = $app->make($class);
+
+        return $instance instanceof $contract ? $instance : throw new InvalidConfiguration(sprintf('%s: [%s] did not build a %s.', $path, $class, $contract));
     }
 
     /**
@@ -570,25 +367,6 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 implode(', ', $foreign),
             ));
         }
-    }
-
-    /**
-     * `definitions.sources` (D-6): which of `code`, `config` and `database` are read. Code
-     * definitions are registered by packages and the application in code and are always read.
-     *
-     * @return list<string>
-     */
-    private static function definitionSources(Application $app): array
-    {
-        $sources = $app->make(Repository::class)->get('laranail.settings.definitions.sources', ['code', 'config', 'database']);
-
-        $names = is_array($sources) ? array_values(array_filter($sources, is_string(...))) : null;
-
-        if ($names === null || count($names) !== count($sources) || array_diff($names, ['code', 'config', 'database']) !== []) {
-            throw new InvalidConfiguration('laranail.settings.definitions.sources: a list of code, config and database.');
-        }
-
-        return $names;
     }
 
     /**
@@ -619,518 +397,223 @@ final class SettingsServiceProvider extends PackageServiceProvider
         }
     }
 
-    private static function authorizer(Application $app, mixed $driver, string $path): Authorizer
-    {
-        return match ($driver) {
-            'gate'        => new GateAuthorizer($app->make(Gate::class)),
-            'permissions' => new PermissionsAuthorizer(self::array($app, 'laranail.settings.authorization.permissions')),
-            default       => self::instance($app, $driver, Authorizer::class, $path),
-        };
-    }
-
-    private static function auditSink(Application $app, mixed $sink, string $path): AuditSink
-    {
-        return match ($sink) {
-            'auto'     => new AutoAuditSink(self::databaseSink($app), new LogAuditSink($app->make(OperationalLogger::class))),
-            'database' => self::databaseSink($app),
-            'log'      => new LogAuditSink($app->make(OperationalLogger::class)),
-            'null'     => new NullAuditSink,
-            default    => self::instance($app, $sink, AuditSink::class, $path),
-        };
-    }
-
-    private static function databaseSink(Application $app): DatabaseAuditSink
-    {
-        return new DatabaseAuditSink(static fn (): StoreRegistry => $app->make(StoreRegistry::class));
-    }
-
     /**
-     * A custom implementation named by class in config: it must exist and implement the contract.
-     *
-     * @template T of object
-     *
-     * @param class-string<T> $contract
-     *
-     * @return T
+     * The REST API (§16.10): routes/api.php under `http.prefix`/v1 (an empty prefix mounts it at
+     * /v1), and problem details for the errors its routes raise. Reads configuration only.
      */
-    private static function instance(Application $app, mixed $class, string $contract, string $path): object
+    private function bootHttp(Repository $config): void
     {
-        if (! is_string($class) || ! class_exists($class) || ! is_subclass_of($class, $contract)) {
-            throw new InvalidConfiguration(sprintf('%s: [%s] is not a built-in name or a class implementing %s.', $path, is_scalar($class) ? $class : get_debug_type($class), $contract));
-        }
-
-        $instance = $app->make($class);
-
-        return $instance instanceof $contract ? $instance : throw new InvalidConfiguration(sprintf('%s: [%s] did not build a %s.', $path, $class, $contract));
-    }
-
-    /** @return Closure(): CarbonImmutable */
-    private static function clock(): Closure
-    {
-        return static fn (): CarbonImmutable => now()->toImmutable();
-    }
-
-    private static function integer(Application $app, string $key, int $default): int
-    {
-        return self::config($app)->integer($key, $default);
-    }
-
-    /** @return list<string> */
-    private static function strings(Application $app, string $key): array
-    {
-        return self::config($app)->strings($key);
-    }
-
-    private static function string(Application $app, string $key, string $default): string
-    {
-        return self::config($app)->string($key, $default);
-    }
-
-    /** @return array<array-key, mixed> */
-    private static function array(Application $app, string $key): array
-    {
-        return self::config($app)->array($key);
-    }
-
-    private static function config(Application $app): ConfigValues
-    {
-        return new ConfigValues($app->make(Repository::class));
-    }
-
-    /**
-     * Persisted configuration (§16.11): read lazily from the settings_stores table on the default
-     * store's database connection (as the configuration file names it), validated by building the
-     * stores it would produce, and bound `scoped`.
-     */
-    private function registerPersistedConfiguration(): void
-    {
-        $this->app->scoped(PersistedConfiguration::class, static function (Application $app): PersistedConfiguration {
-            $stores = self::array($app, 'laranail.settings.stores');
-            $layers = self::array($app, 'laranail.settings.layers');
-            $default = self::string($app, 'laranail.settings.default', 'settings');
-            $persisted = $app->make(Repository::class)->get('laranail.settings.configuration.persisted', false);
-
-            return new PersistedConfiguration(
-                filter_var($persisted, FILTER_VALIDATE_BOOL),
-                static function () use ($app, $stores, $layers, $default): Connection {
-                    $connection = null;
-
-                    foreach ((array) (is_array($stores[$default] ?? null) ? ($stores[$default]['layers'] ?? []) : []) as $layer) {
-                        $config = is_string($layer) ? ($layers[$layer] ?? null) : null;
-
-                        if (is_array($config) && ($config['driver'] ?? null) === 'database') {
-                            $connection = is_string($config['connection'] ?? null) ? $config['connection'] : null;
-
-                            break;
-                        }
-                    }
-
-                    $resolved = $app->make(ConnectionResolverInterface::class)->connection($connection);
-
-                    return $resolved instanceof Connection ? $resolved : throw new InvalidConfiguration('laranail.settings.configuration: the default store\'s database connection is not a database connection.');
-                },
-                static fn (): SchemaShape => $app->make(SchemaShapeRepository::class)->current(),
-                static function (array $persistedStores, array $persistedLayers) use ($app, $stores, $layers, $default): void {
-                    new StoreRegistry($app->make(DriverFactory::class), $default, array_replace($stores, $persistedStores), array_replace($layers, $persistedLayers))->validate();
-                },
-                $stores,
-                static function (string $problem) use ($app): void {
-                    $app->make(OperationalLogger::class)->warning($problem);
-                },
-            );
-        });
-
-        $this->app->scoped(ConfigurationActions::class, static function (Application $app): ConfigurationActions {
-            $access = $app->make(AccessGuard::class);
-            $stores = $app->make(StoreRegistry::class);
-            $persisted = $app->make(PersistedConfiguration::class);
-
-            return new ConfigurationActions(
-                new SaveConfigurationEntry($stores, $persisted, $access),
-                new DeleteConfigurationEntry($stores, $persisted, $access),
-                new ListConfigurationEntries($stores, $persisted, $access),
-                new SaveDefinition($app->make(DefinitionRegistry::class), $app->make(DatabaseDefinitions::class), $app->make(ValueEncoder::class), $access),
-                new DeleteDefinition($app->make(DatabaseDefinitions::class), $app->make(ValueEncoder::class), $access),
-            );
-        });
-    }
-
-    /** Export, import and store diff (G-42), and the importers (G-43). */
-    private function registerTransfer(): void
-    {
-        $this->app->singleton(StoreSnapshots::class, static fn (Application $app): StoreSnapshots => new StoreSnapshots(
-            $app->make(ValueEncrypter::class),
-            $app->make(ValueEncoder::class),
-        ));
-
-        $this->app->scoped(TransferActions::class, static function (Application $app): TransferActions {
-            $access = $app->make(AccessGuard::class);
-            $snapshots = $app->make(StoreSnapshots::class);
-            $actions = $app->make(SettingActions::class);
-
-            return new TransferActions(
-                new ExportStore($access, $snapshots),
-                new ImportStore(
-                    $access,
-                    $snapshots,
-                    $app->make(ValuePipeline::class),
-                    $app->make(ValueEncoder::class),
-                    $actions->set,
-                    $actions->lock,
-                    $app->make(StoreActions::class)->categories->create,
-                    self::definitionLookup($app),
-                ),
-                new DiffStore($access, $snapshots),
-            );
-        });
-
-        $this->app->singleton(Importers::class, static fn (Application $app): Importers => new Importers(
-            self::array($app, 'laranail.settings.importers'),
-            static function (string $class) use ($app): object {
-                $importer = $app->make($class);
-
-                return is_object($importer) ? $importer : throw new InvalidConfiguration(sprintf('laranail.settings.importers: [%s] did not build an object.', $class));
-            },
-        ));
-    }
-
-    /**
-     * The REST API: its rate limiter, its routes under `http.prefix`/v1 and problem details for
-     * the errors its routes raise. Reads configuration only; touches neither database nor cache.
-     */
-    private function bootHttp(Application $app, Repository $config): void
-    {
-        $perMinute = self::integer($app, 'laranail.settings.http.rate_limit', 60);
-
-        RateLimiter::for('laranail-settings', static function (Request $request) use ($perMinute): Limit {
-            $user = $request->user()?->getAuthIdentifier();
-
-            return $perMinute > 0
-                ? Limit::perMinute($perMinute)->by(is_scalar($user) ? 'user:' . $user : 'ip:' . $request->ip())
-                : Limit::none();
-        });
-
         $middleware = $config->get('laranail.settings.http.middleware');
         $middleware = is_array($middleware)
             ? array_values(array_filter($middleware, is_string(...)))
             : ['api', class_exists('Laravel\\Sanctum\\Sanctum') ? 'auth:sanctum' : 'auth'];
+        $prefix = trim($config->string('laranail.settings.http.prefix', 'api/settings'), '/');
 
-        ApiRoutes::register(
-            $app->make(Router::class),
-            self::string($app, 'laranail.settings.http.prefix', 'api/settings'),
-            $middleware,
-            self::array($app, 'laranail.settings.http.routes'),
-        );
+        if (! $this->app instanceof CachesRoutes || ! $this->app->routesAreCached()) {
+            Route::prefix(ltrim($prefix . '/v1', '/'))
+                ->name('laranail-settings.api.')
+                ->middleware([...$middleware, 'throttle:laranail-settings'])
+                ->where(['store' => '[a-z][a-z0-9_]*', 'key' => '[A-Za-z0-9_.]+', 'alias' => '[a-z][a-z0-9_]*', 'kind' => 'stores|layers'])
+                ->group($this->package->basePath('/routes/api.php'));
+        }
 
-        $handler = $app->make(ExceptionHandler::class);
+        $handler = $this->app->make(ExceptionHandler::class);
+        $app = $this->app;
 
         if (method_exists($handler, 'renderable')) {
-            $handler->renderable(static fn (Throwable $exception, Request $request): ?JsonResponse => Problems::render($exception, $request));
+            $handler->renderable(static fn (Throwable $exception, Request $request): mixed => $app->make(Problems::class)->render($exception, $request));
         }
     }
 
     /**
-     * Typed settings (Phase 5): a typed settings class resolved from the container is loaded
-     * through the request's settings handle; classes listed in `typed.classes` register their
-     * definitions when the definition registry is first built; settings migrations get their
-     * migrator. Nothing is read at boot.
-     */
-    private function registerTyped(): void
-    {
-        $this->app->scoped(MigrateSettings::class, static fn (Application $app): MigrateSettings => new MigrateSettings(
-            $app->make(StoreRegistry::class),
-            $app->make(SettingWriter::class),
-            $app->make(ValuePipeline::class),
-            $app->make(AccessGuard::class),
-            self::definitionLookup($app),
-        ));
-
-        $app = $this->app;
-        SettingsMigration::resolveMigratorUsing(static fn (): SettingsMigrator => new SettingsMigrator(
-            $app->make(MigrateSettings::class),
-            new StoreName(self::string($app, 'laranail.settings.default', 'settings')),
-            Actor::system('settings migration'),
-        ));
-
-        $this->app->afterResolving(DefinitionRegistry::class, static function (DefinitionRegistry $registry) use ($app): void {
-            foreach (self::strings($app, 'laranail.settings.typed.classes') as $class) {
-                if (! is_subclass_of($class, TypedSettings::class)) {
-                    throw new InvalidConfiguration(sprintf('laranail.settings.typed.classes: [%s] is not a typed settings class.', $class));
-                }
-
-                $class::register($registry);
-            }
-        });
-
-        $this->app->beforeResolving(static function (mixed $abstract, array $parameters, Application $app): void {
-            if (is_string($abstract) && is_subclass_of($abstract, TypedSettings::class) && ! $app->bound($abstract)) {
-                $app->bind($abstract, static fn (Application $app): TypedSettings => $abstract::load($app->make(Settings::class)));
-            }
-        });
-    }
-
-    /** What the REST API's controllers are built from (bound always; cheap, and used only by routes). */
-    private function registerHttp(): void
-    {
-        $this->app->scoped(SettingTargets::class, static fn (Application $app): SettingTargets => new SettingTargets(
-            $app->make(StoreRegistry::class),
-            self::definitionLookup($app),
-        ));
-
-        $this->app->scoped(OwnerResolver::class, static function (Application $app): OwnerResolver {
-            $owners = self::array($app, 'laranail.settings.http.owners');
-
-            return new MorphMapOwnerResolver(static fn (string $alias): ?string => is_string($owners[$alias] ?? null) ? $owners[$alias] : Relation::getMorphedModel($alias));
-        });
-
-        $this->app->bind(IdempotentWrites::class, static function (Application $app): IdempotentWrites {
-            $store = $app->make(Repository::class)->get('laranail.settings.http.idempotency.cache');
-            $cache = $app->make(Caches::class)->store(is_string($store) && $store !== '' ? $store : null);
-
-            return new IdempotentWrites(
-                $cache instanceof CacheRepository ? $cache : throw new InvalidConfiguration('laranail.settings.http.idempotency.cache: not a cache repository.'),
-                self::integer($app, 'laranail.settings.http.idempotency.ttl', 86400),
-                self::string($app, 'laranail.settings.cache.prefix', 'laranail-settings'),
-            );
-        });
-
-        // Each action a controller takes is the instance the PHP API uses (§16.2).
-        $this->app->scoped(SetSetting::class, static fn (Application $app): SetSetting => $app->make(SettingActions::class)->set);
-        $this->app->scoped(ForgetSetting::class, static fn (Application $app): ForgetSetting => $app->make(SettingActions::class)->forget);
-        $this->app->scoped(LockSetting::class, static fn (Application $app): LockSetting => $app->make(SettingActions::class)->lock);
-        $this->app->scoped(UnlockSetting::class, static fn (Application $app): UnlockSetting => $app->make(SettingActions::class)->unlock);
-        $this->app->scoped(RollbackSetting::class, static fn (Application $app): RollbackSetting => $app->make(HistoryActions::class)->rollback);
-        $this->app->scoped(ProposeChange::class, static fn (Application $app): ProposeChange => $app->make(ApprovalActions::class)->propose);
-        $this->app->scoped(ApproveChange::class, static fn (Application $app): ApproveChange => $app->make(ApprovalActions::class)->approve);
-        $this->app->scoped(RejectChange::class, static fn (Application $app): RejectChange => $app->make(ApprovalActions::class)->reject);
-        $this->app->scoped(CancelChange::class, static fn (Application $app): CancelChange => $app->make(ApprovalActions::class)->cancel);
-        $this->app->scoped(QueryChanges::class, static fn (Application $app): QueryChanges => $app->make(ApprovalActions::class)->query);
-        $this->app->scoped(CreateCategory::class, static fn (Application $app): CreateCategory => $app->make(StoreActions::class)->categories->create);
-        $this->app->scoped(RenameCategory::class, static fn (Application $app): RenameCategory => $app->make(StoreActions::class)->categories->rename);
-        $this->app->scoped(MoveCategory::class, static fn (Application $app): MoveCategory => $app->make(StoreActions::class)->categories->move);
-        $this->app->scoped(DeleteCategory::class, static fn (Application $app): DeleteCategory => $app->make(StoreActions::class)->categories->delete);
-        $this->app->scoped(SaveConfigurationEntry::class, static fn (Application $app): SaveConfigurationEntry => $app->make(ConfigurationActions::class)->save);
-        $this->app->scoped(DeleteConfigurationEntry::class, static fn (Application $app): DeleteConfigurationEntry => $app->make(ConfigurationActions::class)->delete);
-        $this->app->scoped(ListConfigurationEntries::class, static fn (Application $app): ListConfigurationEntries => $app->make(ConfigurationActions::class)->list);
-        $this->app->scoped(SaveDefinition::class, static fn (Application $app): SaveDefinition => $app->make(ConfigurationActions::class)->saveDefinition);
-        $this->app->scoped(DeleteDefinition::class, static fn (Application $app): DeleteDefinition => $app->make(ConfigurationActions::class)->deleteDefinition);
-        $this->app->scoped(ExportStore::class, static fn (Application $app): ExportStore => $app->make(TransferActions::class)->export);
-        $this->app->scoped(ImportStore::class, static fn (Application $app): ImportStore => $app->make(TransferActions::class)->import);
-        $this->app->scoped(DiffStore::class, static fn (Application $app): DiffStore => $app->make(TransferActions::class)->diff);
-    }
-
-    /** Four-eyes approvals (§16.7): the policy from `approvals.*`, and the actions over it. */
-    private function registerApprovals(): void
-    {
-        $this->app->scoped(ApprovalPolicy::class, static function (Application $app): ApprovalPolicy {
-            $config = $app->make(Repository::class);
-            $days = static function (string $key, ?int $default) use ($config): ?int {
-                $value = $config->get('laranail.settings.approvals.' . $key, $default);
-
-                return $value === null ? null : (is_numeric($value) ? (int) $value : throw new InvalidConfiguration(sprintf('laranail.settings.approvals.%s: a number of days, or null.', $key)));
-            };
-
-            return new ApprovalPolicy(
-                self::integer($app, 'laranail.settings.approvals.min_approvals', 1),
-                $config->get('laranail.settings.approvals.allow_self', false) === true,
-                $days('expire_after', 7),
-                $days('keep_days', 90),
-            );
-        });
-
-        $this->app->scoped(ApprovalActions::class, static function (Application $app): ApprovalActions {
-            $access = $app->make(AccessGuard::class);
-            $events = $app->make(Dispatcher::class);
-            $policy = $app->make(ApprovalPolicy::class);
-            $definitions = self::definitionLookup($app);
-
-            return new ApprovalActions(
-                new ProposeChange($access, $app->make(ValuePipeline::class), $events, $policy),
-                new ApproveChange($access, $app->make(SettingWriter::class), $app->make(ValuePipeline::class), $events, $definitions, $policy),
-                new RejectChange($access, $events, $definitions),
-                new CancelChange($access, $events),
-                new QueryChanges($app->make(StoreRegistry::class), $access),
-                new PruneChanges($app->make(StoreRegistry::class), $access, $policy),
-            );
-        });
-    }
-
-    /**
-     * The settings cache (§7.5), built on first use, never at boot: the configured cache store
-     * (null for the application's default), keyed per tenant, reporting cache failures to the
-     * operational log. Scoped, so the bags it holds in memory last one request or job.
-     */
-    private function registerCache(): void
-    {
-        $this->app->scoped(SettingsCache::class, static function (Application $app): SettingsCache {
-            $name = $app->make(Repository::class)->get('laranail.settings.cache.store');
-
-            if ($name !== null && (! is_string($name) || $name === '')) {
-                throw new InvalidConfiguration('laranail.settings.cache.store: a cache store name, or null for the default store.');
-            }
-
-            try {
-                $cache = $app->make(Caches::class)->store($name);
-            } catch (InvalidArgumentException $exception) {
-                throw new InvalidConfiguration(sprintf('laranail.settings.cache.store: %s', $exception->getMessage()), $exception->getCode(), previous: $exception);
-            }
-
-            if (! $cache instanceof CacheRepository) {
-                throw new InvalidConfiguration(sprintf('laranail.settings.cache.store: [%s] is not a Laravel cache repository.', get_debug_type($cache)));
-            }
-
-            return new SettingsCache(
-                $cache,
-                self::string($app, 'laranail.settings.cache.prefix', 'laranail-settings'),
-                self::integer($app, 'laranail.settings.cache.ttl', 3600),
-                self::integer($app, 'laranail.settings.cache.stale', 300),
-                static fn (): ?string => $app->make(TenantDiscriminator::class)->current(),
-                static function (string $operation, Throwable $exception) use ($app): void {
-                    $app->make(OperationalLogger::class)->warning(sprintf('laranail/settings: the settings cache failed (%s): %s. Reads fall back to the database; a failed invalidation leaves bags stale until they expire or clear-cache runs.', $operation, $exception->getMessage()), [
-                        'operation' => $operation,
-                        'exception' => $exception::class,
-                    ]);
-                },
-            );
-        });
-    }
-
-    /**
-     * The built-in listeners, resolved when an event fires: the operational log, and alerts with
-     * their rules (validated then, with each rule's config path in the error), the throttle cache
-     * and the sensitive-key check that `sensitive_only` rules use.
-     */
-    private function registerListeners(): void
-    {
-        $this->app->bind(LogSettingsEvent::class, static fn (Application $app): LogSettingsEvent => new LogSettingsEvent($app->make(OperationalLogger::class)));
-
-        $this->app->bind(SendSettingsAlert::class, static function (Application $app): SendSettingsAlert {
-            $config = $app->make(Repository::class);
-            $cache = $config->get('laranail.settings.alerts.cache');
-            $throttle = self::integer($app, 'laranail.settings.alerts.throttle', 300);
-            $repository = null;
-
-            if ($throttle > 0) {
-                $store = $app->make(Caches::class)->store(is_string($cache) && $cache !== '' ? $cache : null);
-                $repository = $store instanceof CacheRepository ? $store : null;
-            }
-
-            return new SendSettingsAlert(
-                $app->make(NotificationDispatcher::class),
-                array_values(array_map(
-                    static fn (mixed $rule, int|string $index): AlertRule => is_array($rule)
-                        ? AlertRule::fromConfig($rule, $index)
-                        : throw new InvalidConfiguration(sprintf('laranail.settings.alerts.rules.%s: each rule is an array.', $index)),
-                    self::array($app, 'laranail.settings.alerts.rules'),
-                    array_keys(self::array($app, 'laranail.settings.alerts.rules')),
-                )),
-                static function (?string $store, ?string $key) use ($app): bool {
-                    if ($store === null || $key === null) {
-                        return false;
-                    }
-
-                    try {
-                        $name = new StoreName($store);
-                        $setting = new Key($key);
-                    } catch (SettingsException) {
-                        return false;
-                    }
-
-                    return ($app->make(RuntimeConfiguration::class)->findDefinition($name, $setting)
-                        ?? $app->make(DefinitionRegistry::class)->find($name, $setting))?->isSensitive() ?? false;
-                },
-                self::clock(),
-                $app->make(OperationalLogger::class),
-                $repository,
-                $throttle,
-                self::string($app, 'laranail.settings.cache.prefix', 'laranail-settings'),
-            );
-        });
-    }
-
-    /**
      * Tenancy (Amendment B): who the current tenant is, and the context the Eloquent models read
-     * it from. `tenancy.discriminator`: `auto` (stancl/tenancy, then spatie/laravel-multitenancy,
-     * when installed; otherwise none), `null`, `stancl`, `spatie`, or a class implementing
-     * TenantDiscriminator. Bound `scoped`: the tenant changes between requests and jobs.
+     * it from. `tenancy.discriminator`: `auto`, `null`, `stancl`, `spatie`, or a class
+     * implementing TenantDiscriminator.
      */
     private function registerTenancy(): void
     {
         $this->app->scoped(TenantDiscriminator::class, static function (Application $app): TenantDiscriminator {
-            $binding = $app->make(Repository::class)->get('multitenancy.current_tenant_container_key', 'currentTenant');
+            $config = $app->make(Repository::class);
+            $binding = $config->get('multitenancy.current_tenant_container_key', 'currentTenant');
 
             return new TenantDiscriminators($app, is_string($binding) ? $binding : 'currentTenant')
-                ->make($app->make(Repository::class)->get('laranail.settings.tenancy.discriminator', 'auto'));
+                ->make($config->get('laranail.settings.tenancy.discriminator', 'auto'));
         });
 
         $app = $this->app;
         ModelContext::use(
             static fn (): SchemaShape => $app->make(SchemaShapeRepository::class)->current(),
             static fn (): ?string => $app->make(TenantDiscriminator::class)->current(),
-            static fn (): string => self::string($app, 'laranail.settings.default', 'settings'),
+            static fn (): string => $app->make(Repository::class)->string('laranail.settings.default', 'settings'),
         );
+    }
+
+    /** Drivers, the recorded schema, the stores, the runtime configuration and the cache. */
+    private function registerStores(): void
+    {
+        // A singleton, so a driver registered with extend() lasts; the scoped services it hands
+        // to database drivers are closures, resolved for the request that uses them.
+        $this->app->singleton(DriverFactory::class, static fn (Application $app): DriverFactory => new DriverFactory(
+            $app->make(Disks::class),
+            $app->make(Repository::class),
+            new ReadOnlyValues($app->make(ValueEncoder::class)),
+            $app->make(RecordSerializer::class),
+            $app->basePath(),
+            $app->make(ConnectionResolverInterface::class),
+            SchemaNames::fromConfig($app->make(Repository::class)->array('laranail.settings.tables', [])),
+            static fn (): SchemaReadinessInterface => $app->make(SchemaReadinessInterface::class),
+            static fn (): SchemaShape => $app->make(SchemaShapeRepository::class)->current(),
+            static fn (): ?string => $app->make(TenantDiscriminator::class)->current(),
+        ));
+
+        $this->app->scoped(SchemaShapeRepository::class, static function (Application $app): SchemaShapeRepository {
+            $path = $app->make(Repository::class)->get('laranail.settings.schema.path');
+
+            return new SchemaShapeRepository($app->make(Filesystem::class), is_string($path) && $path !== '' ? $path : $app->databasePath('settings-schema.php'), $app->make(Repository::class));
+        });
+
+        // The operator's flag, or laranail/installer-headless (suggested) reporting an install.
+        $this->app->scoped(InstallationEvidence::class, static function (Application $app): InstallationEvidence {
+            $installer = 'Simtabi\\Laranail\\Installer\\Headless\\Support\\InstallationState';
+
+            return new InstallationEvidence(
+                $app->make(Repository::class)->get('laranail.settings.bootstrap', false) === true,
+                class_exists($installer) ? static function () use ($app, $installer): bool {
+                    $state = $app->make($installer);
+
+                    return is_object($state) && method_exists($state, 'isInstalling') && $state->isInstalling() === true;
+                } : null,
+            );
+        });
+
+        // Its change log is a closure: the logger and the auditor read the runtime configuration.
+        $this->app->scoped(RuntimeConfiguration::class, static fn (Application $app): RuntimeConfiguration => new RuntimeConfiguration(
+            $app->make(DriverFactory::class),
+            $app->make(Repository::class)->string('laranail.settings.default', 'settings'),
+            $app->make(Repository::class)->array('laranail.settings.stores', []),
+            $app->make(Repository::class)->array('laranail.settings.layers', []),
+            $app->make(CasterRegistry::class),
+            static function (string $change) use ($app): void {
+                $app->make(OperationalLogger::class)->info('laranail/settings runtime configuration: ' . $change);
+                $app->make(Auditor::class)->record(AuditAction::Configure, AuditOutcome::Allowed, null, null, meta: ['change' => $change]);
+            },
+        ));
+
+        $this->app->scoped(StoreRegistry::class, static fn (Application $app): StoreRegistry => new StoreRegistry(
+            $app->make(DriverFactory::class),
+            $app->make(Repository::class)->string('laranail.settings.default', 'settings'),
+            $app->make(Repository::class)->array('laranail.settings.stores', []),
+            $app->make(Repository::class)->array('laranail.settings.layers', []),
+            runtime: $app->make(RuntimeConfiguration::class),
+            evidence: $app->make(InstallationEvidence::class),
+            events: $app->make(Dispatcher::class),
+            cache: self::cacheEnabled($app) ? $app->make(SettingsCache::class) : null,
+            persisted: $app->make(PersistedConfiguration::class),
+            sources: self::configurationSources($app->make(Repository::class)),
+        ));
+
+        // The settings cache (§7.5): the configured cache store, null for the default one.
+        $this->app->scoped(SettingsCache::class, static function (Application $app): SettingsCache {
+            $config = $app->make(Repository::class);
+
+            return new SettingsCache(
+                self::cacheStore($app, $config->get('laranail.settings.cache.store'), 'laranail.settings.cache.store'),
+                $config->string('laranail.settings.cache.prefix', 'laranail-settings'),
+                $config->integer('laranail.settings.cache.ttl', 3600),
+                $config->integer('laranail.settings.cache.stale', 300),
+                $app->make(TenantDiscriminator::class),
+                $app->make(OperationalLogger::class),
+            );
+        });
+
+        $this->app->bind(ClearCache::class, static fn (Application $app): ClearCache => new ClearCache(
+            $app->make(AccessGuard::class),
+            self::cacheEnabled($app) ? $app->make(SettingsCache::class) : null,
+            new StoreName($app->make(Repository::class)->string('laranail.settings.default', 'settings')),
+        ));
+
+        $this->app->bind(MakeStore::class, static fn (Application $app): MakeStore => new MakeStore(
+            $app->make(Filesystem::class),
+            dirname(__DIR__, 2) . '/database/migrations/' . MakeStore::MIGRATION . '.php',
+            $app->databasePath('migrations'),
+            $app->make(SchemaShapeRepository::class),
+        ));
+
+        // Resolved only when a value is encrypted or decrypted, so an application without an
+        // APP_KEY yet still boots and reads its unencrypted settings.
+        $this->app->singleton(LaravelValueEncrypter::class, static fn (Application $app): LaravelValueEncrypter => new LaravelValueEncrypter(
+            static fn (): StringEncrypter => $app->make(StringEncrypter::class),
+        ));
+    }
+
+    /** Code and config definitions, the definitions table (D-6) and the approval policy (§16.7). */
+    private function registerDefinitions(): void
+    {
+        $this->app->singleton(DefinitionRegistry::class, static fn (Application $app): DefinitionRegistry => new DefinitionRegistry(
+            new StoreName($app->make(Repository::class)->string('laranail.settings.default', 'settings')),
+            $app->make(CasterRegistry::class),
+            in_array('config', self::definitionSources($app->make(Repository::class)), true) ? $app->make(Repository::class)->array('laranail.settings.definitions', []) : [],
+        ));
+
+        $this->app->scoped(DatabaseDefinitions::class, static fn (Application $app): DatabaseDefinitions => new DatabaseDefinitions(
+            $app->make(CasterRegistry::class),
+            $app->make(ValueEncoder::class),
+            self::strings($app->make(Repository::class), 'laranail.settings.definitions.allowed_rules'),
+            in_array('database', self::definitionSources($app->make(Repository::class)), true),
+        ));
+
+        $this->app->scoped(ApprovalPolicy::class, static fn (Application $app): ApprovalPolicy => ApprovalPolicy::fromConfig($app->make(Repository::class)->array('laranail.settings.approvals', [])));
     }
 
     /** Actor resolution, authorization, verification, audit and the operational log. */
     private function registerAccess(): void
     {
         $this->app->scoped(OperationalLogger::class, static function (Application $app): OperationalLogger {
-            $channel = $app->make(Repository::class)->get('laranail.settings.logging.channel');
+            $config = $app->make(Repository::class);
+            $channel = $config->get('laranail.settings.logging.channel');
 
             return new OperationalLogger(
                 $channel === false ? new NullLogger : $app->make(LogManager::class)->channel(is_string($channel) ? $channel : null),
-                self::string($app, 'laranail.settings.logging.level', LogLevel::INFO),
+                $config->string('laranail.settings.logging.level', LogLevel::INFO),
                 $app->make(RuntimeConfiguration::class),
             );
         });
 
-        $this->app->scoped(Auditor::class, static fn (Application $app): Auditor => new Auditor(
-            array_map(
-                static fn (mixed $sink, int|string $index): AuditSink => self::auditSink($app, $sink, 'laranail.settings.audit.sinks.' . $index),
-                self::array($app, 'laranail.settings.audit.sinks'),
-                array_keys(self::array($app, 'laranail.settings.audit.sinks')),
-            ),
-            self::clock(),
-            $app->make(RuntimeConfiguration::class),
-        ));
+        $this->app->scoped(Auditor::class, static function (Application $app): Auditor {
+            $sinks = $app->make(Repository::class)->array('laranail.settings.audit.sinks', []);
+
+            return new Auditor(
+                array_values(array_map(static fn (mixed $sink, int|string $index): AuditSink => self::auditSink($app, $sink, 'laranail.settings.audit.sinks.' . $index), $sinks, array_keys($sinks))),
+                $app->make(Clock::class),
+                $app->make(RuntimeConfiguration::class),
+            );
+        });
 
         $this->app->scoped(Authorizer::class, static function (Application $app): Authorizer {
             $driver = $app->make(Repository::class)->get('laranail.settings.authorization.driver', 'gate');
 
-            if (is_array($driver)) {
-                return new ChainAuthorizer(array_values(array_map(
-                    static fn (mixed $name, int|string $index): Authorizer => self::authorizer($app, $name, 'laranail.settings.authorization.driver.' . $index),
-                    $driver,
-                    array_keys($driver),
-                )));
-            }
-
-            return self::authorizer($app, $driver, 'laranail.settings.authorization.driver');
+            return is_array($driver)
+                ? new ChainAuthorizer(array_values(array_map(static fn (mixed $name, int|string $index): Authorizer => self::authorizer($app, $name, 'laranail.settings.authorization.driver.' . $index), $driver, array_keys($driver))))
+                : self::authorizer($app, $driver, 'laranail.settings.authorization.driver');
         });
 
-        $this->app->scoped(Verifier::class, static function (Application $app): Verifier {
-            $driver = $app->make(Repository::class)->get('laranail.settings.verification.driver', 'password_confirmation');
-
-            return match ($driver) {
-                'password_confirmation' => new PasswordConfirmationVerifier(
-                    static fn (): ?Session => $app->bound('request') && $app->make('request') instanceof Request && $app->make('request')->hasSession()
-                        ? $app->make('request')->session()
-                        : null,
-                    self::integer($app, 'auth.password_timeout', 10800),
-                    self::clock(),
-                ),
-                'actor' => new ActorTimestampVerifier(self::integer($app, 'laranail.settings.verification.ttl', 900), self::clock()),
-                'none'  => new NullVerifier,
-                default => self::instance($app, $driver, Verifier::class, 'laranail.settings.verification.driver'),
-            };
+        $this->app->scoped(Verifier::class, static fn (Application $app): Verifier => match ($driver = $app->make(Repository::class)->get('laranail.settings.verification.driver', 'password_confirmation')) {
+            // The session is read per call: the request changes under this scoped verifier.
+            'password_confirmation' => new PasswordConfirmationVerifier(
+                static fn () => $app->bound('request') && $app->make('request') instanceof Request && $app->make('request')->hasSession() ? $app->make('request')->session() : null,
+                $app->make(Repository::class)->integer('auth.password_timeout', 10800),
+                $app->make(Clock::class),
+            ),
+            'actor' => $app->make(ActorTimestampVerifier::class),
+            'none'  => new NullVerifier,
+            default => self::instance($app, $driver, Verifier::class, 'laranail.settings.verification.driver'),
         });
 
         $this->app->scoped(ActorResolver::class, static function (Application $app): ActorResolver {
-            $resolver = $app->make(Repository::class)->get('laranail.settings.authentication.resolver', 'guard');
-            $guards = self::strings($app, 'laranail.settings.authentication.guards');
+            $guards = self::strings($app->make(Repository::class), 'laranail.settings.authentication.guards');
             $request = static fn (): ?Request => $app->bound('request') && $app->make('request') instanceof Request ? $app->make('request') : null;
 
-            return match ($resolver) {
+            return match ($resolver = $app->make(Repository::class)->get('laranail.settings.authentication.resolver', 'guard')) {
                 'guard'   => new GuardActorResolver($app->make(AuthFactory::class), $guards, $request),
                 'sanctum' => new SanctumActorResolver($app->make(AuthFactory::class), $guards, $request),
                 default   => self::instance($app, $resolver, ActorResolver::class, 'laranail.settings.authentication.resolver'),
@@ -1138,7 +621,8 @@ final class SettingsServiceProvider extends PackageServiceProvider
         });
 
         $this->app->scoped(AccessGuard::class, static function (Application $app): AccessGuard {
-            $undefined = $app->make(Repository::class)->get('laranail.settings.authorization.undefined', 'deny');
+            $config = $app->make(Repository::class);
+            $undefined = $config->get('laranail.settings.authorization.undefined', 'deny');
 
             if (! in_array($undefined, ['allow', 'deny'], true)) {
                 throw new InvalidConfiguration('laranail.settings.authorization.undefined: use [allow] or [deny].');
@@ -1151,15 +635,74 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 $app->make(Auditor::class),
                 $app->make(OperationalLogger::class),
                 array_map(
-                    static fn (string $ability): Ability => Ability::tryFrom($ability)
-                        ?? throw new InvalidConfiguration(sprintf('laranail.settings.verification.abilities: unknown ability [%s].', $ability)),
-                    self::strings($app, 'laranail.settings.verification.abilities'),
+                    static fn (string $ability): Ability => Ability::tryFrom($ability) ?? throw new InvalidConfiguration(sprintf('laranail.settings.verification.abilities: unknown ability [%s].', $ability)),
+                    self::strings($config, 'laranail.settings.verification.abilities'),
                 ),
                 $undefined === 'allow',
-                $app->make(Repository::class)->get('laranail.settings.authorization.require_actor', false) === true,
+                $config->get('laranail.settings.authorization.require_actor', false) === true,
                 $app->make(RuntimeConfiguration::class),
                 $app->make(Dispatcher::class),
             );
         });
+    }
+
+    /** The REST API's idempotency cache, and the alert listener with its rules and throttle. */
+    private function registerHttp(): void
+    {
+        $this->app->bind(IdempotentWrites::class, static fn (Application $app): IdempotentWrites => new IdempotentWrites(
+            self::cacheStore($app, $app->make(Repository::class)->get('laranail.settings.http.idempotency.cache'), 'laranail.settings.http.idempotency.cache'),
+            $app->make(Repository::class)->integer('laranail.settings.http.idempotency.ttl', 86400),
+            $app->make(Repository::class)->string('laranail.settings.cache.prefix', 'laranail-settings'),
+        ));
+
+        $this->app->bind(SendSettingsAlert::class, static function (Application $app): SendSettingsAlert {
+            $config = $app->make(Repository::class);
+            $throttle = $config->integer('laranail.settings.alerts.throttle', 300);
+            $rules = $config->array('laranail.settings.alerts.rules', []);
+            $cache = $config->get('laranail.settings.alerts.cache');
+            $store = $throttle > 0 ? $app->make(Caches::class)->store(is_string($cache) && $cache !== '' ? $cache : null) : null;
+
+            return new SendSettingsAlert(
+                $app->make(Notifications::class),
+                array_values(array_map(
+                    static fn (mixed $rule, int|string $index): AlertRule => is_array($rule) ? AlertRule::fromConfig($rule, $index) : throw new InvalidConfiguration(sprintf('laranail.settings.alerts.rules.%s: each rule is an array.', $index)),
+                    $rules,
+                    array_keys($rules),
+                )),
+                $app->make(Definitions::class),
+                $app->make(Clock::class),
+                $app->make(OperationalLogger::class),
+                $app->make(Translator::class),
+                $store instanceof CacheRepository ? $store : null,
+                $throttle,
+                $config->string('laranail.settings.cache.prefix', 'laranail-settings'),
+            );
+        });
+    }
+
+    /**
+     * Typed settings (Phase 5): each class in `typed.classes` registers its definitions when the
+     * definition registry is first built (and is bound at boot); settings migrations get their
+     * migrator.
+     */
+    private function registerTyped(): void
+    {
+        $app = $this->app;
+
+        $app->afterResolving(DefinitionRegistry::class, static function (DefinitionRegistry $registry) use ($app): void {
+            foreach (self::strings($app->make(Repository::class), 'laranail.settings.typed.classes') as $class) {
+                if (! is_subclass_of($class, TypedSettings::class)) {
+                    throw new InvalidConfiguration(sprintf('laranail.settings.typed.classes: [%s] is not a typed settings class.', $class));
+                }
+
+                $class::register($registry);
+            }
+        });
+
+        SettingsMigration::resolveMigratorUsing(static fn (): SettingsMigrator => new SettingsMigrator(
+            $app->make(MigrateSettings::class),
+            new StoreName($app->make(Repository::class)->string('laranail.settings.default', 'settings')),
+            Actor::system('settings migration'),
+        ));
     }
 }

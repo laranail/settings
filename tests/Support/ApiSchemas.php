@@ -2,156 +2,86 @@
 
 declare(strict_types=1);
 
-namespace Simtabi\Laranail\Settings\Http\OpenApi;
-
-use Illuminate\Routing\Route;
-use Simtabi\Laranail\Settings\Http\ApiRoutes;
-use Simtabi\Laranail\Settings\Enums\Capability;
+namespace Simtabi\Laranail\Settings\Tests\Support;
 
 /**
- * An OpenAPI 3.1 document for the REST API (§16.12), built from the routes actually registered
- * (so a group switched off in `http.routes` is absent), with one schema per resource. A test
- * validates real responses against it, so the document cannot drift from what the API returns.
+ * The response shapes of the REST API, as JSON Schema: what each route answers on success, by
+ * route name, and one schema per resource. The REST tests validate every response against them,
+ * so a resource cannot change its shape without a test noticing.
  */
-final readonly class OpenApiDocument
+final class ApiSchemas
 {
-    /**
-     * @param iterable<Route> $routes the application's routes; only the API's are read
-     *
-     * @return array<string, mixed>
-     */
-    public static function build(iterable $routes, string $version = '0.1.0'): array
+    /** route name (without `laranail-settings.api.` and `owners.`) => [schema, list?, status] */
+    private const array RESPONSES = [
+        'stores.index'          => ['Store', true, 200],
+        'definitions.index'     => ['Definition', true, 200],
+        'settings.index'        => ['Setting', true, 200],
+        'settings.show'         => ['Setting', false, 200],
+        'settings.update'       => ['Setting', false, 200],
+        'settings.lock'         => ['Setting', false, 200],
+        'settings.unlock'       => ['Setting', false, 200],
+        'settings.rollback'     => ['Setting', false, 200],
+        'settings.destroy'      => [null, false, 204],
+        'categories.destroy'    => [null, false, 204],
+        'configuration.destroy' => [null, false, 204],
+        'definitions.destroy'   => [null, false, 204],
+        'settings.explain'      => ['Explanation', false, 200],
+        'settings.history'      => ['HistoryEntry', true, 200],
+        'audit.index'           => ['AuditEntry', true, 200],
+        'changes.index'         => ['ChangeRequest', true, 200],
+        'changes.store'         => ['ChangeRequest', false, 202],
+        'changes.show'          => ['ChangeRequest', false, 200],
+        'changes.approve'       => ['ChangeRequest', false, 200],
+        'changes.reject'        => ['ChangeRequest', false, 200],
+        'changes.cancel'        => ['ChangeRequest', false, 200],
+        'categories.index'      => ['Category', true, 200],
+        'categories.store'      => ['Category', false, 201],
+        'categories.update'     => ['Category', false, 200],
+        'configuration.index'   => ['ConfigurationEntry', true, 200],
+        'configuration.update'  => ['ConfigurationEntry', false, 200],
+        'definitions.update'    => ['Definition', false, 200],
+        'transfer.export'       => ['ExportDocument', false, 200],
+        'transfer.import'       => ['ImportReport', false, 200],
+        'transfer.diff'         => ['StoreDiff', false, 200],
+    ];
+
+    /** The routes whose write may open a change request instead (202). */
+    private const array MAY_PROPOSE = ['settings.update', 'settings.destroy', 'settings.lock', 'settings.unlock', 'settings.rollback'];
+
+    /** @return list<string> every route name the shapes cover */
+    public static function routes(): array
     {
-        $paths = [];
-
-        foreach ($routes as $route) {
-            $name = (string) $route->getName();
-
-            if (! str_starts_with($name, ApiRoutes::NAME_PREFIX)) {
-                continue;
-            }
-
-            $capability = Capability::from(preg_replace('/^owners\./', '', substr($name, strlen(ApiRoutes::NAME_PREFIX))) ?? '');
-
-            foreach (array_diff($route->methods(), ['HEAD']) as $method) {
-                $paths['/' . $route->uri()][strtolower($method)] = self::operation($name, $capability, $route);
-            }
-        }
-
-        ksort($paths);
-
-        return [
-            'openapi' => '3.1.0',
-            'info'    => [
-                'title'       => 'laranail/settings',
-                'version'     => $version,
-                'description' => 'The settings REST API. Values the caller may not view are left out; errors are RFC 9457 problem details.',
-            ],
-            'paths'      => $paths,
-            'components' => [
-                'schemas'         => self::schemas(),
-                'securitySchemes' => ['bearer' => ['type' => 'http', 'scheme' => 'bearer']],
-            ],
-            'security' => [['bearer' => []]],
-        ];
+        return array_keys(self::RESPONSES);
     }
 
     /**
-     * The schema name a capability's success response holds, and whether it is a list.
+     * The schema a route's response with this status must match: its success shape, a change
+     * request (202 from a write that may propose), or a problem (any 4xx and 5xx); null when the
+     * route does not answer this status with a body.
      *
-     * @return array{?string, bool, int}
+     * @return array<string, mixed>|null
      */
-    public static function response(Capability $capability): array
+    public static function response(string $route, int $status): ?array
     {
-        return match ($capability) {
-            Capability::StoresIndex      => ['Store', true, 200],
-            Capability::DefinitionsIndex => ['Definition', true, 200],
-            Capability::SettingsIndex    => ['Setting', true, 200],
-            Capability::SettingsShow, Capability::SettingsUpdate, Capability::SettingsLock,
-            Capability::SettingsUnlock, Capability::SettingsRollback => ['Setting', false, 200],
-            Capability::SettingsDestroy, Capability::CategoriesDestroy, Capability::ConfigurationDestroy,
-            Capability::DefinitionsDestroy                                                                            => [null, false, 204],
-            Capability::SettingsExplain                                                                               => ['Explanation', false, 200],
-            Capability::SettingsHistory                                                                               => ['HistoryEntry', true, 200],
-            Capability::AuditIndex                                                                                    => ['AuditEntry', true, 200],
-            Capability::ChangesIndex                                                                                  => ['ChangeRequest', true, 200],
-            Capability::ChangesStore                                                                                  => ['ChangeRequest', false, 202],
-            Capability::ChangesShow, Capability::ChangesApprove, Capability::ChangesReject, Capability::ChangesCancel => ['ChangeRequest', false, 200],
-            Capability::CategoriesIndex                                                                               => ['Category', true, 200],
-            Capability::CategoriesStore                                                                               => ['Category', false, 201],
-            Capability::CategoriesUpdate                                                                              => ['Category', false, 200],
-            Capability::ConfigurationIndex                                                                            => ['ConfigurationEntry', true, 200],
-            Capability::ConfigurationUpdate                                                                           => ['ConfigurationEntry', false, 200],
-            Capability::DefinitionsUpdate                                                                             => ['Definition', false, 200],
-            Capability::TransferExport                                                                                => ['ExportDocument', false, 200],
-            Capability::TransferImport                                                                                => ['ImportReport', false, 200],
-            Capability::TransferDiff                                                                                  => ['StoreDiff', false, 200],
+        $name = (string) preg_replace('/^laranail-settings\.api\.(owners\.)?/', '', $route);
+        [$schema, $list, $success] = self::RESPONSES[$name] ?? [null, false, 0];
+
+        return match (true) {
+            $status >= 400                                              => ['$ref' => '#/components/schemas/Problem'],
+            $status === 202 && in_array($name, self::MAY_PROPOSE, true) => self::dataOf('ChangeRequest'),
+            $status === $success && $schema !== null                    => $list ? self::listOf($schema) : self::dataOf($schema),
+            default                                                     => null,
         };
     }
 
-    /** @return array<string, mixed> */
-    private static function operation(string $name, Capability $capability, Route $route): array
+    /** @return array<string, mixed> the document the schemas' `$ref`s resolve in */
+    public static function document(): array
     {
-        [$schema, $list, $status] = self::response($capability);
-        $parameters = [];
-
-        foreach ($route->parameterNames() as $parameter) {
-            $parameters[] = ['name' => $parameter, 'in' => 'path', 'required' => true, 'schema' => ['type' => 'string']];
-        }
-
-        if (in_array($capability, [Capability::SettingsShow, Capability::SettingsIndex, Capability::SettingsExplain, Capability::SettingsHistory, Capability::SettingsUpdate], true)) {
-            $parameters[] = ['name' => 'locale', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']];
-        }
-
-        if ($list) {
-            $parameters[] = ['name' => 'limit', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 200]];
-            $parameters[] = ['name' => 'cursor', 'in' => 'query', 'required' => false, 'schema' => ['type' => 'string']];
-        }
-
-        $problem = ['description' => 'A problem (RFC 9457).', 'content' => ['application/problem+json' => ['schema' => ['$ref' => '#/components/schemas/Problem']]]];
-        $responses = [(string) $status => $schema === null
-            ? ['description' => 'Done.']
-            : ['description' => 'OK.', 'content' => ['application/json' => ['schema' => $list ? self::listOf($schema) : self::dataOf($schema)]]]];
-
-        if (in_array($capability, [Capability::SettingsUpdate, Capability::SettingsDestroy, Capability::SettingsLock, Capability::SettingsUnlock, Capability::SettingsRollback], true)) {
-            $responses['202'] = ['description' => 'The change needs approval: a change request was opened.', 'content' => ['application/json' => ['schema' => self::dataOf('ChangeRequest')]]];
-        }
-
-        foreach (['401', '403', '404', '409', '412', '422', '423', '428', '429'] as $code) {
-            $responses[$code] = $problem;
-        }
-
-        return array_filter([
-            'operationId' => $name,
-            'summary'     => $capability->label(),
-            'tags'        => [$capability->group()],
-            'parameters'  => $parameters,
-            'requestBody' => in_array('GET', $route->methods(), true) ? null : ['required' => false, 'content' => ['application/json' => ['schema' => ['type' => 'object']]]],
-            'responses'   => $responses,
-        ], static fn (mixed $value): bool => $value !== null);
+        return ['components' => ['schemas' => self::schemas()]];
     }
 
     /** @return array<string, mixed> */
-    private static function dataOf(string $schema): array
-    {
-        return ['type' => 'object', 'required' => ['data'], 'properties' => ['data' => ['$ref' => '#/components/schemas/' . $schema]]];
-    }
-
-    /** @return array<string, mixed> */
-    private static function listOf(string $schema): array
-    {
-        return [
-            'type'       => 'object',
-            'required'   => ['data', 'meta'],
-            'properties' => [
-                'data' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/' . $schema]],
-                'meta' => ['type' => 'object', 'required' => ['next_cursor'], 'properties' => ['next_cursor' => ['type' => ['string', 'null']]]],
-            ],
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private static function schemas(): array
+    public static function schemas(): array
     {
         $string = ['type' => 'string'];
         $nullableString = ['type' => ['string', 'null']];
@@ -317,6 +247,25 @@ final readonly class OpenApiDocument
                 'unchanged' => $strings,
                 'unknown'   => $strings,
             ], ['added', 'removed', 'changed', 'unchanged', 'unknown']),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private static function dataOf(string $schema): array
+    {
+        return ['type' => 'object', 'required' => ['data'], 'properties' => ['data' => ['$ref' => '#/components/schemas/' . $schema]]];
+    }
+
+    /** @return array<string, mixed> */
+    private static function listOf(string $schema): array
+    {
+        return [
+            'type'       => 'object',
+            'required'   => ['data', 'meta'],
+            'properties' => [
+                'data' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/' . $schema]],
+                'meta' => ['type' => 'object', 'required' => ['next_cursor'], 'properties' => ['next_cursor' => ['type' => ['string', 'null']]]],
+            ],
         ];
     }
 }

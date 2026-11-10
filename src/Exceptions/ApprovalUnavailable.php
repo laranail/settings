@@ -10,4 +10,9 @@ namespace Simtabi\Laranail\Settings\Exceptions;
  * recorded without the change requests table (`approvals.table`). A store that can hold them turns
  * such a write into a change request instead (§16.7).
  */
-final class ApprovalUnavailable extends SettingsException {}
+final class ApprovalUnavailable extends SettingsException
+{
+    public const int STATUS = 409;
+
+    public const string TYPE = 'approval-unavailable';
+}

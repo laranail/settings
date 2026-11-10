@@ -198,6 +198,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The package is wired the way Laravel wires an application (conventions review, 2026-11-10).
+  `routes/api.php` declares every REST route by hand in named, nested groups, each `http.routes`
+  switch an `if` around its group; the service provider loads it once, under `http.prefix`/v1 and
+  the `laranail-settings.api.` name prefix. URIs, names, methods and middleware are unchanged (39
+  routes). `routes/web.php` is no longer loaded while it holds no routes.
+- `http.prefix` reads `LARANAIL_SETTINGS_HTTP_PREFIX` (default still `api/settings`); slashes are
+  trimmed and an empty prefix mounts the API at `/v1`. Change it when the application already has
+  routes under `/api/settings`: Laravel keeps the last route registered for a method and URI.
+- Most classes are autowired, with their lifetime as `#[Scoped]` / `#[Singleton]` on the class and
+  their configuration as `#[Config]` on the parameter; the service provider binds only what
+  configuration chooses or validates (1,180 lines to about 700). Closure collaborators became
+  injected ones: one `Support\Clock` (Laravel's `Date` seam) for every timestamp, the operational
+  log for write retries and cache failures, the event dispatcher for skipped layers, and a
+  `Services\Definitions\Definitions` service for "which definition applies", which replaced a
+  provider closure and two copies of the same rule.
+- `SettingsManager` takes every collaborator, required, and its fluent methods return a copy; the
+  "built without X" `LogicException`s are gone. `CategoryManager`, `Approvals` and
+  `PersistedConfigurationEditor` take their actions and are narrowed with `in($store, $actor)`.
+- REST controllers take their actions per method, return JSON resources and resource collections
+  (bodies unchanged), and validate each write with its own form request.
+- Each exception names its HTTP status and problem type (`STATUS`, `TYPE`); `Problems` renders them
+  and reads its titles through the translator. Messages are read through Laravel's translator
+  (`laranail/settings::settings.*`), `__()` and `trans_choice()` in the commands.
+- Typed settings classes listed in `typed.classes` are bound when the application boots; the global
+  `beforeResolving` hook is gone, so a class not listed resolves unloaded (build it with
+  `::load()`).
+- The REST rate limiter is registered through package-tools' `registerRateLimiter()` and reads
+  `http.rate_limit` per request.
+- Configuration is read with the repository's typed getters, which throw on a value of the wrong
+  type where the old reader fell back to the default (a digit string for a number is now an error).
+
 - A write to a setting that needs approval opens a change request where the store can hold one;
   `ApprovalUnavailable` is now raised only where it cannot (no active database layer, or no
   change requests table). `SetSetting`, `ForgetSetting`, `LockSetting` and `UnlockSetting` return
@@ -246,6 +277,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   optional `warmCache` and `clearCache` actions.
 
 ### Removed
+
+- Removed with the owner's approval (2026-11-10), before the first tag: `Http\ApiRoutes`,
+  `Enums\Capability`, `Http\OpenApi\OpenApiDocument` and the `laranail::settings.openapi`
+  command; `Http\Middleware\FreshControllers`; the seven action bundles (`SettingActions`,
+  `StoreActions`, `HistoryActions`, `ApprovalActions`, `TransferActions`, `ConfigurationActions`,
+  `CategoryActions`); `Http\Requests\BodyRequest`, `Data\Http\BodyInput` and
+  `Http\Support\ListResponse`; the static `fields()` of the five resources; `Support\Messages`
+  and `Support\ConfigValues`; and the single-implementation contracts `ReadinessProbe` (with
+  `Database\SchemaReadinessProbe`), `ValueValidator`, `ValueEncrypter`, `BootstrapEvidence` and
+  `OwnerResolver`. Inject the action, the concrete class or db-tools' `SchemaReadinessInterface`
+  instead.
 
 - The old names of the 19 classes moved into `Services\` (listed under Changed), the
   `src/deprecated-aliases.php` file that aliased them, `PruneOrphans::find()` (use

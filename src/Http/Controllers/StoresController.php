@@ -4,35 +4,27 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
-use Illuminate\Http\JsonResponse;
 use Simtabi\Laranail\Settings\Http\Support\ApiActor;
 use Simtabi\Laranail\Settings\Actions\Reads\ListStores;
 use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
-use Simtabi\Laranail\Settings\Http\Support\ListResponse;
 use Simtabi\Laranail\Settings\Http\Resources\StoreResource;
 use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Simtabi\Laranail\Settings\Http\Resources\DefinitionResource;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 
 /** `/stores` and `/stores/{store}/definitions`: what an API client can read and write. */
 final readonly class StoresController
 {
-    public function __construct(
-        private ApiActor $actors,
-        private SettingTargets $targets,
-        private ListStores $stores,
-        private ListDefinitions $definitions,
-    ) {}
-
-    public function index(PageRequest $request): JsonResponse
+    public function index(PageRequest $request, ListStores $stores, ApiActor $actors): AnonymousResourceCollection
     {
-        return ListResponse::make(array_map(StoreResource::fields(...), $this->stores->handle($this->actors->of($request))));
+        return StoreResource::collection($stores->handle($actors->of($request)))->additional(['meta' => ['next_cursor' => null]]);
     }
 
-    public function definitions(PageRequest $request): JsonResponse
+    public function definitions(PageRequest $request, ListDefinitions $definitions, SettingTargets $targets, ApiActor $actors): AnonymousResourceCollection
     {
-        $definitions = $this->definitions->handle($this->targets->store($request->addressData()->store), $this->actors->of($request));
+        $list = $definitions->handle($targets->store($request->addressData()->store), $actors->of($request));
 
-        return ListResponse::make(array_map(DefinitionResource::fields(...), $definitions));
+        return DefinitionResource::collection($list)->additional(['meta' => ['next_cursor' => null]]);
     }
 }

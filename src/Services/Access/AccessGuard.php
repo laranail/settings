@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Services\Access;
 
 use Psr\Log\NullLogger;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Psr\Log\LoggerInterface;
 use Simtabi\Laranail\Settings\Data\Actor;
@@ -13,6 +12,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Data\Decision;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
@@ -53,14 +53,14 @@ final readonly class AccessGuard
         private ?Dispatcher $events = null,
     ) {}
 
-    /** A guard that denies every actor and audits nowhere: the safe default for a hand-built manager. */
+    /** A guard that denies every actor and audits nowhere: the safe default for anything built by hand. */
     public static function closed(): self
     {
         return new self(
             new ClosureAuthorizer(static fn (): null => null),
             new NullVerifier,
             new ClosureActorResolver(static fn (): null => null),
-            new Auditor([], static fn (): CarbonImmutable => CarbonImmutable::now()),
+            new Auditor([], new Clock),
             new NullLogger,
         );
     }

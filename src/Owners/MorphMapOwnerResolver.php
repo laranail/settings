@@ -4,30 +4,33 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Owners;
 
-use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Contracts\Settable;
-use Simtabi\Laranail\Settings\Contracts\OwnerResolver;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Simtabi\Laranail\Settings\Exceptions\UnknownOwner;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
- * The default {@see OwnerResolver}: the alias must be in the morph map (or in `http.owners`). A
+ * Resolves the owner a REST URL names: the alias must be in `http.owners` or the morph map. A
  * model that is {@see Settable} is loaded, so its parents take part in reads; a missing record is
  * UnknownOwner. Any other mapped class, or a model whose own morph alias differs (mapped only in
  * `http.owners`), is addressed by alias and id alone.
  */
-final readonly class MorphMapOwnerResolver implements OwnerResolver
+#[Scoped]
+final readonly class MorphMapOwnerResolver
 {
-    /** @param Closure(string): ?string $morphed the class an alias maps to */
+    /** @param array<array-key, mixed> $owners `http.owners`: alias => class, for aliases outside the morph map */
     public function __construct(
-        private Closure $morphed,
+        #[Config('laranail.settings.http.owners', [])]
+        private array $owners = [],
     ) {}
 
     public function resolve(string $alias, string $id): Settable|OwnerRef
     {
-        $class = ($this->morphed)($alias);
+        $class = is_string($this->owners[$alias] ?? null) ? $this->owners[$alias] : Relation::getMorphedModel($alias);
 
         if (! is_string($class) || ! class_exists($class)) {
             throw new UnknownOwner(sprintf('Owner alias [%s] is not in the morph map.', $alias));

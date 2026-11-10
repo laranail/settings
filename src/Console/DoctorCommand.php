@@ -34,7 +34,7 @@ final class DoctorCommand extends Command
         if ($this->option('fix') === true) {
             try {
                 $report = $sync->handle(Actor::system('laranail::settings.doctor'));
-                $this->info(sprintf('Synced %d definition(s); removed %d stale system row(s).', $report['synced'], $report['removed']));
+                $this->info(__('laranail/settings::settings.console.definitions_synced', ['synced' => $report['synced'], 'removed' => $report['removed']]));
             } catch (SettingsException $exception) {
                 $this->error($exception->getMessage());
 

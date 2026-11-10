@@ -29,4 +29,26 @@ final readonly class ApprovalPolicy
             }
         }
     }
+
+    /**
+     * The policy `approvals.*` describes.
+     *
+     * @param array<array-key, mixed> $approvals `laranail.settings.approvals`
+     */
+    public static function fromConfig(array $approvals): self
+    {
+        $days = static function (string $key, ?int $default) use ($approvals): ?int {
+            $value = array_key_exists($key, $approvals) ? $approvals[$key] : $default;
+
+            return $value === null ? null : (is_numeric($value) ? (int) $value : throw new InvalidConfiguration(sprintf('laranail.settings.approvals.%s: a number of days, or null.', $key)));
+        };
+        $min = $approvals['min_approvals'] ?? 1;
+
+        return new self(
+            is_int($min) || (is_string($min) && ctype_digit($min)) ? (int) $min : 1,
+            ($approvals['allow_self'] ?? false) === true,
+            $days('expire_after', 7),
+            $days('keep_days', 90),
+        );
+    }
 }

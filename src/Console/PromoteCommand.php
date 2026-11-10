@@ -44,7 +44,7 @@ final class PromoteCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info(sprintf('Store [%s]: %d promoted, %d skipped.', $report->store, count($report->promoted), count($report->skipped)));
+        $this->info(__('laranail/settings::settings.console.promoted', ['store' => $report->store, 'promoted' => count($report->promoted), 'skipped' => count($report->skipped)]));
 
         if ($report->skipped !== []) {
             $this->table(['Setting (scope|key|locale)', 'Skipped because'], array_map(
@@ -55,7 +55,7 @@ final class PromoteCommand extends Command
         }
 
         if ($report->archive !== null) {
-            $this->line(sprintf('The runtime file was archived as [%s]; skipped entries remain there.', $report->archive));
+            $this->line(__('laranail/settings::settings.console.promote_archived', ['archive' => $report->archive]));
         }
 
         return self::SUCCESS;

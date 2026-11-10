@@ -8,11 +8,6 @@ use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
-use Simtabi\Laranail\Settings\Contracts\OwnerResolver;
-use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
-use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
-use Simtabi\Laranail\Settings\Contracts\ValueValidator;
-use Simtabi\Laranail\Settings\Contracts\BootstrapEvidence;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 
 /*
@@ -26,8 +21,7 @@ use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 
 const PLUGIN_CONTRACTS = [
     Driver::class, AuditSink::class, Authorizer::class, Caster::class, Verifier::class, ActorResolver::class,
-    TenantDiscriminator::class, ReadinessProbe::class, ValueEncrypter::class, ValueValidator::class, BootstrapEvidence::class,
-    Importer::class, OwnerResolver::class,
+    TenantDiscriminator::class, Importer::class,
 ];
 
 /** The 19 classes moved into Services\ in 0.1, whose old names were removed: old name => new name. */
@@ -102,7 +96,7 @@ it('files every repository and registry under Services', function (): void {
     ));
 
     // The positive control: the scan does find the repositories and registries that exist.
-    expect(count($files))->toBeGreaterThanOrEqual(360)
+    expect(count($files))->toBeGreaterThanOrEqual(355)
         ->and(count($found))->toBeGreaterThanOrEqual(9)
         ->and($offenders)->toBe([]);
 });

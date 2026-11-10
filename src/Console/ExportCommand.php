@@ -53,10 +53,10 @@ final class ExportCommand extends Command
 
         if ($mode === ExportMode::Plaintext) {
             $confirm = $this->option('confirm');
-            $typed = is_string($confirm) ? $confirm : $this->ask(sprintf('This writes decrypted secrets. Type the store name [%s] to continue', $document->store));
+            $typed = is_string($confirm) ? $confirm : $this->ask(__('laranail/settings::settings.console.export_confirm', ['store' => $document->store]));
 
             if ($typed !== ($name ?? $document->store)) {
-                $this->error('The store name did not match; nothing was written.');
+                $this->error(__('laranail/settings::settings.console.export_mismatch'));
 
                 return self::FAILURE;
             }
@@ -66,10 +66,10 @@ final class ExportCommand extends Command
 
         if (is_string($path) && $path !== '') {
             $files->put($path, $document->toJson());
-            $this->info(sprintf('Exported %d setting(s) and %d categor%s of store [%s] to %s.', count($document->settings), count($document->categories), count($document->categories) === 1 ? 'y' : 'ies', $document->store, $path));
+            $this->info(trans_choice('laranail/settings::settings.console.exported', count($document->categories), ['settings' => count($document->settings), 'store' => $document->store, 'path' => $path]));
 
             if ($mode === ExportMode::Ciphertext) {
-                $this->comment('Encrypted values are ciphertext: importable only under the same APP_KEY, or one listed in APP_PREVIOUS_KEYS.');
+                $this->comment(__('laranail/settings::settings.console.export_ciphertext'));
             }
 
             return self::SUCCESS;

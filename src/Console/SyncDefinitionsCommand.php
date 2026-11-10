@@ -34,14 +34,14 @@ final class SyncDefinitionsCommand extends Command
         }
 
         foreach ($report['skipped'] as $store) {
-            $this->line(sprintf('Store [%s] skipped: no active database layer, or the definitions table is off.', $store));
+            $this->line(__('laranail/settings::settings.console.definitions_skipped', ['store' => $store]));
         }
 
         foreach ($report['conflicts'] as $key) {
-            $this->warn(sprintf('[%s] is defined in code and edited in the table; code wins, the row was left alone.', $key));
+            $this->warn(__('laranail/settings::settings.console.definitions_conflict', ['key' => $key]));
         }
 
-        $this->info(sprintf('Synced %d definition(s); removed %d stale system row(s).', $report['synced'], $report['removed']));
+        $this->info(__('laranail/settings::settings.console.definitions_synced', ['synced' => $report['synced'], 'removed' => $report['removed']]));
 
         return self::SUCCESS;
     }

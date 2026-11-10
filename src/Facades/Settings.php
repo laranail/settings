@@ -18,16 +18,19 @@ use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
+use Simtabi\Laranail\Settings\Actions\SetSetting;
+use Simtabi\Laranail\Settings\Actions\WriteGuard;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Actions\LockSetting;
 use Simtabi\Laranail\Settings\Approvals\Approvals;
 use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
-use Simtabi\Laranail\Settings\Actions\StoreActions;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Testing\SettingsFake;
+use Simtabi\Laranail\Settings\Actions\ForgetSetting;
+use Simtabi\Laranail\Settings\Actions\UnlockSetting;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
-use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
@@ -40,9 +43,8 @@ use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
 use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
@@ -118,20 +120,21 @@ final class Settings extends Facade
         $log = new FakeLog(new InMemoryAuditSink);
         $access = $app->make(AccessGuard::class);
         $access = $access->withAuditor($access->auditor()->alsoTo($log->audit));
-        $writer = $app->make(SettingWriter::class);
+        $guard = new WriteGuard($access, $app->make(SettingWriter::class), $app->make(ProposeChange::class));
 
-        $fake = new SettingsFake(new SettingsManager(
-            $stores,
-            $app->make(DefinitionRegistry::class),
-            new Resolver($stores, $app->make(ValuePipeline::class), self::fallbackLocale($app->make('config')->get('app.fallback_locale'))),
-            $writer,
-            actions: SettingActions::using($writer, $access),
-            access: $access,
-            runtime: $app->make(RuntimeConfiguration::class),
-            storeActions: $app->make(StoreActions::class),
-            auditQuery: new QueryAudit($stores, $access),
-            listDefinitions: new ListDefinitions($app->make(DefinitionRegistry::class), $app->make(DatabaseDefinitions::class), $access),
-        ), $log);
+        // The real engine, with the in-memory stores, the recording access guard and the writes
+        // that go through it; every other collaborator is the container's.
+        $fake = new SettingsFake($app->make(SettingsManager::class, [
+            'stores'          => $stores,
+            'resolver'        => new Resolver($stores, $app->make(ValuePipeline::class), self::fallbackLocale($app->make('config')->get('app.fallback_locale'))),
+            'access'          => $access,
+            'set'             => $app->make(SetSetting::class, ['guard' => $guard]),
+            'forget'          => $app->make(ForgetSetting::class, ['guard' => $guard]),
+            'lock'            => $app->make(LockSetting::class, ['guard' => $guard]),
+            'unlock'          => $app->make(UnlockSetting::class, ['guard' => $guard]),
+            'auditQuery'      => new QueryAudit($stores, $access),
+            'listDefinitions' => $app->make(ListDefinitions::class, ['access' => $access]),
+        ]), $log);
 
         self::swap($fake);
         $app->instance(SettingsContract::class, $fake);

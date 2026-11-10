@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
-use Simtabi\Laranail\Settings\Http\ApiRoutes;
+use Illuminate\Routing\Route as RoutingRoute;
 use Simtabi\Laranail\Settings\Contracts\Settings;
-use Simtabi\Laranail\Settings\Http\Support\Problems;
 use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
 
 /*
  * The reference pages are held to the code they describe: each guard reads the live source of
- * truth (the contract, the route table, the event and exception directories, the registered
+ * truth (the contract, the registered routes, the event and exception directories, the registered
  * commands, the shipped config), asserts it inspected at least a floor of items, and fails when
  * one of them is missing from its page.
  */
@@ -72,16 +72,21 @@ it('documents every method of the Settings contract, and the facade proxies each
 });
 
 it('documents every REST route and every problem type', function (): void {
-    $routes = ApiRoutes::definitions();
+    $this->rebootWith(['laranail.settings.http.enabled' => true]);
+    $routes = array_filter(Route::getRoutes()->getRoutes(), static fn (RoutingRoute $route): bool => str_starts_with((string) $route->getName(), 'laranail-settings.api.'));
     $page = referencePage('tools/rest-api-reference.md');
-    $types = array_column(new ReflectionClassConstant(Problems::class, 'MAP')->getValue(), 1);
+    $types = problemTypes();
 
     expect(count($routes))->toBeGreaterThanOrEqual(39)
         ->and(count($types))->toBeGreaterThanOrEqual(24);
 
     foreach ($routes as $route) {
-        expect(str_contains($page, sprintf('`%s /%s`', $route['method'], $route['uri'])))->toBeTrue(sprintf('rest-api-reference.md does not document %s /%s', $route['method'], $route['uri']))
-            ->and(str_contains($page, '`' . $route['capability']->value . '`'))->toBeTrue(sprintf('rest-api-reference.md does not name capability %s', $route['capability']->value));
+        $method = array_values(array_diff($route->methods(), ['HEAD']))[0];
+        $uri = (string) preg_replace('#^api/settings/v1/#', '', $route->uri());
+        $name = (string) preg_replace('/^laranail-settings\.api\.(owners\.)?/', '', (string) $route->getName());
+
+        expect(str_contains($page, sprintf('`%s /%s`', $method, $uri)))->toBeTrue(sprintf('rest-api-reference.md does not document %s /%s', $method, $uri))
+            ->and(str_contains($page, '`' . $name . '`'))->toBeTrue(sprintf('rest-api-reference.md does not name route %s', $name));
     }
 
     foreach ($types as $type) {
@@ -115,7 +120,7 @@ it('documents every console command', function (): void {
     $commands = array_values(array_filter(array_keys(Artisan::all()), static fn (string $name): bool => str_starts_with($name, 'laranail::settings.')));
     $page = referencePage('tools/commands.md');
 
-    expect(count($commands))->toBeGreaterThanOrEqual(18);
+    expect(count($commands))->toBeGreaterThanOrEqual(17);
 
     foreach ($commands as $command) {
         expect(preg_match('/`' . preg_quote($command, '/') . '[ `]/', $page))->toBe(1, sprintf('commands.md does not document %s', $command));

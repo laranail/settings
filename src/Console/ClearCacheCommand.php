@@ -41,7 +41,7 @@ final class ClearCacheCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info($cleared ? sprintf('Settings cache reset (%s).', $names === [] ? 'every store' : implode(', ', $names)) : 'Caching is off; nothing to reset.');
+        $this->info($cleared ? __('laranail/settings::settings.console.cache_reset', ['stores' => $names === [] ? __('laranail/settings::settings.console.cache_every_store') : implode(', ', $names)]) : __('laranail/settings::settings.console.cache_off'));
 
         return self::SUCCESS;
     }

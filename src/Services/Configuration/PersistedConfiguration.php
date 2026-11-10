@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Configuration;
 
-use Closure;
 use Exception;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
+use Illuminate\Database\ConnectionResolverInterface;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
+use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /**
  * Store and layer configuration saved through the API (§16.11, `configuration.persisted`), kept in
@@ -28,6 +34,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
  * A persisted store may not change the layers of a store the configuration file defines: moving a
  * store's data between drivers is `promote`'s job, not an edit's.
  */
+#[Scoped]
 final class PersistedConfiguration
 {
     /** @var array{stores: array<string, array<array-key, mixed>>, layers: array<string, array<array-key, mixed>>}|null */
@@ -39,24 +46,30 @@ final class PersistedConfiguration
     private int $generation = 0;
 
     /**
-     * @param Closure(): Connection $connection the default store's database connection
-     * @param Closure(): SchemaShape $shape the recorded schema shape
-     * @param Closure(array<array-key, mixed>, array<array-key, mixed>): void $validate builds stores and layers, raising InvalidConfiguration
+     * @param ConnectionResolverInterface $db the default store's database connection is read from it
+     * @param DriverFactory $drivers validates an entry by building the stores it would produce
+     * @param mixed $enabled `configuration.persisted`
      * @param array<array-key, mixed> $configStores `laranail.settings.stores`, which a persisted entry may not re-layer
-     * @param (Closure(string): void)|null $log told about each skipped entry
+     * @param array<array-key, mixed> $configLayers `laranail.settings.layers`
      */
     public function __construct(
-        private readonly bool $enabled,
-        private readonly Closure $connection,
-        private readonly Closure $shape,
-        private readonly Closure $validate,
+        private readonly ConnectionResolverInterface $db,
+        private readonly SchemaShapeRepository $shapes,
+        private readonly DriverFactory $drivers,
+        private readonly OperationalLogger $log,
+        #[Config('laranail.settings.configuration.persisted', false)]
+        private readonly mixed $enabled = false,
+        #[Config('laranail.settings.stores', [])]
         private readonly array $configStores = [],
-        private readonly ?Closure $log = null,
+        #[Config('laranail.settings.layers', [])]
+        private readonly array $configLayers = [],
+        #[Config('laranail.settings.default', 'settings')]
+        private readonly string $default = 'settings',
     ) {}
 
     public function isEnabled(): bool
     {
-        return $this->enabled && ($this->shape)()->storesTable;
+        return filter_var($this->enabled, FILTER_VALIDATE_BOOL) && $this->shape()->storesTable;
     }
 
     /** Changes whenever an entry is saved or deleted, so registries rebuild. */
@@ -221,16 +234,14 @@ final class PersistedConfiguration
             throw new InvalidConfiguration(sprintf('Persisted store [%s] would change the layers the configuration file gives it; change them there and promote the data.', $name));
         }
 
-        ($this->validate)($stores, $layers);
+        new StoreRegistry($this->drivers, $this->default, array_replace($this->configStores, $stores), array_replace($this->configLayers, $layers))->validate();
     }
 
     private function skip(string $problem): void
     {
         $this->problems[] = $problem;
 
-        if ($this->log instanceof Closure) {
-            ($this->log)('laranail/settings skipped a persisted configuration entry: ' . $problem);
-        }
+        $this->log->warning('laranail/settings skipped a persisted configuration entry: ' . $problem);
     }
 
     private function changed(): void
@@ -249,11 +260,37 @@ final class PersistedConfiguration
     private function table(): Builder
     {
         try {
-            $connection = ($this->connection)();
+            $connection = $this->connection();
         } catch (Exception $exception) {
             throw new DriverFailure('The persisted configuration connection is unavailable.', 0, $exception);
         }
 
-        return $connection->table(($this->shape)()->names->stores());
+        return $connection->table($this->shape()->names->stores());
+    }
+
+    private function shape(): SchemaShape
+    {
+        return $this->shapes->current();
+    }
+
+    /** The connection of the default store's first database layer, as the configuration file names it. */
+    private function connection(): Connection
+    {
+        $default = $this->configStores[$this->default] ?? null;
+        $connection = null;
+
+        foreach ((array) (is_array($default) ? ($default['layers'] ?? []) : []) as $layer) {
+            $config = is_string($layer) ? ($this->configLayers[$layer] ?? null) : null;
+
+            if (is_array($config) && ($config['driver'] ?? null) === 'database') {
+                $connection = is_string($config['connection'] ?? null) ? $config['connection'] : null;
+
+                break;
+            }
+        }
+
+        $resolved = $this->db->connection($connection);
+
+        return $resolved instanceof Connection ? $resolved : throw new InvalidConfiguration('laranail.settings.configuration: the default store\'s database connection is not a database connection.');
     }
 }

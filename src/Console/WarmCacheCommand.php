@@ -43,7 +43,7 @@ final class WarmCacheCommand extends Command
         }
 
         if ($rows === []) {
-            $this->info('No store is cached (caching is off, or no store has a database layer); nothing to warm.');
+            $this->info(__('laranail/settings::settings.console.warm_none'));
 
             return self::SUCCESS;
         }

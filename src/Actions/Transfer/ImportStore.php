@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions\Transfer;
 
-use Closure;
-use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\Subject;
@@ -13,7 +11,6 @@ use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\Category;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
@@ -31,6 +28,7 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Transfer\StoreSnapshots;
 use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
@@ -46,7 +44,6 @@ use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
  */
 final readonly class ImportStore
 {
-    /** @param Closure(Store, Key): ?Definition $definitions */
     public function __construct(
         private AccessGuard $access,
         private StoreSnapshots $snapshots,
@@ -55,7 +52,7 @@ final readonly class ImportStore
         private SetSetting $set,
         private LockSetting $lock,
         private CreateCategory $createCategory,
-        private Closure $definitions,
+        private Definitions $definitions,
     ) {}
 
     public function handle(ImportRequest $request, ?Actor $actor = null): ImportReport
@@ -192,7 +189,7 @@ final readonly class ImportStore
     private function target(Store $store, ExportedSetting $setting, ?string $reason): SettingTarget
     {
         try {
-            $definition = ($this->definitions)($store, $setting->key);
+            $definition = $this->definitions->find($store, $setting->key);
         } catch (SettingsException) {
             $definition = null;
         }

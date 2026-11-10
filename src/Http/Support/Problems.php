@@ -9,74 +9,34 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Validation\ValidationException;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
-use Simtabi\Laranail\Settings\Exceptions\UnknownOwner;
-use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
-use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
-use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
-use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
-use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
-use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
+use Illuminate\Contracts\Translation\Translator;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
-use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
-use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
-use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
-use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
-use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
-use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
-use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
- * RFC 9457 problem details (`application/problem+json`) for the REST API (§16.10): one `type` per
- * exception, the status the design maps it to, and the exception's message as `detail` (the
- * package's messages name stores, keys and scopes, never a value). Anything the package does not
- * know is left to the application's own handler.
+ * RFC 9457 problem details (`application/problem+json`) for the REST API (§16.10). A package
+ * exception names its own status and problem type ({@see SettingsException::STATUS} and
+ * {@see SettingsException::TYPE}), and its message is the `detail` (the package's messages name
+ * stores, keys and scopes, never a value). Anything the package does not know is left to the
+ * application's own handler.
+ *
+ * Titles, and the details of problems that carry no exception message, are the
+ * `laranail/settings` translations; a type without a translated title (an `http-<status>`
+ * problem) keeps the title derived from its type.
  */
 final readonly class Problems
 {
     public const string TYPE_BASE = 'https://opensource.simtabi.com/documentation/laranail/settings/problems/';
 
-    /** @var array<class-string<Throwable>, array{int, string}> */
-    private const array MAP = [
-        AccessDenied::class           => [403, 'access-denied'],
-        ActorRequired::class          => [401, 'actor-required'],
-        VerificationRequired::class   => [428, 'verification-required'],
-        UnknownStore::class           => [404, 'unknown-store'],
-        UnknownSetting::class         => [404, 'unknown-setting'],
-        UnknownOwner::class           => [404, 'unknown-owner'],
-        UnknownCategory::class        => [404, 'unknown-category'],
-        UnknownChangeRequest::class   => [404, 'unknown-change-request'],
-        InvalidSettingValue::class    => [422, 'invalid-value'],
-        InvalidIdentifier::class      => [422, 'invalid-identifier'],
-        InvalidImport::class          => [422, 'invalid-import'],
-        InvalidDefinition::class      => [422, 'invalid-definition'],
-        InvalidConfiguration::class   => [422, 'invalid-configuration'],
-        TypeMismatch::class           => [422, 'type-mismatch'],
-        CategoryCycle::class          => [422, 'category-cycle'],
-        CategoryStoreMismatch::class  => [422, 'category-store-mismatch'],
-        LockedSetting::class          => [423, 'locked'],
-        ConcurrentModification::class => [412, 'precondition-failed'],
-        ApprovalUnavailable::class    => [409, 'approval-unavailable'],
-        ChangeRequestClosed::class    => [409, 'change-request-closed'],
-        OwnerNotAllowed::class        => [409, 'owner-not-allowed'],
-        StoreNotWritable::class       => [409, 'store-not-writable'],
-        HistoryUnavailable::class     => [409, 'history-unavailable'],
-        DriverUnavailable::class      => [503, 'unavailable'],
-    ];
+    private const string LINES = 'laranail/settings::settings.';
+
+    public function __construct(
+        private Translator $translator,
+    ) {}
 
     /** The problem response for an exception raised by an API route, or null to leave it alone. */
-    public static function render(Throwable $exception, Request $request): ?JsonResponse
+    public function render(Throwable $exception, Request $request): ?JsonResponse
     {
         $route = $request->route();
 
@@ -85,37 +45,33 @@ final readonly class Problems
         }
 
         return match (true) {
-            $exception instanceof ValidationException       => self::make(422, 'validation', 'The request is invalid.', $request, ['errors' => $exception->errors()]),
-            $exception instanceof AuthenticationException   => self::make(401, 'unauthenticated', 'Authentication is required.', $request),
-            $exception instanceof ThrottleRequestsException => self::make(429, 'too-many-requests', 'Too many requests.', $request),
-            $exception instanceof SettingsException         => self::forSettings($exception, $request),
-            $exception instanceof HttpExceptionInterface    => self::make($exception->getStatusCode(), 'http-' . $exception->getStatusCode(), $exception->getMessage() !== '' ? $exception->getMessage() : 'The request failed.', $request),
+            $exception instanceof ValidationException       => $this->make(422, 'validation', $this->line('problems.validation'), $request, ['errors' => $exception->errors()]),
+            $exception instanceof AuthenticationException   => $this->make(401, 'unauthenticated', $this->line('problems.unauthenticated'), $request),
+            $exception instanceof ThrottleRequestsException => $this->make(429, 'too-many-requests', $this->line('problems.too-many-requests'), $request),
+            $exception instanceof SettingsException         => $this->make($exception::STATUS, $exception::TYPE, $exception::TYPE === SettingsException::TYPE ? $this->line('problems.settings-error') : $exception->getMessage(), $request),
+            $exception instanceof HttpExceptionInterface    => $this->make($exception->getStatusCode(), 'http-' . $exception->getStatusCode(), $exception->getMessage() !== '' ? $exception->getMessage() : $this->line('problems.http'), $request),
             default                                         => null,
         };
     }
 
-    /**
-     * @param array<string, mixed> $extra
-     */
-    public static function make(int $status, string $type, string $detail, ?Request $request = null, array $extra = []): JsonResponse
+    /** @param array<string, mixed> $extra */
+    public function make(int $status, string $type, string $detail, ?Request $request = null, array $extra = []): JsonResponse
     {
+        $title = $this->translator->get(self::LINES . 'problems.titles.' . $type);
+
         return new JsonResponse([
             'type'     => self::TYPE_BASE . $type,
-            'title'    => ucfirst(str_replace('-', ' ', $type)),
+            'title'    => is_string($title) && $title !== self::LINES . 'problems.titles.' . $type ? $title : ucfirst(str_replace('-', ' ', $type)),
             'status'   => $status,
             'detail'   => $detail,
             'instance' => $request?->getRequestUri(),
         ] + $extra, $status, ['Content-Type' => 'application/problem+json']);
     }
 
-    private static function forSettings(SettingsException $exception, Request $request): JsonResponse
+    private function line(string $key): string
     {
-        foreach (self::MAP as $class => [$status, $type]) {
-            if ($exception instanceof $class) {
-                return self::make($status, $type, $exception->getMessage(), $request);
-            }
-        }
+        $line = $this->translator->get(self::LINES . $key);
 
-        return self::make(500, 'settings-error', 'The settings operation failed.', $request);
+        return is_string($line) ? $line : $key;
     }
 }

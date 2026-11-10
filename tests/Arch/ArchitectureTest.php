@@ -46,8 +46,10 @@ arch('no debugging calls ship')
     ->not->toBeUsed();
 
 /*
- * Headless (design §16.1, D-16): no views, Blade, Livewire, Filament or published assets. An
- * admin interface is a separate companion package, so nothing here may render a page.
+ * Headless (design §16.1, D-16): no Blade components, Livewire, Filament or published assets. An
+ * admin interface is a separate companion package, so nothing here may render a page. The one
+ * view is the alert mail's markdown body (resources/views/mail/alert.blade.php), which the
+ * notification names by string and the mailer renders.
  */
 arch('the package is headless: no view, Blade, Livewire or Filament reference')
     ->expect('Simtabi\Laranail\Settings')
@@ -60,7 +62,7 @@ arch('the package is headless: no view, Blade, Livewire or Filament reference')
         'view',
     ]);
 
-it('ships no views directory and registers no views or assets', function (): void {
+it('ships only the alert mail view and no assets, components or composers', function (): void {
     $root = dirname(__DIR__, 2);
     $sources = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/src', FilesystemIterator::SKIP_DOTS));
     $inspected = 0;
@@ -73,15 +75,31 @@ it('ships no views directory and registers no views or assets', function (): voi
 
         $inspected++;
 
-        if (preg_match('/->\s*(hasViews|hasAssets|hasViewComponents?|hasViewComposer|sharesDataWithAllViews)\s*\(/', (string) file_get_contents($file->getPathname())) === 1) {
+        if (preg_match('/->\s*(hasAssets|hasViewComponents?|hasViewComposer|sharesDataWithAllViews)\s*\(/', (string) file_get_contents($file->getPathname())) === 1) {
             $offending[] = $file->getPathname();
         }
     }
 
+    // Files under a directory, relative, sorted; macOS's .DS_Store is the OS's, not the package's.
+    $files = static function (string $directory): array {
+        $found = [];
+
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS)) as $file) {
+            if ($file instanceof SplFileInfo && $file->getFilename() !== '.DS_Store') {
+                $found[] = substr($file->getPathname(), strlen($directory) + 1);
+            }
+        }
+
+        sort($found);
+
+        return $found;
+    };
+
     // A scan that inspects nothing has broken, not found a clean tree.
-    expect($inspected)->toBeGreaterThanOrEqual(360)
+    expect($inspected)->toBeGreaterThanOrEqual(355)
         ->and($offending)->toBe([])
-        ->and(is_dir($root . '/resources/views'))->toBeFalse();
+        ->and($files($root . '/resources/views'))->toBe(['mail/alert.blade.php'])
+        ->and($files($root . '/resources/assets'))->toBe(['.gitkeep']);
 });
 
 /*

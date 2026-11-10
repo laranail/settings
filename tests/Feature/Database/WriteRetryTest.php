@@ -8,8 +8,8 @@ use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Illuminate\Database\Events\QueryExecuted;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
+use Simtabi\Laranail\Settings\Actions\SetSetting;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
-use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
@@ -93,7 +93,7 @@ it('does not retry when writes.retry_on_conflict is off', function (): void {
 });
 
 it('checks an explicit expected version and never retries it', function (): void {
-    $set = app(SettingActions::class)->set;
+    $set = app(SetSetting::class);
 
     expect(fn () => $set->handle(new SettingWrite(target(), 'Stale', expectedVersion: 7)))->toThrow(ConcurrentModification::class, 'not the expected 7');
 

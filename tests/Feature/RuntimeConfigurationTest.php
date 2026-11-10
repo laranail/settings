@@ -18,14 +18,10 @@ use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Verification\NullVerifier;
-use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
-use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
 use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /** A logger that keeps messages, for runtime logTo() tests. */
@@ -199,18 +195,13 @@ it('bumps its generation on every change so built stores are rebuilt', function 
     expect($configuration->generation())->toBe($start + 2);
 });
 
-it('refuses configuration() on a hand-built manager without runtime configuration', function (): void {
-    $manager = new SettingsManager(
-        app(StoreRegistry::class),
-        app(DefinitionRegistry::class),
-        app(Resolver::class),
-        app(SettingWriter::class),
-    );
+it('gives every manager the container builds the runtime configuration of the request', function (): void {
+    $manager = app(SettingsManager::class);
 
     $manager->set('site.name', 'Acme');
 
     expect($manager->get('site.name'))->toBe('Acme')
-        ->and(fn (): RuntimeConfiguration => $manager->configuration())->toThrow(LogicException::class, 'without runtime configuration')
-        ->and(fn (): mixed => $manager->as(user())->get('site.name'))->toThrow(AccessDenied::class)
+        ->and($manager->configuration())->toBe(app(RuntimeConfiguration::class))
+        ->and($manager->store('settings')->configuration())->toBe(app(RuntimeConfiguration::class))
         ->and(fn (): SettingsManager => $manager->asCurrentActor())->toThrow(ActorRequired::class);
 });

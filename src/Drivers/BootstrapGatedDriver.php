@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Drivers;
 
-use Closure;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
+use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Events\LayerSkipped;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Contracts\BootstrapEvidence;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 
 /**
  * The database layer of a store in bootstrap mode (`stores.<name>.bootstrap`). The layer is
@@ -28,12 +29,13 @@ final class BootstrapGatedDriver implements DatabaseBacked
 {
     private bool $reported = false;
 
-    /** @param (Closure(string): void)|null $onSkip told the reason the first time the layer is skipped */
+    /** @param ?Dispatcher $events told ({@see LayerSkipped}) the first time the layer named `$layer` is skipped */
     public function __construct(
         private readonly DatabaseDriver $inner,
         private readonly StoreName $store,
-        private readonly BootstrapEvidence $evidence,
-        private readonly ?Closure $onSkip = null,
+        private readonly InstallationEvidence $evidence,
+        private readonly ?Dispatcher $events = null,
+        private readonly string $layer = 'database',
     ) {}
 
     public function database(): DatabaseDriver
@@ -47,9 +49,9 @@ final class BootstrapGatedDriver implements DatabaseBacked
             return true;
         }
 
-        if (! $this->reported && $this->onSkip instanceof Closure) {
+        if (! $this->reported && $this->events instanceof Dispatcher) {
             $this->reported = true;
-            ($this->onSkip)('the application is being installed and the database is not ready');
+            $this->events->dispatch(new LayerSkipped($this->store->value, $this->layer, 'the application is being installed and the database is not ready'));
         }
 
         return false;

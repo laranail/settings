@@ -4,71 +4,60 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Simtabi\Laranail\Settings\Http\Support\ApiActor;
 use Simtabi\Laranail\Settings\Data\ConfigurationEntry;
-use Simtabi\Laranail\Settings\Http\Requests\BodyRequest;
 use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
-use Simtabi\Laranail\Settings\Http\Support\ListResponse;
+use Simtabi\Laranail\Settings\Http\Requests\ReasonRequest;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Simtabi\Laranail\Settings\Http\Resources\DefinitionResource;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
+use Simtabi\Laranail\Settings\Http\Requests\SaveDefinitionRequest;
 use Simtabi\Laranail\Settings\Actions\Configuration\SaveDefinition;
 use Simtabi\Laranail\Settings\Actions\Configuration\DeleteDefinition;
+use Simtabi\Laranail\Settings\Http\Requests\SaveConfigurationRequest;
+use Simtabi\Laranail\Settings\Http\Resources\ConfigurationEntryResource;
 use Simtabi\Laranail\Settings\Actions\Configuration\SaveConfigurationEntry;
 use Simtabi\Laranail\Settings\Actions\Configuration\DeleteConfigurationEntry;
 use Simtabi\Laranail\Settings\Actions\Configuration\ListConfigurationEntries;
 
 /**
- * `/configuration/{stores|layers}/{name}` and `/configuration/definitions/{store}/{key}` (§16.11):
+ * `/configuration/{stores|layers}/{name}` and `/stores/{store}/definitions/{key}` (§16.11):
  * persisted configuration, edited as the actor, validated like the configuration file.
  */
 final readonly class ConfigurationController
 {
-    public function __construct(
-        private ApiActor $actors,
-        private SettingTargets $targets,
-        private ListConfigurationEntries $list,
-        private SaveConfigurationEntry $save,
-        private DeleteConfigurationEntry $delete,
-        private SaveDefinition $saveDefinition,
-        private DeleteDefinition $deleteDefinition,
-    ) {}
-
-    public function index(PageRequest $request): JsonResponse
+    public function index(PageRequest $request, ListConfigurationEntries $list, ApiActor $actors): AnonymousResourceCollection
     {
-        return ListResponse::make(array_map(static fn (ConfigurationEntry $entry): array => ['kind' => $entry->kind, 'name' => $entry->name, 'config' => (object) $entry->config], $this->list->handle($this->actors->of($request))));
+        return ConfigurationEntryResource::collection($list->handle($actors->of($request)))->additional(['meta' => ['next_cursor' => null]]);
     }
 
-    public function update(BodyRequest $request): JsonResponse
+    public function update(SaveConfigurationRequest $request, SaveConfigurationEntry $save, ApiActor $actors): ConfigurationEntryResource
     {
-        $input = $request->toData();
-        $entry = new ConfigurationEntry(rtrim($input->param('kind'), 's'), $input->param('name'), $input->array('config'));
-        $this->save->handle($entry, $this->actors->of($request));
+        $entry = $request->toData();
+        $save->handle($entry, $actors->of($request));
 
-        return new JsonResponse(['data' => ['kind' => $entry->kind, 'name' => $entry->name, 'config' => (object) $entry->config]]);
+        return ConfigurationEntryResource::make($entry);
     }
 
-    public function destroy(BodyRequest $request): JsonResponse
+    public function destroy(ReasonRequest $request, DeleteConfigurationEntry $delete, ApiActor $actors): Response
     {
-        $input = $request->toData();
-        $this->delete->handle(new ConfigurationEntry(rtrim($input->param('kind'), 's'), $input->param('name')), $this->actors->of($request));
+        $delete->handle(new ConfigurationEntry(rtrim((string) $request->route('kind'), 's'), (string) $request->route('name')), $actors->of($request));
 
-        return new JsonResponse(null, 204);
+        return new Response(status: 204);
     }
 
-    public function updateDefinition(BodyRequest $request): JsonResponse
+    public function updateDefinition(SaveDefinitionRequest $request, SaveDefinition $save, SettingTargets $targets, ApiActor $actors): DefinitionResource
     {
-        $input = $request->toData();
-        $definition = $this->saveDefinition->handle($this->targets->store($input->param('store')), $input->param('key'), $input->array('attributes'), $this->actors->of($request));
+        $definition = $save->handle($targets->store((string) $request->route('store')), (string) $request->route('key'), $request->definition(), $actors->of($request));
 
-        return new JsonResponse(['data' => DefinitionResource::fields($definition)]);
+        return DefinitionResource::make($definition);
     }
 
-    public function destroyDefinition(BodyRequest $request): JsonResponse
+    public function destroyDefinition(ReasonRequest $request, DeleteDefinition $delete, SettingTargets $targets, ApiActor $actors): Response
     {
-        $input = $request->toData();
-        $this->deleteDefinition->handle($this->targets->store($input->param('store')), $input->param('key'), $this->actors->of($request));
+        $delete->handle($targets->store((string) $request->route('store')), (string) $request->route('key'), $actors->of($request));
 
-        return new JsonResponse(null, 204);
+        return new Response(status: 204);
     }
 }

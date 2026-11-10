@@ -9,10 +9,10 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
+use Simtabi\Laranail\Settings\Actions\Transfer\DiffStore;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Actions\Transfer\TransferActions;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
@@ -29,7 +29,7 @@ final class DiffCommand extends Command
 
     protected $description = 'Compare a settings store with an export file';
 
-    public function handle(TransferActions $transfer, StoreRegistry $stores, Filesystem $files): int
+    public function handle(DiffStore $diffStore, StoreRegistry $stores, Filesystem $files): int
     {
         $path = $this->argument('path');
         $path = is_string($path) ? $path : '';
@@ -42,7 +42,7 @@ final class DiffCommand extends Command
                 throw new InvalidImport(sprintf('[%s] is not a file.', $path));
             }
 
-            $diff = $transfer->diff->handle($store, ExportDocument::fromJson($files->get($path)), Actor::system('laranail::settings.diff'));
+            $diff = $diffStore->handle($store, ExportDocument::fromJson($files->get($path)), Actor::system('laranail::settings.diff'));
         } catch (SettingsException $exception) {
             $this->error($exception->getMessage());
 
@@ -56,8 +56,8 @@ final class DiffCommand extends Command
         }
 
         $this->info($diff->isEmpty()
-            ? sprintf('No differences (%d setting(s) equal).', count($diff->unchanged))
-            : sprintf('%d to add, %d only in the store, %d changed, %d not comparable (redacted).', count($diff->added), count($diff->removed), count($diff->changed), count($diff->unknown)));
+            ? __('laranail/settings::settings.console.diff_none', ['unchanged' => count($diff->unchanged)])
+            : __('laranail/settings::settings.console.diff_summary', ['added' => count($diff->added), 'removed' => count($diff->removed), 'changed' => count($diff->changed), 'unknown' => count($diff->unknown)]));
 
         return $diff->isEmpty() ? self::SUCCESS : self::FAILURE;
     }

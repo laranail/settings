@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions\Approvals;
 
-use Closure;
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
@@ -31,6 +30,7 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
@@ -44,13 +44,12 @@ use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
  */
 final readonly class ApproveChange
 {
-    /** @param Closure(Store, Key): ?Definition $definitions the definition a key resolves to */
     public function __construct(
         private AccessGuard $access,
         private SettingWriter $writer,
         private ValuePipeline $pipeline,
         private Dispatcher $events,
-        private Closure $definitions,
+        private Definitions $definitions,
         private ApprovalPolicy $policy = new ApprovalPolicy,
     ) {}
 
@@ -64,7 +63,7 @@ final readonly class ApproveChange
         $repository = ChangeRequestRepository::of($store);
         $request = $repository->get($store->name, $decision->id);
         $key = new Key($request->key);
-        $definition = ($this->definitions)($store, $key);
+        $definition = $this->definitions->find($store, $key);
         $subject = Subject::of($store->name, $key, new Locale($request->locale), $request->owner(), $definition);
         $now = CarbonImmutable::now();
 

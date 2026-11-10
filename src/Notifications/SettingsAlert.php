@@ -8,6 +8,7 @@ use ReflectionClass;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Translation\Translator;
 use Simtabi\Laranail\Settings\Data\AlertContext;
 use Illuminate\Notifications\Messages\MailMessage;
 
@@ -17,6 +18,10 @@ use Illuminate\Notifications\Messages\MailMessage;
  * {@see AlertContext}, which holds identifiers only (store, key, scope, actor, outcome, time) and
  * never a setting's value, so no channel can show one. Queued on the rule's queue when it names
  * one; sent at once otherwise.
+ *
+ * The mail is the markdown view `laranail/settings::mail.alert`. Its labels and footer are the
+ * `laranail/settings` translations, resolved when the alert is built ({@see texts()}) so a queued
+ * copy carries plain strings; an alert built without them reads the translator when it renders.
  */
 final class SettingsAlert extends Notification implements ShouldQueue
 {
@@ -28,15 +33,56 @@ final class SettingsAlert extends Notification implements ShouldQueue
      */
     public const string SLACK_MESSAGE = 'Illuminate\\Notifications\\Messages\\' . 'SlackMessage';
 
+    /** The markdown mail view. */
+    public const string VIEW = 'laranail/settings::mail.alert';
+
+    /** The translation namespace and file the alert's lines live in. */
+    private const string NAMESPACE = 'laranail/settings::settings.';
+
+    /** The message keys an alert reads ({@see texts()}). */
+    private const array KEYS = [
+        'alert.labels.event',
+        'alert.labels.store',
+        'alert.labels.key',
+        'alert.labels.scope',
+        'alert.labels.locale',
+        'alert.labels.actor',
+        'alert.labels.outcome',
+        'alert.labels.at',
+        'alert.yes',
+        'alert.no',
+        'alert.footer',
+    ];
+
     /**
      * @param list<string> $channels the channels this copy is sent on
      * @param string $slackMessage the Slack message class to build (the Slack channel package's, by default)
+     * @param array<string, string> $texts translated labels and footer by message key ({@see texts()}); read from the translator when empty
      */
     public function __construct(
         public readonly AlertContext $context,
         public readonly array $channels,
         public readonly string $slackMessage = self::SLACK_MESSAGE,
+        public readonly array $texts = [],
     ) {}
+
+    /**
+     * The alert's labels and footer in the current locale, by message key: built once, when the
+     * alert is, so a queued alert serializes strings rather than a translator.
+     *
+     * @return array<string, string>
+     */
+    public static function texts(Translator $translator): array
+    {
+        $texts = [];
+
+        foreach (self::KEYS as $key) {
+            $line = $translator->get(self::NAMESPACE . $key);
+            $texts[$key] = is_string($line) ? $line : $key;
+        }
+
+        return $texts;
+    }
 
     /** Whether Slack alerts can be sent (the Slack channel package is installed). */
     public static function slackAvailable(): bool
@@ -52,15 +98,15 @@ final class SettingsAlert extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $mail = new MailMessage()
+        return new MailMessage()
             ->subject($this->context->headline())
-            ->line($this->context->headline() . '.');
-
-        foreach ($this->lines() as $label => $value) {
-            $mail->line(sprintf('%s: %s', $label, $value));
-        }
-
-        return $mail->line('Values are never included in alerts; read the setting or its history to see what changed.');
+            // Larastan resolves views without the package's provider, so it cannot see the
+            // `laranail/settings` namespace this view lives in; PackageLayoutTest proves it exists.
+            ->markdown(self::VIEW, [ // @phpstan-ignore argument.type
+                'headline' => $this->context->headline(),
+                'lines'    => $this->lines(),
+                'footer'   => $this->text('alert.footer'),
+            ]);
     }
 
     /** @return array<string, mixed> */
@@ -103,20 +149,27 @@ final class SettingsAlert extends Notification implements ShouldQueue
     private function lines(): array
     {
         $lines = [
-            'Event'   => $this->context->event,
-            'Store'   => $this->context->store ?? '-',
-            'Key'     => $this->context->key ?? '-',
-            'Scope'   => $this->context->scope ?? '-',
-            'Locale'  => $this->context->locale === null || $this->context->locale === '' ? '-' : $this->context->locale,
-            'Actor'   => $this->context->actor,
-            'Outcome' => $this->context->outcome,
-            'At'      => $this->context->occurredAt->toIso8601String(),
+            $this->text('alert.labels.event')   => $this->context->event,
+            $this->text('alert.labels.store')   => $this->context->store ?? '-',
+            $this->text('alert.labels.key')     => $this->context->key ?? '-',
+            $this->text('alert.labels.scope')   => $this->context->scope ?? '-',
+            $this->text('alert.labels.locale')  => $this->context->locale === null || $this->context->locale === '' ? '-' : $this->context->locale,
+            $this->text('alert.labels.actor')   => $this->context->actor,
+            $this->text('alert.labels.outcome') => $this->context->outcome,
+            $this->text('alert.labels.at')      => $this->context->occurredAt->toIso8601String(),
         ];
 
         foreach ($this->context->details as $name => $value) {
-            $lines[ucfirst(str_replace('_', ' ', $name))] = is_bool($value) ? ($value ? 'yes' : 'no') : (string) ($value ?? '-');
+            $lines[ucfirst(str_replace('_', ' ', $name))] = is_bool($value) ? $this->text($value ? 'alert.yes' : 'alert.no') : (string) ($value ?? '-');
         }
 
         return $lines;
+    }
+
+    private function text(string $key): string
+    {
+        $line = $this->texts[$key] ?? __(self::NAMESPACE . $key);
+
+        return is_string($line) ? $line : $key;
     }
 }

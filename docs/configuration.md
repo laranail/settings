@@ -81,7 +81,7 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `importers` | `spatie`, `toolkit`, `akaunting` | importers `import --from=` can use, name => class |
 | `typed.classes` | `[]` | typed settings classes whose properties are registered as definitions |
 | `http.enabled` | `false` (`LARANAIL_SETTINGS_HTTP`) | register the REST API's routes |
-| `http.prefix` | `api/settings` | the routes' prefix; they live under `<prefix>/v1` |
+| `http.prefix` | `api/settings` (`LARANAIL_SETTINGS_HTTP_PREFIX`) | the routes' prefix; they live under `<prefix>/v1`, and an empty prefix mounts them at `/v1`. Change it when the application already has routes under `/api/settings`: Laravel keeps the last route registered for a method and URI and says nothing |
 | `http.middleware` | `null` | the routes' middleware; null is `['api', 'auth:sanctum']` with Sanctum, else `['api', 'auth']` |
 | `http.rate_limit` | `60` | requests per minute per user (or IP); `0` for none |
 | `http.routes.<group>` | `true` | switch a group off: `stores`, `definitions`, `settings`, `history`, `audit`, `approvals`, `categories`, `configuration`, `transfer` |

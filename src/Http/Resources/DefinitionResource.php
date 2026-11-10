@@ -4,14 +4,28 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Resources;
 
+use Override;
+use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Data\Definition;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
-/** A definition as the API lists it. An encrypted definition's default is left out. */
-final readonly class DefinitionResource
+/**
+ * A definition as the API lists it. An encrypted definition's default is left out.
+ *
+ * @property Definition $resource
+ */
+#[PreserveKeys]
+final class DefinitionResource extends JsonResource
 {
+    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    public static $wrap = 'data';
+
     /** @return array<string, mixed> */
-    public static function fields(Definition $definition): array
+    #[Override]
+    public function toArray(Request $request): array
     {
+        $definition = $this->resource;
         $fields = [
             'store'                 => $definition->store->value,
             'key'                   => $definition->key->value,

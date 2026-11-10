@@ -8,6 +8,8 @@ use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Lookup;
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\RecordSet;
@@ -29,11 +31,13 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
  * application's fallback locale and then to the unlocalised value. Absence moves on; a stored
  * null is an answer. Each store is read once per resolution, whatever the number of steps.
  */
+#[Scoped]
 final readonly class Resolver
 {
     public function __construct(
         private StoreRegistry $stores,
         private ValuePipeline $pipeline,
+        #[Config('app.fallback_locale', 'en')]
         private string $fallbackLocale,
         private PreloadedRecords $preloaded = new PreloadedRecords,
         private ?TenantDiscriminator $tenant = null,

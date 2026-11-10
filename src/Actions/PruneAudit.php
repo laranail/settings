@@ -26,15 +26,11 @@ use Simtabi\Laranail\Settings\Services\Database\AuditRepository;
  */
 final readonly class PruneAudit
 {
-    private AccessGuard $access;
-
     public function __construct(
         private StoreRegistry $stores,
-        ?AccessGuard $access = null,
-        private ?Dispatcher $events = null,
-    ) {
-        $this->access = $access ?? AccessGuard::closed();
-    }
+        private AccessGuard $access,
+        private Dispatcher $events,
+    ) {}
 
     public function handle(int $keepDays, ?Actor $actor = null): int
     {
@@ -62,7 +58,7 @@ final readonly class PruneAudit
         }
 
         $this->access->auditor()->record(AuditAction::Prune, AuditOutcome::Allowed, $subject, $actor, meta: ['target' => 'audit', 'keep_days' => $keepDays, 'removed' => $removed]);
-        $this->events?->dispatch(new AuditPruned($removed, $keepDays));
+        $this->events->dispatch(new AuditPruned($removed, $keepDays));
 
         return $removed;
     }

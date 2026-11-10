@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
-use Illuminate\Http\JsonResponse;
-use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Http\Support\ApiActor;
-use Simtabi\Laranail\Settings\Http\Requests\BodyRequest;
 use Simtabi\Laranail\Settings\Actions\Transfer\DiffStore;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
 use Simtabi\Laranail\Settings\Actions\Transfer\ExportStore;
 use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Http\Requests\DiffStoreRequest;
+use Simtabi\Laranail\Settings\Http\Requests\ExportStoreRequest;
+use Simtabi\Laranail\Settings\Http\Requests\ImportStoreRequest;
+use Simtabi\Laranail\Settings\Http\Resources\StoreDiffResource;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
+use Simtabi\Laranail\Settings\Http\Resources\ImportReportResource;
+use Simtabi\Laranail\Settings\Http\Resources\ExportDocumentResource;
 
 /**
  * `/stores/{store}/export`, `/import` and `/diff` (G-42): the same document the console writes.
@@ -23,40 +25,28 @@ use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
  */
 final readonly class TransferController
 {
-    public function __construct(
-        private ApiActor $actors,
-        private SettingTargets $targets,
-        private ExportStore $export,
-        private ImportStore $import,
-        private DiffStore $diff,
-    ) {}
-
-    public function export(BodyRequest $request): JsonResponse
+    public function export(ExportStoreRequest $request, ExportStore $export, SettingTargets $targets, ApiActor $actors): ExportDocumentResource
     {
-        $input = $request->toData();
-        $mode = ExportMode::tryFrom($input->text('mode') ?? 'redacted') ?? ExportMode::Redacted;
-        $document = $this->export->handle(new ExportRequest($this->targets->store($input->param('store')), $mode), $this->actors->of($request));
+        $document = $export->handle(new ExportRequest($targets->store((string) $request->route('store')), $request->mode()), $actors->of($request));
 
-        return new JsonResponse(['data' => $document->toArray()]);
+        return ExportDocumentResource::make($document);
     }
 
-    public function import(BodyRequest $request): JsonResponse
+    public function import(ImportStoreRequest $request, ImportStore $import, SettingTargets $targets, ApiActor $actors): ImportReportResource
     {
-        $input = $request->toData();
-        $report = $this->import->handle(new ImportRequest(
-            $this->targets->store($input->param('store')),
-            ExportDocument::fromArray($input->array('document')),
-            apply: $input->boolean('apply'),
-        ), $this->actors->of($request));
+        $report = $import->handle(new ImportRequest(
+            $targets->store((string) $request->route('store')),
+            $request->document(),
+            apply: $request->boolean('apply'),
+        ), $actors->of($request));
 
-        return new JsonResponse(['data' => $report->toArray()]);
+        return ImportReportResource::make($report);
     }
 
-    public function diff(BodyRequest $request): JsonResponse
+    public function diff(DiffStoreRequest $request, DiffStore $diff, SettingTargets $targets, ApiActor $actors): StoreDiffResource
     {
-        $input = $request->toData();
-        $diff = $this->diff->handle($this->targets->store($input->param('store')), ExportDocument::fromArray($input->array('document')), $this->actors->of($request));
+        $result = $diff->handle($targets->store((string) $request->route('store')), $request->document(), $actors->of($request));
 
-        return new JsonResponse(['data' => $diff->toArray()]);
+        return StoreDiffResource::make($result);
     }
 }

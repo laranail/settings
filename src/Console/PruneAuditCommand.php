@@ -27,7 +27,7 @@ final class PruneAuditCommand extends Command
         $days = $this->option('days') ?? $config->get('laranail.settings.audit.keep_days', 365);
 
         if (! is_int($days) && (! is_string($days) || ! ctype_digit($days))) {
-            $this->error('The retention period must be a whole number of days.');
+            $this->error(__('laranail/settings::settings.console.audit_days_invalid'));
 
             return self::FAILURE;
         }
@@ -40,7 +40,7 @@ final class PruneAuditCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info(sprintf('Removed %d audit entr%s older than %d day(s).', $removed, $removed === 1 ? 'y' : 'ies', (int) $days));
+        $this->info(trans_choice('laranail/settings::settings.console.audit_pruned', $removed, ['days' => (int) $days]));
 
         return self::SUCCESS;
     }

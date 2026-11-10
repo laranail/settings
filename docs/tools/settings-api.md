@@ -609,7 +609,7 @@ Keys are lower-case dot notation of `[a-z0-9_]` segments, at most 191 characters
 
 ## How the channels share one implementation
 
-Each write is one action in `Simtabi\Laranail\Settings\Actions` (`SetSetting`, `ForgetSetting`, `LockSetting`, `UnlockSetting`, …), taking a DTO and the actor. The handle, the console commands and the [REST API](rest-api.md) all delegate to them, so behaviour cannot differ between them; `Enums\Capability::actions()` lists which action backs each REST route, and an architecture test holds the three to each other.
+Each write is one action in `Simtabi\Laranail\Settings\Actions` (`SetSetting`, `ForgetSetting`, `LockSetting`, `UnlockSetting`, …), taking a DTO and the actor. The handle, the console commands and the [REST API](rest-api.md) all delegate to them, so behaviour cannot differ between them; each REST controller method takes the action it runs as a parameter, and a test reading the live router holds the routes and the controllers to each other.
 
 ---
 

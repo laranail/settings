@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Closure;
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Enums\IdType;
@@ -13,13 +12,14 @@ use Simtabi\Laranail\Settings\Diagnostics\Finding;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
+use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
 /**
  * What `laranail::settings.doctor` reports, per store with a database layer: readiness (the
@@ -52,18 +52,17 @@ final readonly class DiagnoseSettings
 
     private const array STORES_COLUMNS = ['id', 'kind', 'name', 'config', 'created_at', 'updated_at'];
 
-    /** @param (Closure(): list<string>)|null $persisted problems found in the persisted configuration */
     public function __construct(
         private StoreRegistry $stores,
-        private ?SchemaShapeRepository $shapes = null,
-        private ?ValueEncrypter $encrypter = null,
-        private ?Closure $persisted = null,
+        private SchemaShapeRepository $shapes,
+        private LaravelValueEncrypter $encrypter,
+        private PersistedConfiguration $persisted,
     ) {}
 
     /** @return list<Finding> */
     public function handle(): array
     {
-        $findings = $this->shapes instanceof SchemaShapeRepository ? $this->schemaFile($this->shapes) : [];
+        $findings = $this->schemaFile($this->shapes);
 
         foreach ($this->stores->all() as $name => $store) {
             $database = $this->databaseOf($store);
@@ -87,21 +86,17 @@ final readonly class DiagnoseSettings
             $findings[] = $this->scopes($store, $database);
             $findings[] = $this->categories($store, $database);
 
-            if ($this->encrypter instanceof ValueEncrypter) {
-                $findings[] = $this->encryption($store, $database, $this->encrypter);
-            }
+            $findings[] = $this->encryption($store, $database, $this->encrypter);
 
             if ($database->shape()->changeRequestsTable) {
                 $findings[] = $this->changeRequests($store, $database);
             }
         }
 
-        if ($this->persisted instanceof Closure) {
-            $problems = ($this->persisted)();
-            $findings[] = new Finding('persisted configuration', 'Every persisted store and layer entry is valid', $problems === []
-                ? DoctorResult::pass('Every persisted entry is valid (or persisted configuration is off).')
-                : DoctorResult::warn('Persisted entries skipped as invalid: ' . implode('; ', $problems), ['problems' => $problems]));
-        }
+        $problems = $this->persisted->problems();
+        $findings[] = new Finding('persisted configuration', 'Every persisted store and layer entry is valid', $problems === []
+            ? DoctorResult::pass('Every persisted entry is valid (or persisted configuration is off).')
+            : DoctorResult::warn('Persisted entries skipped as invalid: ' . implode('; ', $problems), ['problems' => $problems]));
 
         return $findings;
     }
@@ -277,7 +272,7 @@ final readonly class DiagnoseSettings
      * Encrypted values no current or previous key can read (a key rotated without `reencrypt`,
      * or with the old key dropped from APP_PREVIOUS_KEYS). The current tenant's rows.
      */
-    private function encryption(Store $store, DatabaseDriver $database, ValueEncrypter $encrypter): Finding
+    private function encryption(Store $store, DatabaseDriver $database, LaravelValueEncrypter $encrypter): Finding
     {
         $unreadable = [];
         $encrypted = 0;

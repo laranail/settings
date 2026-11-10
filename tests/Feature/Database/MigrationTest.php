@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Migrations\Migration;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 
 /*
  * The package's one migration: every table, in dependency order, for every recorded database
@@ -101,7 +101,7 @@ it('reports nothing it cannot look at, rather than a finding', function (): void
         new SchemaNames,
         null,
         true,
-        static fn (): ReadinessProbe => app(ReadinessProbe::class),
+        static fn (): SchemaReadinessInterface => app(SchemaReadinessInterface::class),
     ));
     $live = new SchemaInspector(app(StoreRegistry::class)->default()->requireDatabase(''));
 
