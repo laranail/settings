@@ -11,23 +11,30 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Data\HistoryDiff;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
@@ -216,6 +223,54 @@ interface Settings
      * @throws LockedSetting
      */
     public function rollback(string $key, int $toVersion): int;
+
+    /**
+     * Open a change request for this value instead of writing it (§16.7), whether or not the
+     * setting needs approval; returns the request. Needs `update`.
+     *
+     * @throws ApprovalUnavailable when the store cannot hold change requests
+     * @throws InvalidSettingValue
+     */
+    public function propose(string $key, mixed $value): ChangeRequest;
+
+    /**
+     * The change requests of this handle's store (§16.7), decided as this handle's actor: list
+     * them, approve, reject or cancel one. A write to a setting that needs approval opens one
+     * automatically; `set()` still returns nothing.
+     */
+    public function approvals(): Approvals;
+
+    /**
+     * This handle's store as a portable document (G-42): categories by slug, settings by scope,
+     * key and locale. Encrypted values are left out unless the mode asks for their ciphertext or
+     * (with `view_sensitive`) their plaintext. Needs `export`.
+     *
+     * @throws AccessDenied
+     */
+    public function export(ExportMode $mode = ExportMode::Redacted): ExportDocument;
+
+    /**
+     * Write a document into this handle's store through the write pipeline, categories first, in
+     * one transaction (G-42). Locks and system categories in the document are ignored here; a
+     * trusted import is the console's `--trusted`. Needs `import`.
+     *
+     * @throws AccessDenied
+     * @throws VerificationRequired
+     */
+    public function import(ExportDocument $document): ImportReport;
+
+    /** What {@see import()} would do, without writing. Needs `import`. */
+    public function previewImport(ExportDocument $document): ImportReport;
+
+    /** How this handle's store differs from a document; no values. Needs `export`. */
+    public function compare(ExportDocument $document): StoreDiff;
+
+    /**
+     * Persisted configuration (§16.11): stores and layers kept in the database, and definitions
+     * kept in this handle's store's definitions table, edited as this handle's actor. Needs
+     * `manage_stores` or `manage_definitions`; on only with `configuration.persisted`.
+     */
+    public function persistedConfiguration(): PersistedConfigurationEditor;
 
     /**
      * The value at two versions of a setting. Needs `view_history`; an encrypted or sensitive

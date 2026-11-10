@@ -21,8 +21,23 @@ final readonly class SettingTarget
         public ?string $reason = null,
     ) {}
 
+    /**
+     * The subject abilities are checked against. A key matched by the store's `approvals.keys`
+     * needs approval as if its definition said so (§16.7).
+     */
     public function subject(): Subject
     {
-        return Subject::of($this->store->name, $this->key, $this->locale, $this->owner, $this->definition);
+        $subject = Subject::of($this->store->name, $this->key, $this->locale, $this->owner, $this->definition);
+
+        return $subject->requiresApproval || ! $this->store->requiresApproval($this->key) ? $subject : new Subject(
+            $subject->store,
+            $subject->key,
+            $subject->owner,
+            $subject->locale,
+            $subject->category,
+            $subject->sensitive,
+            $subject->requiresVerification,
+            requiresApproval: true,
+        );
     }
 }

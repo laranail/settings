@@ -54,6 +54,24 @@ final class DatabaseDefinitions
         return new Translations($json ? TranslationsMode::Json : TranslationsMode::Lang)->nullableText($stored);
     }
 
+    /** Forget the store's loaded rows, so the next read sees a definition just saved or deleted. */
+    public function forget(Store $store): void
+    {
+        unset($this->loaded[$store->name->value]);
+    }
+
+    /** @return array<string, Definition> every runtime definition of the store, by key */
+    public function all(Store $store): array
+    {
+        $database = $store->database();
+
+        if (! $this->enabled || ! $database instanceof DatabaseDriver || ! $database->shape()->definitionsTable) {
+            return [];
+        }
+
+        return $this->loaded[$store->name->value] ??= $this->load($store, $database);
+    }
+
     public function find(Store $store, Key $key): ?Definition
     {
         if (! $this->enabled) {

@@ -45,7 +45,9 @@ package's one migration (tag `laranail::settings-migrations`,
 `…_create_laranail_settings_tables.php`), and records the schema it will produce in
 `database/settings-schema.php`. The migration creates, in order, `settings_categories`, the
 optional `settings_definitions`, one values table per database store (`settings` for the default
-store) and `settings_audit`, and `down()` drops them in reverse. Set the
+store), `settings_audit`, `settings_history` (`history.enabled`), `settings_change_requests`
+(`approvals.table`) and `settings_stores` (`configuration.persisted`), and `down()` drops them in
+reverse. Set the
 [schema switches](tools/schema-switches.md) and `tenancy.mode` before installing. The default store
 reads the database first, so run the migrations before the first read; until then a read raises
 `DriverUnavailable`.
@@ -86,6 +88,12 @@ and shipped PHP defaults, as before:
 
 To start on files and move to the database later, see
 [Moving from files to the database](recipes/moving-from-files-to-the-database.md).
+
+## The REST API
+
+The JSON API is off until `http.enabled` is true; nothing is routed before that. It uses the
+host's authentication middleware (`auth:sanctum` when laravel/sanctum is installed). See
+[REST API](tools/rest-api.md).
 
 ## Supported databases
 

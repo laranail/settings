@@ -6,6 +6,7 @@ use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Filesystem\Factory;
 use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Contracts\Driver;
+use Simtabi\Laranail\Settings\Contracts\Importer;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
@@ -13,6 +14,7 @@ use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
+use Simtabi\Laranail\Settings\Contracts\OwnerResolver;
 use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
 use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Contracts\ValueValidator;
@@ -33,6 +35,7 @@ use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 const PLUGIN_CONTRACTS = [
     Driver::class, AuditSink::class, Authorizer::class, Caster::class, Verifier::class, ActorResolver::class,
     TenantDiscriminator::class, ReadinessProbe::class, ValueEncrypter::class, ValueValidator::class, BootstrapEvidence::class,
+    Importer::class, OwnerResolver::class,
 ];
 
 /** The 19 classes moved into Services\ in 0.1: old name => new name. */
@@ -89,7 +92,7 @@ it('keeps contract implementations out of Services', function (): void {
         }
     }
 
-    expect(count($services))->toBeGreaterThanOrEqual(20)
+    expect(count($services))->toBeGreaterThanOrEqual(25)
         ->and($offenders)->toBe([]);
 });
 
@@ -107,8 +110,8 @@ it('files every repository and registry under Services', function (): void {
     ));
 
     // The positive control: the scan does find the repositories and registries that exist.
-    expect(count($files))->toBeGreaterThanOrEqual(240)
-        ->and(count($found))->toBeGreaterThanOrEqual(8)
+    expect(count($files))->toBeGreaterThanOrEqual(360)
+        ->and(count($found))->toBeGreaterThanOrEqual(9)
         ->and($offenders)->toBe([]);
 });
 

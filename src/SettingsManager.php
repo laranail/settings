@@ -20,6 +20,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Data\HistoryDiff;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Actions\WarmCache;
 use Simtabi\Laranail\Settings\Data\HistoryEntry;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
@@ -27,26 +28,39 @@ use Simtabi\Laranail\Settings\Actions\ClearCache;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Data\HistoryFilter;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
+use Simtabi\Laranail\Settings\Data\ChangeProposal;
 use Simtabi\Laranail\Settings\Actions\StoreActions;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
+use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Actions\HistoryActions;
 use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Actions\Transfer\TransferActions;
+use Simtabi\Laranail\Settings\Actions\Approvals\ApprovalActions;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
+use Simtabi\Laranail\Settings\Actions\Configuration\ConfigurationActions;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
@@ -84,6 +98,9 @@ final readonly class SettingsManager implements Settings
         private ?QueryAudit $auditQuery = null,
         private ?DatabaseDefinitions $databaseDefinitions = null,
         private ?HistoryActions $historyActions = null,
+        private ?ApprovalActions $approvalActions = null,
+        private ?TransferActions $transferActions = null,
+        private ?ConfigurationActions $configurationActions = null,
     ) {
         $this->access = $access ?? AccessGuard::closed();
         $this->actions = $actions ?? SettingActions::using($writer, $this->access);
@@ -363,6 +380,55 @@ final readonly class SettingsManager implements Settings
         return $this->historyActions()->diff->handle($this->writeTarget($key), $from, $to, $this->actingAs);
     }
 
+    public function propose(string $key, mixed $value): ChangeRequest
+    {
+        return $this->approvalActions()->propose->handle(new ChangeProposal($this->writeTarget($key), ChangeOperation::Set, $value), $this->actingAs);
+    }
+
+    public function approvals(): Approvals
+    {
+        return new Approvals($this->approvalActions(), $this->targetStore(), $this->actingAs);
+    }
+
+    public function export(ExportMode $mode = ExportMode::Redacted): ExportDocument
+    {
+        return $this->transferActions()->export->handle(new ExportRequest($this->targetStore(), $mode), $this->actingAs);
+    }
+
+    public function import(ExportDocument $document): ImportReport
+    {
+        return $this->transferActions()->import->handle(new ImportRequest($this->targetStore(), $document, apply: true, reason: $this->reason ?? $this->actingAs?->context->reason), $this->actingAs);
+    }
+
+    public function previewImport(ExportDocument $document): ImportReport
+    {
+        return $this->transferActions()->import->handle(new ImportRequest($this->targetStore(), $document), $this->actingAs);
+    }
+
+    public function compare(ExportDocument $document): StoreDiff
+    {
+        return $this->transferActions()->diff->handle($this->targetStore(), $document, $this->actingAs);
+    }
+
+    public function persistedConfiguration(): PersistedConfigurationEditor
+    {
+        return new PersistedConfigurationEditor(
+            $this->configurationActions ?? throw new LogicException('This settings handle was built without the configuration actions; resolve Settings from the container.'),
+            $this->targetStore(),
+            $this->actingAs,
+        );
+    }
+
+    private function transferActions(): TransferActions
+    {
+        return $this->transferActions ?? throw new LogicException('This settings handle was built without the transfer actions; resolve Settings from the container.');
+    }
+
+    private function approvalActions(): ApprovalActions
+    {
+        return $this->approvalActions ?? throw new LogicException('This settings handle was built without the approval actions; resolve Settings from the container.');
+    }
+
     private function historyActions(): HistoryActions
     {
         return $this->historyActions ?? throw new LogicException('This settings handle was built without the history actions; resolve Settings from the container.');
@@ -500,6 +566,9 @@ final readonly class SettingsManager implements Settings
             $this->auditQuery,
             $this->databaseDefinitions,
             $this->historyActions,
+            $this->approvalActions,
+            $this->transferActions,
+            $this->configurationActions,
         );
     }
 }

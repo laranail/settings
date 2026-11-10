@@ -42,7 +42,7 @@ it('has an audit action for every ability plus configure', function (): void {
         expect(AuditAction::fromAbility($ability)->value)->toBe($ability->value);
     }
 
-    expect(AuditAction::cases())->toHaveCount(19)
+    expect(AuditAction::cases())->toHaveCount(25)
         ->and(AuditAction::Configure->value)->toBe('configure');
 });
 

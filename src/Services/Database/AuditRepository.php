@@ -106,7 +106,7 @@ final readonly class AuditRepository
             'locale'         => $entry->locale,
             'version_from'   => $entry->versionFrom,
             'version_to'     => $entry->versionTo,
-            'change_request' => null,
+            'change_request' => is_string($entry->meta['change_request'] ?? null) ? $entry->meta['change_request'] : null,
             'actor_type'     => $entry->actorType->value,
             'actor_alias'    => $entry->actorAlias,
             'actor_id'       => $entry->actorId,

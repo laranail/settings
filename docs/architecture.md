@@ -220,7 +220,15 @@ round trips per store on the first read of a request and none after it.
 
 ## Why headless?
 
-The package ships no views, Blade components, Livewire, Filament or assets. A settings engine is consumed by many interfaces (an admin panel, a CLI, an API client, another package), and any UI bundled here would be the wrong one for most of them and would drag view dependencies into every host. Its surfaces are the PHP API, events, Artisan commands and, later, an opt-in JSON API; an admin UI is a separate companion package. An architecture test fails on any view, Blade, Livewire or Filament reference in `src/` and on a `resources/views` directory.
+The package ships no views, Blade components, Livewire, Filament or assets. A settings engine is consumed by many interfaces (an admin panel, a CLI, an API client, another package), and any UI bundled here would be the wrong one for most of them and would drag view dependencies into every host. Its surfaces are the PHP API, events, Artisan commands and an opt-in JSON API; an admin UI is a separate companion package. An architecture test fails on any view, Blade, Livewire or Filament reference in `src/` and on a `resources/views` directory.
+
+## Why the REST API lives in the package
+
+The API is a channel, not a product: every endpoint runs an action the PHP API already runs (`Enums\Capability::actions()`), with the same authorizer, verifier, audit, locks and approvals. Shipped as a separate `settings-http` package it would have to reach into those actions from outside, keep its own copy of the capability list, and drift a release behind the engine whenever an action changed; the design moved it in (D-26) so one pull request changes a capability in every channel at once, and an architecture test fails when a route, the capability enum or a controller disagrees with the others. It costs nothing until it is used: no route is registered, no middleware or rate limiter defined, unless `http.enabled` is on, and it adds no dependency (Sanctum stays a suggestion). It returns JSON only, so the package stays headless.
+
+## Why change requests are a table
+
+A write that needs approval has to outlive the request that proposed it: the approver acts later, from another request, maybe another server, and a queue or a cache entry can be evicted before anyone looks. So a proposal is a row, written in the same transaction as its `pending` audit entry, on the store's own connection (one table per connection, like the history), with the proposed value stored exactly as the values table would store it, encrypted for an encrypted definition. Keeping the base version on the row is what makes applying it safe: the approval writes through the version-checked update, so a setting that changed in the meantime is never overwritten and the request becomes `stale`. Requests are keyed by ULID, so the table never depends on `ids.type`, and the table is a schema switch (`approvals.table`) like the history.
 
 ## Dependencies
 

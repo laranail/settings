@@ -38,6 +38,7 @@ function switchFactors(): array
         'categories_soft_deletes' => [false, true],
         'tenancy'                 => ['none', 'column'],
         'history'                 => [true, false],
+        'approvals'               => [true, false],
     ];
 }
 
@@ -66,10 +67,11 @@ it('covers every pair of switch values with a counted set of shapes', function (
     }
 
     // 141 pairs among the eight Phase 2b switches, plus tenancy's 2 values × the other 18
-    // values = 177, plus history's 2 values × the other 20 values = 217 (Phase 4); the full
-    // product doubles from 1,152 to 2,304, and the pairwise set grows from 10 shapes to 11.
-    expect(count($shapes))->toBe(getenv('LARANAIL_SETTINGS_MATRIX') === 'full' ? 2304 : 11)
-        ->and(count($all))->toBe(217)
+    // values = 177, plus history's 2 values × the other 20 values = 217 (Phase 4), plus the
+    // change requests table's 2 values × the other 22 values = 261 (Phase 4b); the full product
+    // doubles again from 2,304 to 4,608, and the pairwise set stays at 11 shapes.
+    expect(count($shapes))->toBe(getenv('LARANAIL_SETTINGS_MATRIX') === 'full' ? 4608 : 11)
+        ->and(count($all))->toBe(261)
         ->and(array_diff_key($all, $covered))->toBe([]);
 })->group('matrix', 'mutation-excluded');
 
@@ -86,6 +88,7 @@ it('runs every shape end to end and reports no drift', function (array $shape): 
         'categories.soft_deletes'      => $shape['categories_soft_deletes'],
         'tenancy.mode'                 => $shape['tenancy'],
         'history.enabled'              => $shape['history'],
+        'approvals.table'              => $shape['approvals'],
         'stores.settings.owners'       => $dedicated ? [] : ['user'],
         'stores.settings.soft_deletes' => $shape['soft_deletes'],
         'stores.settings.inherits'     => true,
@@ -142,6 +145,8 @@ it('runs every shape end to end and reports no drift', function (array $shape): 
         ->and(DB::table($ownerStore)->where('scope', 'user:1')->count())->toBe(1)
         ->and((int) DB::table($ownerStore)->where('scope', 'user:1')->value('version'))->toBe($shape['soft_deletes'] || $shape['history'] ? 4 : 3)
         ->and(Schema::hasTable('settings_history'))->toBe($shape['history'])
+        ->and(Schema::hasTable('settings_change_requests'))->toBe($shape['approvals'])
+        ->and($shape['approvals'] ? settings()->for($user)->propose('theme', 'dark')->scope : 'user:1')->toBe('user:1')
         ->and(array_map(static fn (HistoryEntry $entry): string => $entry->operation->value . ':' . $entry->version, $trail))
         ->toBe($shape['history'] ? ['unlock:4', 'lock:3', 'set:2', 'forget:1', 'set:1'] : [])
         ->and($shape['history'] && $shape['tenancy'] === 'column' ? DB::table('settings_history')->distinct()->pluck('tenant')->all() : ['acme'])->toBe(['acme'])

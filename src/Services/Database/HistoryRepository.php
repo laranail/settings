@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Database;
 
+use Closure;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Illuminate\Database\Query\Builder;
@@ -229,6 +230,74 @@ final readonly class HistoryRepository
             }
 
             return $removed;
+        });
+    }
+
+    /**
+     * Rewrite every encrypted payload in the history, every tenant's (re-encryption): the old and
+     * the new value of each entry. `$rewrite` returns null when it cannot read a payload (counted
+     * as failed, left as it was). Returns [rewritten, failed].
+     *
+     * @param Closure(string): ?string $rewrite
+     *
+     * @return array{int, int}
+     */
+    public function rewriteEncrypted(StoreName $store, Closure $rewrite): array
+    {
+        return $this->database->attempt($store, function () use ($rewrite): array {
+            $rewritten = 0;
+            $failed = 0;
+
+            $this->table()
+                ->where(static fn (Builder $query): Builder => $query->where('old_encrypted', true)->orWhere('new_encrypted', true))
+                ->select(['id', 'old_value', 'new_value', 'old_encrypted', 'new_encrypted'])
+                ->chunkById(500, function ($rows) use ($rewrite, &$rewritten, &$failed): void {
+                    foreach ($rows as $row) {
+                        $row = (array) $row;
+                        $columns = [];
+
+                        foreach (['old', 'new'] as $side) {
+                            $payload = $row[$side . '_value'] ?? null;
+
+                            if (! DatabaseValues::boolean($row[$side . '_encrypted'] ?? false) || ! is_string($payload)) {
+                                continue;
+                            }
+
+                            $new = $rewrite($payload);
+                            $new === null ? $failed++ : $columns[$side . '_value'] = $new;
+                        }
+
+                        if ($columns !== []) {
+                            $this->table()->where('id', $row['id'])->update($columns);
+                            $rewritten++;
+                        }
+                    }
+                });
+
+            return [$rewritten, $failed];
+        });
+    }
+
+    /** Rename an owner alias in every tenant's history (rescope, G-30); returns how many entries changed. */
+    public function rescope(StoreName $store, string $from, string $to): int
+    {
+        return $this->database->attempt($store, function () use ($store, $from, $to): int {
+            $changed = 0;
+
+            $this->table()
+                ->where('store', $store->value)
+                ->where('scope', '>=', $from . ':')
+                ->where('scope', '<', $from . ';')
+                ->select(['id', 'scope'])
+                ->chunkById(500, function ($rows) use ($from, $to, &$changed): void {
+                    foreach ($rows as $row) {
+                        $row = (array) $row;
+                        $scope = is_string($row['scope'] ?? null) ? $row['scope'] : '';
+                        $changed += $this->table()->where('id', $row['id'])->update(['scope' => $to . substr($scope, strlen($from))]);
+                    }
+                });
+
+            return $changed;
         });
     }
 

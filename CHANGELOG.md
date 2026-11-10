@@ -9,6 +9,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Approvals (design §16.7, Phase 4b): a write (`set`, `forget`, `lock`, `unlock`) to a setting
+  whose definition is `requiresApproval()`, or whose key matches the store's new
+  `approvals.keys` globs, opens a change request instead of writing. A
+  `settings_change_requests` table (one per connection, ULID keys, tenant column in column-mode
+  tenancy) is created by the one migration when the new schema switch `approvals.table` is on (the
+  default). The proposed value is validated and stored as the values table would store it, so an
+  encrypted definition's value is encrypted at rest. `$settings->propose()` and
+  `$settings->approvals()` (`Approvals\Approvals`: `pending()`, `status()`, `key()`, `for()`,
+  `get()`, `find()`, `approve()`, `reject()`, `cancel()`). Approving needs `approve`; the
+  requester cannot approve their own request unless `approvals.allow_self`; `approvals.min_approvals`
+  approvals apply the change through the write pipeline against the base version, so a setting
+  that changed meanwhile makes the request `stale`; requests expire after `approvals.expire_after`
+  days. Events `ChangeRequested`, `ChangeApproved`, `ChangeApplied`, `ChangeRejected`,
+  `ChangeCancelled`, `ChangeStale` (the alert listener knows the first four of interest); audit
+  actions `propose`, `reject`, `cancel` with the change request's id in the `change_request`
+  column; `laranail::settings.prune-changes`. Enums `ChangeStatus`, `ChangeOperation`; exceptions
+  `UnknownChangeRequest`, `ChangeRequestClosed`.
+- Export, import and store diff (G-10, G-42): `$settings->export(ExportMode)`, `import()`,
+  `previewImport()`, `compare()`; `laranail::settings.export` (`--with-secrets`, `--decrypt` with
+  the store name typed), `.import` (dry run unless `--apply`; `--trusted` for locks and system
+  categories) and `.diff`. Documents name categories by slug and settings by scope, key and locale,
+  never a numeric id. Imports create categories first and write each setting through the write
+  pipeline, in one transaction. Gated by `export` / `import`, audited.
+- Importers (G-43) behind `Contracts\Importer`: `spatie` (spatie/laravel-settings' table),
+  `toolkit` (laranail/toolkit's JSON store) and `akaunting` (akaunting/laravel-setting's table),
+  configured in `importers`, used with `import --from=<name>`. No dependency on any of them.
+- `laranail::settings.reencrypt` (`Actions\ReencryptSettings`): encrypts live values, history and
+  change requests again under the current key, leaving unreadable payloads untouched and
+  reporting them. `laranail::settings.rescope {from} {to}` (`Actions\RescopeOwners`, G-30) renames
+  an owner alias in values (with `settable_type` and per-row slugs), history and change requests.
+- `doctor` also reports encrypted values no key can read, open change requests past their expiry,
+  schema drift on the history, change requests and persisted configuration tables, and persisted
+  entries skipped as invalid.
+- Persisted configuration (§16.11): with the new schema switch `configuration.persisted`, a
+  `settings_stores` table holds stores and layers saved through
+  `$settings->persistedConfiguration()` (and the REST API), and definitions are saved to the
+  definitions table. Validated like configuration, gated (`manage_stores`, `manage_definitions`),
+  audited, read on first use and merged in `configuration.sources` order; an invalid entry is
+  logged and skipped.
+- The REST API (§16.10, Phase 4c), off unless `http.enabled`: 39 routes under `http.prefix`/v1
+  named `laranail-settings.api.*`, through `http.middleware`, the `laranail-settings` rate limiter
+  and an `Idempotency-Key` cache for writes. Route → FormRequest → controller → the same actions
+  the PHP API runs (`Enums\Capability`), API resources, ETags with `If-Match` (412), `202` with a
+  change request for approvals, cursor-paginated lists, values the actor may not view left out,
+  RFC 9457 problem details, `Contracts\OwnerResolver` (morph map by default; unknown alias 404).
+  New read actions `Actions\Reads\{ReadSetting, ReadSettings, ExplainSetting, ReadHistory,
+  ListStores, ListDefinitions}` and `Actions\Categories\ListCategories`.
+  `laranail::settings.openapi` writes an OpenAPI 3.1 document; the tests validate responses
+  against it.
+- Typed settings classes (Phase 5): `Typed\TypedSettings` with `load()`, `save()`,
+  `register()` and the attributes `#[Store]`, `#[Group]`, `#[Key]`, `#[Encrypted]`, `#[Type]`;
+  typed classes resolve from the container loaded, and `typed.classes` registers their
+  definitions. Settings migrations (G-17): `Typed\SettingsMigration` with `rename()`, `move()`,
+  `add()` and `delete()` (`Actions\MigrateSettings`, audited as `migrate`).
 - Value history (design §4.3, Phase 4): a `settings_history` table, one per connection like the
   audit table, created by the one migration when the new schema switch `history.enabled` is on
   (the default; recorded in the schema file as `history_table`, and read as off from a file
@@ -125,6 +179,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A write to a setting that needs approval opens a change request where the store can hold one;
+  `ApprovalUnavailable` is now raised only where it cannot (no active database layer, or no
+  change requests table). `SetSetting`, `ForgetSetting`, `LockSetting` and `UnlockSetting` return
+  the change request they opened (null when they wrote), and `WriteGuard::run()` takes an optional
+  proposal and returns it.
+- The `Settings` contract gains `propose()`, `approvals()`, `export()`, `import()`,
+  `previewImport()`, `compare()` and `persistedConfiguration()` (pre-1.0; `SettingsManager` and
+  the fake implement them).
+- The schema-switch matrix covers `approvals.table`: 11 pairwise shapes for 261 pairs per pull
+  request, 4,608 shapes in the weekly full product.
+- The test suite runs with a 512 MB memory limit (`phpunit.xml`).
 - Every service now lives under `Services\` (Phase 4 plan §1), moved verbatim:
   `Services\Database\{AuditRepository, CategoryRepository, DefinitionsRepository, SchemaInspector,
   SchemaShapeRepository}`, `Services\Stores\{SettingWriter, StoreRegistry}`,

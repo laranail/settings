@@ -62,10 +62,16 @@ A stored `null` is an answer: `has()` is true and `get()` returns `null`, not th
 | `history()` | the value history of the handle's store, owner and locale (needs `view_history`); see [History](history.md) |
 | `rollback($key, $toVersion)` | writes the value of an earlier version as a new version (needs `rollback`); returns the new version |
 | `historyDiff($key, $from, $to)` | the value at two versions, decrypted only for an actor holding `view_sensitive` |
+| `propose($key, $value)` | opens a change request for a value instead of writing it; returns the `ChangeRequest`; see [Approvals](approvals.md) |
+| `approvals()` | the store's change requests: list, approve, reject, cancel |
+| `export(ExportMode)` | the store as a portable document; see [Import and export](import-export.md) |
+| `import($document)` / `previewImport($document)` | write a document through the write pipeline, or report what that would do |
+| `compare($document)` | how the store differs from a document, by identity |
+| `persistedConfiguration()` | stores, layers and definitions kept in the database; see [Persisted configuration](persisted-configuration.md) |
 
-Writes raise `UnknownSetting` (strict store, no definition), `OwnerNotAllowed`, `LockedSetting`, `InvalidSettingValue`, `EncryptionUnavailable` or `StoreNotWritable`. A handle with an actor can also raise `AccessDenied` or `VerificationRequired`, any handle `ActorRequired` (when an actor is required) and `ApprovalUnavailable`. `history()`, `rollback()` and `historyDiff()` raise `HistoryUnavailable` for a store that keeps no history or a version it does not hold. Every exception extends `SettingsException`.
+Writes raise `UnknownSetting` (strict store, no definition), `OwnerNotAllowed`, `LockedSetting`, `InvalidSettingValue`, `EncryptionUnavailable` or `StoreNotWritable`. A handle with an actor can also raise `AccessDenied` or `VerificationRequired`, any handle `ActorRequired` (when an actor is required) and, for a setting that needs approval on a store that cannot hold change requests, `ApprovalUnavailable` (on one that can, the write opens a change request instead). `history()`, `rollback()` and `historyDiff()` raise `HistoryUnavailable` for a store that keeps no history or a version it does not hold. Every exception extends `SettingsException`.
 
-Each write is one action in `Simtabi\Laranail\Settings\Actions` (`SetSetting`, `ForgetSetting`, `LockSetting`, `UnlockSetting`), taking a DTO and the actor. The handle delegates to them, and later channels (console, REST) will too, so behaviour cannot differ between them.
+Each write is one action in `Simtabi\Laranail\Settings\Actions` (`SetSetting`, `ForgetSetting`, `LockSetting`, `UnlockSetting`), taking a DTO and the actor. The handle, the console commands and the [REST API](rest-api.md) all delegate to them, so behaviour cannot differ between them. [Typed settings](typed-settings.md) classes read and write through a handle.
 
 ## Keys
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
+use Closure;
+use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Stores\Store;
@@ -11,17 +13,21 @@ use Simtabi\Laranail\Settings\Diagnostics\Finding;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
+use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
+use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
  * What `laranail::settings.doctor` reports, per store with a database layer: readiness (the
  * connection answers and the tables exist), schema drift (columns this release reads that the
  * tables lack), scopes naming a class instead of a morph alias or an alias the store does not
- * list (G-6, G-30), and rows whose category belongs to another store (G-33). Read-only.
+ * list (G-6, G-30), rows whose category belongs to another store (G-33), encrypted values no key
+ * can read any more (§6), open change requests past their expiry (§16.7) and persisted
+ * configuration entries that were skipped as invalid (§16.11). Read-only.
  *
  * Schema drift is three comparisons (§4.0): the schema file against the configuration (a switch
  * changed after migrating changes nothing until a migration does), the file's shape version
@@ -40,9 +46,18 @@ final readonly class DiagnoseSettings
 
     private const array AUDIT_COLUMNS = ['id', 'occurred_at', 'action', 'outcome', 'store', 'scope', 'key', 'locale', 'version_from', 'version_to', 'change_request', 'actor_type', 'actor_alias', 'actor_id', 'channel', 'ip', 'user_agent', 'request_id', 'reason', 'meta'];
 
+    private const array HISTORY_COLUMNS = ['id', 'store', 'setting_ref', 'scope', 'key', 'locale', 'operation', 'old_value', 'new_value', 'old_type', 'new_type', 'old_encrypted', 'new_encrypted', 'version', 'causer_type', 'causer_alias', 'causer_id', 'reason', 'created_at'];
+
+    private const array CHANGE_REQUEST_COLUMNS = ['id', 'store', 'scope', 'key', 'locale', 'operation', 'payload', 'type', 'is_encrypted', 'base_version', 'status', 'requested_by_type', 'requested_by_alias', 'requested_by_id', 'approvals', 'decided_by_type', 'decided_by_alias', 'decided_by_id', 'decided_at', 'reason', 'decision_reason', 'expires_at', 'created_at', 'updated_at'];
+
+    private const array STORES_COLUMNS = ['id', 'kind', 'name', 'config', 'created_at', 'updated_at'];
+
+    /** @param (Closure(): list<string>)|null $persisted problems found in the persisted configuration */
     public function __construct(
         private StoreRegistry $stores,
         private ?SchemaShapeRepository $shapes = null,
+        private ?ValueEncrypter $encrypter = null,
+        private ?Closure $persisted = null,
     ) {}
 
     /** @return list<Finding> */
@@ -71,6 +86,21 @@ final readonly class DiagnoseSettings
             $findings[] = $this->drift($store, $database);
             $findings[] = $this->scopes($store, $database);
             $findings[] = $this->categories($store, $database);
+
+            if ($this->encrypter instanceof ValueEncrypter) {
+                $findings[] = $this->encryption($store, $database, $this->encrypter);
+            }
+
+            if ($database->shape()->changeRequestsTable) {
+                $findings[] = $this->changeRequests($store, $database);
+            }
+        }
+
+        if ($this->persisted instanceof Closure) {
+            $problems = ($this->persisted)();
+            $findings[] = new Finding('persisted configuration', 'Every persisted store and layer entry is valid', $problems === []
+                ? DoctorResult::pass('Every persisted entry is valid (or persisted configuration is off).')
+                : DoctorResult::warn('Persisted entries skipped as invalid: ' . implode('; ', $problems), ['problems' => $problems]));
         }
 
         return $findings;
@@ -147,6 +177,18 @@ final readonly class DiagnoseSettings
 
         if ($shape->definitionsTable) {
             $expected[$shape->names->definitions()] = self::DEFINITION_COLUMNS;
+        }
+
+        if ($shape->historyTable) {
+            $expected[$shape->names->history()] = [...self::HISTORY_COLUMNS, ...$tenant];
+        }
+
+        if ($shape->changeRequestsTable) {
+            $expected[$shape->names->changeRequests()] = [...self::CHANGE_REQUEST_COLUMNS, ...$tenant];
+        }
+
+        if ($shape->storesTable && $database->connectionName() === $this->stores->default()->database()?->connectionName()) {
+            $expected[$shape->names->stores()] = self::STORES_COLUMNS;
         }
 
         $inspector = new SchemaInspector($database);
@@ -229,6 +271,50 @@ final readonly class DiagnoseSettings
         return new Finding("{$store->name}: scopes", 'Scopes use morph aliases the store lists', $unlisted === []
             ? DoctorResult::pass('Every scope uses a listed alias.')
             : DoctorResult::warn('Scopes use aliases the store does not list (renamed or removed?): ' . implode(', ', array_keys($unlisted)), ['aliases' => array_keys($unlisted)]));
+    }
+
+    /**
+     * Encrypted values no current or previous key can read (a key rotated without `reencrypt`,
+     * or with the old key dropped from APP_PREVIOUS_KEYS). The current tenant's rows.
+     */
+    private function encryption(Store $store, DatabaseDriver $database, ValueEncrypter $encrypter): Finding
+    {
+        $unreadable = [];
+        $encrypted = 0;
+
+        try {
+            $records = $database->load($store->name, array_values(array_filter(array_map(Scope::fromString(...), $database->scopes($store->name)))))->all();
+        } catch (SettingsException $exception) {
+            return new Finding("{$store->name}: encryption", 'Every encrypted value can be decrypted', DoctorResult::fail($exception->getMessage()));
+        }
+
+        foreach ($records as $record) {
+            if (! $record->encrypted || $record->payload === null) {
+                continue;
+            }
+
+            $encrypted++;
+
+            try {
+                $encrypter->decrypt($record->payload);
+            } catch (SettingsException) {
+                $unreadable[] = $record->identity();
+            }
+        }
+
+        return new Finding("{$store->name}: encryption", 'Every encrypted value can be decrypted', $unreadable === []
+            ? DoctorResult::pass(sprintf('%d encrypted value(s), all readable.', $encrypted))
+            : DoctorResult::fail(sprintf('%d encrypted value(s) cannot be decrypted with the current or previous keys (put the old key in APP_PREVIOUS_KEYS, then run laranail::settings.reencrypt): %s', count($unreadable), implode(', ', $unreadable)), ['unreadable' => $unreadable]));
+    }
+
+    /** Open change requests past their expiry: prune-changes has not run. */
+    private function changeRequests(Store $store, DatabaseDriver $database): Finding
+    {
+        $overdue = new ChangeRequestRepository($database)->overdue(CarbonImmutable::now(), $store->name);
+
+        return new Finding("{$store->name}: change requests", 'No open change request is past its expiry', $overdue === 0
+            ? DoctorResult::pass('No overdue change requests.')
+            : DoctorResult::warn(sprintf('%d open change request(s) are past their expiry: schedule laranail::settings.prune-changes.', $overdue)));
     }
 
     private function categories(Store $store, DatabaseDriver $database): Finding

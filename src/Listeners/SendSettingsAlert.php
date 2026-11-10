@@ -13,18 +13,22 @@ use Simtabi\Laranail\Settings\Data\AlertRule;
 use Simtabi\Laranail\Settings\Data\AlertContext;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Simtabi\Laranail\Settings\Events\AuditPruned;
+use Simtabi\Laranail\Settings\Events\ChangeStale;
 use Simtabi\Laranail\Settings\Events\ScopeFlushed;
 use Simtabi\Laranail\Settings\Events\SettingSaved;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Simtabi\Laranail\Settings\Events\CategoryMoved;
 use Simtabi\Laranail\Settings\Events\CategorySaved;
+use Simtabi\Laranail\Settings\Events\ChangeApplied;
 use Simtabi\Laranail\Settings\Events\HistoryPruned;
 use Simtabi\Laranail\Settings\Events\OrphansPruned;
 use Simtabi\Laranail\Settings\Events\SettingLocked;
 use Simtabi\Laranail\Settings\Events\StorePromoted;
+use Simtabi\Laranail\Settings\Events\ChangeRejected;
 use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 use Simtabi\Laranail\Settings\Events\CategoryDeleted;
 use Simtabi\Laranail\Settings\Events\CategoryRenamed;
+use Simtabi\Laranail\Settings\Events\ChangeRequested;
 use Simtabi\Laranail\Settings\Events\SettingUnlocked;
 use Simtabi\Laranail\Settings\Events\SettingForgotten;
 use Simtabi\Laranail\Settings\Events\DefinitionsSynced;
@@ -66,6 +70,10 @@ final readonly class SendSettingsAlert
         OrphansPruned::class,
         AccessWasDenied::class,
         VerificationWasRequired::class,
+        ChangeRequested::class,
+        ChangeApplied::class,
+        ChangeRejected::class,
+        ChangeStale::class,
     ];
 
     /**

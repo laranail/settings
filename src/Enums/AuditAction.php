@@ -9,7 +9,8 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
 /**
- * What an audit entry records: every {@see Ability}, plus configuration changes.
+ * What an audit entry records: every {@see Ability}, plus configuration changes and the
+ * governance operations (proposals and their decisions, re-encryption, rescoping, settings migrations).
  */
 enum AuditAction: string implements Enumerator
 {
@@ -71,6 +72,24 @@ enum AuditAction: string implements Enumerator
 
     #[Label('Configure')]
     case Configure = 'configure';
+
+    #[Label('Propose a change')]
+    case Propose = 'propose';
+
+    #[Label('Reject a change')]
+    case Reject = 'reject';
+
+    #[Label('Cancel a change')]
+    case Cancel = 'cancel';
+
+    #[Label('Re-encrypt values')]
+    case Reencrypt = 'reencrypt';
+
+    #[Label('Rename an owner alias')]
+    case Rescope = 'rescope';
+
+    #[Label('Migrate settings')]
+    case Migrate = 'migrate';
 
     public static function fromAbility(Ability $ability): self
     {

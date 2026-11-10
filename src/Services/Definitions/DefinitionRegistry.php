@@ -33,6 +33,12 @@ final class DefinitionRegistry
         private readonly array $configured = [],
     ) {}
 
+    /** The store a definition without `inStore()` belongs to. */
+    public function defaultStore(): StoreName
+    {
+        return $this->defaultStore;
+    }
+
     public function define(string $key): DefinitionBuilder
     {
         return new DefinitionBuilder($this, new Key($key));
@@ -67,6 +73,26 @@ final class DefinitionRegistry
         $this->loadConfigured();
 
         return array_values($this->definitions);
+    }
+
+    /**
+     * Build, without registering, a definition from configuration-style attributes (`type`,
+     * `default`, `rules`, `encrypted`, …, as in `definitions.<key>`): how a definition saved
+     * through the API (§16.11) is validated before it is stored.
+     *
+     * @param array<array-key, mixed> $attributes
+     *
+     * @throws InvalidDefinition
+     */
+    public function fromAttributes(string $key, array $attributes, StoreName $store): Definition
+    {
+        $definition = $this->fromConfig($key, ['store' => $store->value] + $attributes)->build($this->defaultStore);
+
+        if ($definition->type !== null && ! $this->casters->has($definition->type)) {
+            throw new InvalidDefinition(sprintf('Setting [%s] uses unknown type [%s]; register a caster for it.', $definition->key, $definition->type));
+        }
+
+        return $definition;
     }
 
     private function loadConfigured(): void

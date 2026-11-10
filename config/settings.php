@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use Simtabi\Laranail\Settings\Importers\ToolkitJsonImporter;
+use Simtabi\Laranail\Settings\Importers\SpatieSettingsImporter;
+use Simtabi\Laranail\Settings\Importers\AkauntingSettingsImporter;
+
 /*
 |--------------------------------------------------------------------------
 | laranail/settings
@@ -44,7 +48,8 @@ return [
     | global rows) or `dedicated` (one owner alias, a non-null `owner_id` foreign
     | key to `owner.table`, owner rows only; its global values come from
     | `fallback`, default the default store). `soft_deletes` keeps forgotten rows
-    | as trashed and restores them on the next write.
+    | as trashed and restores them on the next write. `approvals.keys` lists key
+    | globs (`mail.*`) whose writes become change requests (see `approvals`).
     |
     |     'user_settings' => [
     |         'layers' => ['database'],
@@ -61,6 +66,7 @@ return [
             'strict'       => false,
             'inherits'     => false,
             'locks'        => ['overridable' => false],
+            'approvals'    => ['keys' => []],
             'bootstrap'    => false,
             'mode'         => 'polymorphic',
             'soft_deletes' => false,
@@ -81,11 +87,13 @@ return [
     | name that is not this package's.
     */
     'tables' => [
-        'prefix'      => env('LARANAIL_SETTINGS_TABLE_PREFIX', ''),
-        'categories'  => 'settings_categories',
-        'audit'       => 'settings_audit',
-        'definitions' => 'settings_definitions',
-        'history'     => 'settings_history',
+        'prefix'          => env('LARANAIL_SETTINGS_TABLE_PREFIX', ''),
+        'categories'      => 'settings_categories',
+        'audit'           => 'settings_audit',
+        'definitions'     => 'settings_definitions',
+        'history'         => 'settings_history',
+        'change_requests' => 'settings_change_requests',
+        'stores'          => 'settings_stores',
     ],
 
     /*
@@ -418,4 +426,109 @@ return [
         'rules'    => [],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Approvals: four eyes (§16.7)
+    |--------------------------------------------------------------------------
+    |
+    | A write to a definition marked requiresApproval(), or to a key matched by
+    | `stores.<name>.approvals.keys`, becomes a change request instead of a
+    | change. `table` is a schema switch (recorded in the schema file): it
+    | creates settings_change_requests on every connection a store uses.
+    | `min_approvals` approvals apply the change; the requester may approve
+    | their own request only with `allow_self`. A request expires after
+    | `expire_after` days; prune-changes marks expired requests and deletes
+    | decided ones older than `keep_days`.
+    */
+    'approvals' => [
+        'table'         => true,
+        'min_approvals' => 1,
+        'allow_self'    => false,
+        'expire_after'  => 7,
+        'keep_days'     => 90,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Persisted configuration (§16.11)
+    |--------------------------------------------------------------------------
+    |
+    | `persisted` (a schema switch) creates settings_stores, where stores and
+    | layers saved through the API are kept; definitions saved through the API
+    | go to the definitions table (definitions.table). `sources` is the merge
+    | order, later wins: `config` (this file), `database` (persisted entries,
+    | read on first use, never at boot; an invalid entry is logged and skipped)
+    | and `runtime` (changes made in code for one request).
+    */
+    'configuration' => [
+        'persisted' => env('LARANAIL_SETTINGS_PERSISTED_CONFIGURATION', false),
+        'sources'   => ['config', 'database', 'runtime'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Import and export (G-42, G-43)
+    |--------------------------------------------------------------------------
+    |
+    | Importers that `laranail::settings.import --from=<name>` can read, by
+    | name: a class implementing Simtabi\Laranail\Settings\Contracts\Importer.
+    | The three shipped ones need none of the packages they read.
+    */
+    'importers' => [
+        'spatie'    => SpatieSettingsImporter::class,
+        'toolkit'   => ToolkitJsonImporter::class,
+        'akaunting' => AkauntingSettingsImporter::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | REST API (§16.10)
+    |--------------------------------------------------------------------------
+    |
+    | Off by default; no route is registered until `enabled` is true. Routes
+    | live under `prefix`/v1, are named `laranail-settings.api.*`, and run
+    | through `middleware` (null: ['api', 'auth:sanctum'] when Sanctum is
+    | installed, else ['api', 'auth']) and the `laranail-settings` rate
+    | limiter (`rate_limit` requests per minute per actor, 0 for none).
+    | `routes` switches groups off. `idempotency` keeps the response to a
+    | write sent with an Idempotency-Key header for `ttl` seconds in `cache`
+    | (null: the default cache store), so a retried request is answered from
+    | there instead of applying twice. `owners` maps owner aliases the URL may
+    | name; null uses the morph map.
+    */
+    /*
+    |--------------------------------------------------------------------------
+    | Typed settings classes (Phase 5)
+    |--------------------------------------------------------------------------
+    |
+    | Classes extending Simtabi\Laranail\Settings\Typed\TypedSettings whose
+    | properties are registered as definitions (type, default, encryption)
+    | when definitions are first read, so the key-value API casts them alike.
+    */
+    'typed' => [
+        'classes' => [],
+    ],
+
+    'http' => [
+        'enabled'    => env('LARANAIL_SETTINGS_HTTP', false),
+        'prefix'     => 'api/settings',
+        'middleware' => null,
+        'rate_limit' => 60,
+        'routes'     => [
+            'stores'        => true,
+            'definitions'   => true,
+            'settings'      => true,
+            'history'       => true,
+            'audit'         => true,
+            'approvals'     => true,
+            'categories'    => true,
+            'configuration' => true,
+            'transfer'      => true,
+        ],
+        'idempotency' => [
+            'cache' => null,
+            'ttl'   => 86400,
+        ],
+        'page_size' => 50,
+    ],
 ];

@@ -9,7 +9,8 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
  * The package's table names: `tables.prefix` (D-4) prepended to `tables.categories`,
- * `tables.audit`, `tables.definitions`, `tables.history` and each store's values table (`stores.<name>.table`, default the store name).
+ * `tables.audit`, `tables.definitions`, `tables.history`, `tables.change_requests`,
+ * `tables.stores` and each store's values table (`stores.<name>.table`, default the store name).
  * Every name is validated, because it is interpolated into SQL identifiers.
  */
 final readonly class SchemaNames
@@ -20,6 +21,8 @@ final readonly class SchemaNames
         private string $audit = 'settings_audit',
         private string $definitions = 'settings_definitions',
         private string $history = 'settings_history',
+        private string $changeRequests = 'settings_change_requests',
+        private string $storesTable = 'settings_stores',
     ) {
         if (preg_match('/^[a-z0-9_]{0,32}$/', $prefix) !== 1) {
             throw new InvalidConfiguration(sprintf('laranail.settings.tables.prefix: [%s] must be [a-z0-9_], at most 32 characters.', $prefix));
@@ -29,6 +32,8 @@ final readonly class SchemaNames
         self::assertTable($audit, 'laranail.settings.tables.audit');
         self::assertTable($definitions, 'laranail.settings.tables.definitions');
         self::assertTable($history, 'laranail.settings.tables.history');
+        self::assertTable($changeRequests, 'laranail.settings.tables.change_requests');
+        self::assertTable($storesTable, 'laranail.settings.tables.stores');
     }
 
     /** @param array<array-key, mixed> $tables `laranail.settings.tables` */
@@ -40,6 +45,8 @@ final readonly class SchemaNames
             self::string($tables, 'audit', 'settings_audit'),
             self::string($tables, 'definitions', 'settings_definitions'),
             self::string($tables, 'history', 'settings_history'),
+            self::string($tables, 'change_requests', 'settings_change_requests'),
+            self::string($tables, 'stores', 'settings_stores'),
         );
     }
 
@@ -72,10 +79,22 @@ final readonly class SchemaNames
         return $this->prefix . $this->history;
     }
 
-    /** @return array{prefix: string, categories: string, audit: string, definitions: string, history: string} the unprefixed names */
+    /** The change requests table (§16.7), one per connection like the history table. */
+    public function changeRequests(): string
+    {
+        return $this->prefix . $this->changeRequests;
+    }
+
+    /** The persisted configuration table (§16.11), on the default store's connection. */
+    public function stores(): string
+    {
+        return $this->prefix . $this->storesTable;
+    }
+
+    /** @return array{prefix: string, categories: string, audit: string, definitions: string, history: string, change_requests: string, stores: string} the unprefixed names */
     public function toArray(): array
     {
-        return ['prefix' => $this->prefix, 'categories' => $this->categories, 'audit' => $this->audit, 'definitions' => $this->definitions, 'history' => $this->history];
+        return ['prefix' => $this->prefix, 'categories' => $this->categories, 'audit' => $this->audit, 'definitions' => $this->definitions, 'history' => $this->history, 'change_requests' => $this->changeRequests, 'stores' => $this->storesTable];
     }
 
     /** A store's values table: its configured table, or its name, after the prefix. */

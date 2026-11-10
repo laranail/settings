@@ -14,15 +14,22 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Data\HistoryDiff;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
@@ -207,6 +214,41 @@ final readonly class SettingsFake implements Settings
     public function historyDiff(string $key, int $from, int $to): HistoryDiff
     {
         return $this->inner->historyDiff($key, $from, $to);
+    }
+
+    public function propose(string $key, mixed $value): ChangeRequest
+    {
+        return $this->inner->propose($key, $value);
+    }
+
+    public function approvals(): Approvals
+    {
+        return $this->inner->approvals();
+    }
+
+    public function export(ExportMode $mode = ExportMode::Redacted): ExportDocument
+    {
+        return $this->inner->export($mode);
+    }
+
+    public function import(ExportDocument $document): ImportReport
+    {
+        return $this->inner->import($document);
+    }
+
+    public function previewImport(ExportDocument $document): ImportReport
+    {
+        return $this->inner->previewImport($document);
+    }
+
+    public function compare(ExportDocument $document): StoreDiff
+    {
+        return $this->inner->compare($document);
+    }
+
+    public function persistedConfiguration(): PersistedConfigurationEditor
+    {
+        return $this->inner->persistedConfiguration();
     }
 
     public function assertSaved(string $key, mixed ...$value): void

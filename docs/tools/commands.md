@@ -1,6 +1,6 @@
 # Commands
 
-Eleven Artisan commands, all named `laranail::settings.<command>`.
+Nineteen Artisan commands, all named `laranail::settings.<command>`.
 
 ## The commands
 
@@ -17,6 +17,13 @@ Eleven Artisan commands, all named `laranail::settings.<command>`.
 | `laranail::settings.prune-history [--days=] [--versions=]` | removes history entries `history.keep_days` / `history.keep_versions` no longer keep |
 | `laranail::settings.warm [--store=*]` | loads each cached store's global scope into the cache |
 | `laranail::settings.clear-cache [--store=*]` | resets the cached settings of every store, or the named ones, for every tenant |
+| `laranail::settings.prune-changes` | marks open change requests past `approvals.expire_after` as expired and deletes decided ones older than `approvals.keep_days` |
+| `laranail::settings.export [path] [--store=] [--with-secrets] [--decrypt] [--confirm=]` | writes a store as a JSON document; secrets redacted unless asked for |
+| `laranail::settings.import {source} [--store=] [--from=] [--apply] [--trusted]` | imports an export file, or another package's settings through an importer; a dry run without `--apply` |
+| `laranail::settings.diff {path} [--store=]` | compares a store with an export file, by identity only; exits 1 when they differ |
+| `laranail::settings.reencrypt` | encrypts every stored secret again under the current key (values, history, change requests) |
+| `laranail::settings.rescope {from} {to}` | renames an owner alias in stored values, history and change requests |
+| `laranail::settings.openapi [--output=]` | writes the OpenAPI 3.1 document of the REST API (needs `http.enabled`) |
 
 Each one delegates to an action (`Actions\PromoteStore`, `Actions\PruneOrphans`, …) that the PHP
 API uses too, so the console and the API cannot behave differently.
@@ -84,6 +91,17 @@ Without an option it lists the newest versions (operation, scope, causer, reason
 values). `--diff` prints the value at two versions; an encrypted or sensitive value prints as
 `[protected]` unless `--reveal` is given. `--rollback` writes the value of that version as a new
 version, through the same action as `rollback()`. See [History](history.md).
+
+## Governance commands
+
+`export`, `import` and `diff` are described in [Import and export](import-export.md) and
+[Importers](importers.md); `reencrypt` and `rescope` in [Re-encryption and rescoping](reencryption.md);
+`prune-changes` in [Approvals](approvals.md); `openapi` in [REST API](rest-api.md). Each runs as the
+system actor, is audited under its name, and delegates to the same action as the PHP API.
+
+`doctor` also checks, per database store: encrypted values no current or previous key can read,
+open change requests past their expiry, schema drift on the history, change requests and
+persisted configuration tables, and persisted configuration entries skipped as invalid.
 
 ## Pruning and access
 

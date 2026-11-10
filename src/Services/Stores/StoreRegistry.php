@@ -28,6 +28,7 @@ use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
 /**
  * Builds and validates every store from configuration on first use. Configuration errors are
@@ -38,13 +39,14 @@ final class StoreRegistry
     /** @var array<string, Store>|null */
     private ?array $stores = null;
 
-    /** The runtime configuration generation the built stores reflect. */
-    private int $builtGeneration = 0;
+    /** The runtime and persisted configuration generations the built stores reflect. */
+    private string $builtGeneration = '';
 
     /**
      * @param array<array-key, mixed> $storeConfig `laranail.settings.stores`
      * @param array<array-key, mixed> $layerConfig `laranail.settings.layers`
      * @param (Closure(string, string, string): void)|null $onLayerSkipped told (store, layer, reason) when bootstrap mode skips a layer
+     * @param list<string> $sources `configuration.sources`: the merge order of config, database (persisted) and runtime entries, later wins
      */
     public function __construct(
         private readonly DriverFactory $drivers,
@@ -56,12 +58,14 @@ final class StoreRegistry
         private readonly ?BootstrapEvidence $evidence = null,
         private readonly ?Closure $onLayerSkipped = null,
         private readonly ?SettingsCache $cache = null,
+        private readonly ?PersistedConfiguration $persisted = null,
+        private readonly array $sources = ['config', 'database', 'runtime'],
     ) {}
 
     /** A copy whose every layer is replaced by one driver (used by the fake). */
     public function withEveryLayer(Driver $driver): self
     {
-        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->onLayerSkipped, $this->cache);
+        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->onLayerSkipped, $this->cache, $this->persisted, $this->sources);
     }
 
     /**
@@ -108,7 +112,7 @@ final class StoreRegistry
     /** @return array<string, Store> */
     public function all(): array
     {
-        $generation = $this->runtime?->generation() ?? 0;
+        $generation = ($this->runtime?->generation() ?? 0) . ':' . ($this->persisted?->generation() ?? 0);
 
         if ($this->stores === null || $this->builtGeneration !== $generation) {
             $this->stores = $this->build();
@@ -177,6 +181,7 @@ final class StoreRegistry
                 table: $table,
                 mode: $schema->mode,
                 fallback: $schema->fallback,
+                approvalKeys: $this->approvalKeys($config['approvals'] ?? [], $path . '.approvals'),
             );
         }
 
@@ -248,16 +253,39 @@ final class StoreRegistry
         return new Layer($name, $this->override ?? $this->driverFactory()->make($layer), $this->override instanceof Driver ? DriverType::Array : DriverType::tryFrom($driver));
     }
 
-    /** @return array<array-key, mixed> config stores, with runtime additions over them */
+    /** @return array<array-key, mixed> config, persisted and runtime stores, merged in `configuration.sources` order */
     private function storeConfigs(): array
     {
-        return array_replace($this->storeConfig, $this->runtime?->stores() ?? []);
+        return $this->merged($this->storeConfig, fn (): array => $this->persisted?->stores() ?? [], $this->runtime?->stores() ?? []);
     }
 
-    /** @return array<array-key, mixed> config layers, with runtime additions over them */
+    /** @return array<array-key, mixed> config, persisted and runtime layers, merged in `configuration.sources` order */
     private function layerConfigs(): array
     {
-        return array_replace($this->layerConfig, $this->runtime?->layers() ?? []);
+        return $this->merged($this->layerConfig, fn (): array => $this->persisted?->layers() ?? [], $this->runtime?->layers() ?? []);
+    }
+
+    /**
+     * @param array<array-key, mixed> $config
+     * @param Closure(): array<array-key, mixed> $persisted read only when `database` is a source
+     * @param array<array-key, mixed> $runtime
+     *
+     * @return array<array-key, mixed>
+     */
+    private function merged(array $config, Closure $persisted, array $runtime): array
+    {
+        $merged = [];
+
+        foreach ($this->sources as $source) {
+            $merged = array_replace($merged, match ($source) {
+                'config'   => $config,
+                'database' => $persisted(),
+                'runtime'  => $runtime,
+                default    => throw new InvalidConfiguration(sprintf('laranail.settings.configuration.sources: [%s] is not config, database or runtime.', $source)),
+            });
+        }
+
+        return $merged;
     }
 
     private function driverFactory(): DriverFactory
@@ -272,6 +300,24 @@ final class StoreRegistry
         }
 
         return ($locks['overridable'] ?? false) === true;
+    }
+
+    /** @return list<string> */
+    private function approvalKeys(mixed $approvals, string $path): array
+    {
+        if (! is_array($approvals)) {
+            throw new InvalidConfiguration($path . ': an array is required.');
+        }
+
+        $globs = $this->strings($approvals['keys'] ?? [], $path . '.keys');
+
+        foreach ($globs as $glob) {
+            if (preg_match('/^[a-z0-9_.*?\[\]]+$/', $glob) !== 1) {
+                throw new InvalidConfiguration(sprintf('%s.keys: [%s] is not a key glob (a-z, 0-9, _, ., *, ?).', $path, $glob));
+            }
+        }
+
+        return $globs;
     }
 
     /** @return list<string> */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Stores;
 
 use Closure;
+use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
@@ -27,6 +28,7 @@ final readonly class Store
     /**
      * @param list<Layer> $layers
      * @param list<string> $owners
+     * @param list<string> $approvalKeys key globs whose writes become change requests (`approvals.keys`)
      */
     public function __construct(
         public StoreName $name,
@@ -39,7 +41,20 @@ final readonly class Store
         public ?string $table = null,
         public StoreMode $mode = StoreMode::Polymorphic,
         public ?StoreName $fallback = null,
+        public array $approvalKeys = [],
     ) {}
+
+    /** Whether `approvals.keys` makes a write of this key a change request (§16.7). */
+    public function requiresApproval(Key $key): bool
+    {
+        return array_any($this->approvalKeys, static fn (string $glob): bool => fnmatch($glob, $key->value, FNM_NOESCAPE));
+    }
+
+    /** Whether this store can hold change requests: its database layer is active and has the table. */
+    public function acceptsChangeRequests(): bool
+    {
+        return $this->database()?->shape()->changeRequestsTable ?? false;
+    }
 
     public function isDedicated(): bool
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Services\Database;
 
 use Carbon\CarbonImmutable;
+use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\Definition;
@@ -12,6 +13,7 @@ use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
+use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 
 /**
  * The definitions table on one connection (D-6, §4.4): syncing code and config definitions in as
@@ -92,6 +94,54 @@ final readonly class DefinitionsRepository
         $removed = $table()->where('is_system', true)->whereNotIn('key', $keys === [] ? [''] : $keys)->delete();
 
         return ['synced' => $synced, 'removed' => $removed, 'conflicts' => $conflicts];
+    }
+
+    /**
+     * Save a definition edited through the API (§16.11) as a runtime row. A system row (synced
+     * from code or config) for the key refuses it: code is the source of truth for those.
+     *
+     * @throws InvalidDefinition
+     */
+    public function save(StoreName $store, Definition $definition): void
+    {
+        $database = $this->database;
+        $table = static fn () => $database->connection()->table($database->names()->definitions())->where('store', $store->value);
+        $now = CarbonImmutable::now();
+
+        $database->attempt($store, function () use ($table, $store, $definition, $now): void {
+            $row = $table()->where('key', $definition->key->value)->first(['is_system']);
+
+            if ($row !== null && DatabaseValues::boolean($row->is_system ?? false)) {
+                throw new InvalidDefinition(sprintf('Setting [%s] in store [%s] is defined in code or configuration; change it there.', $definition->key, $store));
+            }
+
+            $columns = $this->columns($store, $definition, new Translations($this->database->shape()->translations)) + ['updated_at' => $now];
+
+            if ($row === null) {
+                $table()->insert($columns + DatabaseDriver::newId($this->database->shape()->ids) + [
+                    'store'      => $store->value,
+                    'key'        => $definition->key->value,
+                    'is_system'  => false,
+                    'created_at' => $now,
+                ]);
+
+                return;
+            }
+
+            $table()->where('key', $definition->key->value)->update($columns);
+        });
+    }
+
+    /** Delete a runtime definition row; returns whether one was there. System rows are kept. */
+    public function delete(StoreName $store, Key $key): bool
+    {
+        $database = $this->database;
+
+        return $database->attempt($store, static fn (): int => $database->connection()->table($database->names()->definitions())
+            ->where('store', $store->value)
+            ->where('key', $key->value)
+            ->where('is_system', false)
+            ->delete()) > 0;
     }
 
     /** @return array<string, mixed> */

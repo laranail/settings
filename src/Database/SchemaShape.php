@@ -44,6 +44,8 @@ final readonly class SchemaShape
         public array $stores = [],
         public TenancyMode $tenancy = TenancyMode::None,
         public bool $historyTable = false,
+        public bool $changeRequestsTable = false,
+        public bool $storesTable = false,
     ) {}
 
     /**
@@ -86,6 +88,18 @@ final readonly class SchemaShape
             throw new InvalidConfiguration('laranail.settings.history.enabled: true or false.');
         }
 
+        $approvals = self::section($settings, 'approvals')['table'] ?? true;
+
+        if (! is_bool($approvals)) {
+            throw new InvalidConfiguration('laranail.settings.approvals.table: true or false.');
+        }
+
+        $persisted = self::section($settings, 'configuration')['persisted'] ?? false;
+
+        if (! is_bool($persisted)) {
+            throw new InvalidConfiguration('laranail.settings.configuration.persisted: true or false.');
+        }
+
         $default = $settings['default'] ?? 'settings';
         $default = new StoreName(is_string($default) ? $default : 'settings');
 
@@ -102,6 +116,8 @@ final readonly class SchemaShape
             self::storesFromConfig($settings, $followed ?? IdType::Bigint, $default),
             $tenancy,
             $history,
+            $approvals,
+            $persisted,
         );
     }
 
@@ -146,6 +162,9 @@ final readonly class SchemaShape
             TenancyMode::tryFrom(self::text($switches, 'tenancy', 'none')) ?? throw $invalid('tenancy'),
             // A file recorded before the history table existed describes a schema without it.
             ($switches['history_table'] ?? false) === true,
+            // Likewise for the change requests and persisted configuration tables (Phase 4b).
+            ($switches['change_requests_table'] ?? false) === true,
+            ($switches['stores_table'] ?? false) === true,
         );
     }
 
@@ -172,6 +191,8 @@ final readonly class SchemaShape
                 'definitions_table'       => $this->definitionsTable,
                 'tenancy'                 => $this->tenancy->value,
                 'history_table'           => $this->historyTable,
+                'change_requests_table'   => $this->changeRequestsTable,
+                'stores_table'            => $this->storesTable,
             ],
             'tables' => $this->names->toArray(),
             'stores' => $stores,
@@ -196,7 +217,7 @@ final readonly class SchemaShape
             return $this;
         }
 
-        return new self($this->version, $this->identity, $this->ids, $this->ownerKey, $this->ownerKeyType, $this->translations, $this->categoriesSoftDeletes, $this->definitionsTable, $this->names, [...$this->stores, $store->name->value => $store], $this->tenancy, $this->historyTable);
+        return new self($this->version, $this->identity, $this->ids, $this->ownerKey, $this->ownerKeyType, $this->translations, $this->categoriesSoftDeletes, $this->definitionsTable, $this->names, [...$this->stores, $store->name->value => $store], $this->tenancy, $this->historyTable, $this->changeRequestsTable, $this->storesTable);
     }
 
     /**

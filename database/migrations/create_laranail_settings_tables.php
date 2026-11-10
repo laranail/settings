@@ -25,6 +25,9 @@ use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
  *   3. values        one table per database store
  *   4. audit         actions and denials, never values
  *   5. history       every value by version (history.enabled), encrypted values still encrypted
+ *   6. change requests  four-eyes approvals (approvals.table); proposed values encrypted as stored
+ *   7. stores        persisted store and layer configuration (configuration.persisted), on the
+ *                    default store's connection
  *
  * The shape (key type, identity mode, owner keys, dedicated stores, soft deletes, translations,
  * tenancy, table names, connections) comes from the recorded schema file
@@ -76,6 +79,14 @@ return new class extends Migration
             if ($tables['shared'] && $shape->historyTable && ($this->only === null || ! Schema::connection($connection)->hasTable($shape->names->history()))) {
                 $this->createHistory($connection, $shape);
             }
+
+            if ($tables['shared'] && $shape->changeRequestsTable && ($this->only === null || ! Schema::connection($connection)->hasTable($shape->names->changeRequests()))) {
+                $this->createChangeRequests($connection, $shape);
+            }
+
+            if ($tables['definitions'] && $shape->storesTable) {
+                $this->createStores($connection, $shape);
+            }
         }
     }
 
@@ -85,6 +96,14 @@ return new class extends Migration
 
         foreach (array_reverse($this->plan(), true) as $connection => $tables) {
             $schema = Schema::connection($connection);
+
+            if ($tables['definitions'] && $shape->storesTable) {
+                $schema->dropIfExists($shape->names->stores());
+            }
+
+            if ($tables['shared'] && $shape->changeRequestsTable) {
+                $schema->dropIfExists($shape->names->changeRequests());
+            }
 
             if ($tables['shared'] && $shape->historyTable) {
                 $schema->dropIfExists($shape->names->history());
@@ -365,6 +384,77 @@ return new class extends Migration
 
             $table->index([...$this->tenantColumns($shape), 'store', 'scope', 'key', 'locale', 'version'], $name . '_subject_index');
             $table->index('created_at', $name . '_created_index');
+        });
+    }
+
+    /**
+     * Change requests (§16.7): a write that needs approval waits here until enough approvers
+     * decide it. `payload` is the proposed value exactly as the values table would store it, so
+     * the value of an encrypted definition is encrypted at rest; `base_version` is the version the
+     * setting was at when the request was opened, and applying checks it, so a request whose
+     * setting changed since becomes `stale` instead of overwriting. Keyed by ULID, so the table
+     * never depends on `ids.type`.
+     */
+    private function createChangeRequests(string $connection, SchemaShape $shape): void
+    {
+        $name = $shape->names->changeRequests();
+        $binary = $this->binaryCollation($connection);
+
+        Schema::connection($connection)->create($name, function (Blueprint $table) use ($binary, $name, $shape): void {
+            $collate = static fn (ColumnDefinition $column): ColumnDefinition => $binary === null ? $column : $column->collation($binary);
+
+            $table->char('id', 26)->primary();
+
+            if ($shape->tenancy === TenancyMode::Column) {
+                $collate($table->string('tenant', 64)->default(''));
+            }
+
+            $table->string('store', 64);
+            $collate($table->string('scope', 128));
+            $collate($table->string('key', 191));
+            $collate($table->string('locale', 16)->default(''));
+            $table->string('operation', 16);
+            $table->longText('payload')->nullable();
+            $table->string('type', 64)->nullable();
+            $table->boolean('is_encrypted')->default(false);
+            $table->unsignedInteger('base_version')->default(0);
+            $table->string('status', 16);
+            $table->string('requested_by_type', 16);
+            $table->string('requested_by_alias', 64)->nullable();
+            $table->string('requested_by_id', 64)->nullable();
+            $table->json('approvals')->nullable();
+            $table->string('decided_by_type', 16)->nullable();
+            $table->string('decided_by_alias', 64)->nullable();
+            $table->string('decided_by_id', 64)->nullable();
+            $table->timestamp('decided_at')->nullable();
+            $table->text('reason')->nullable();
+            $table->text('decision_reason')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->timestamps();
+
+            $table->index([...$this->tenantColumns($shape), 'status', 'store'], $name . '_status_index');
+            $table->index([...$this->tenantColumns($shape), 'store', 'scope', 'key', 'locale'], $name . '_subject_index');
+            $table->index('expires_at', $name . '_expires_index');
+        });
+    }
+
+    /**
+     * Persisted configuration (§16.11): store and layer entries edited through the API, merged
+     * with the configuration file in `configuration.sources` order. `config` holds the entry as
+     * the configuration file would (JSON, so its key order is never relied on).
+     */
+    private function createStores(string $connection, SchemaShape $shape): void
+    {
+        $name = $shape->names->stores();
+
+        Schema::connection($connection)->create($name, function (Blueprint $table) use ($name): void {
+            $table->char('id', 26)->primary();
+            $table->string('kind', 16);
+            $table->string('name', 64);
+            $table->json('config');
+            $table->timestamps();
+
+            $table->unique(['kind', 'name'], $name . '_kind_name_unique');
         });
     }
 
