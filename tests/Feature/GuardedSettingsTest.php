@@ -201,6 +201,12 @@ describe('guarded locks', function (): void {
 });
 
 describe('step-up verification', function (): void {
+    // The boundary tests build "exactly 300 seconds ago" from one clock reading and the verifier
+    // reads the clock again; on a slow run (coverage) a second can pass between the two.
+    beforeEach(function (): void {
+        $this->freezeTime();
+    });
+
     it('requires verification for a definition marked requiresVerification', function (): void {
         defineSetting()->requiresVerification()->register();
         allowGates(Ability::Update, Ability::View);
