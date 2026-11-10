@@ -43,7 +43,7 @@ it('restores a trashed row on the next set, continuing its version, never as a c
 it('does not bring back the lock or labels of the forgotten row', function (): void {
     settings()->set('site.name', 'One');
     settings()->lock('site.name');
-    DB::table('settings')->update(['label' => 'Stale', 'meta' => '{"x":1}']);
+    DB::table('settings')->update(['label' => '{"":"Stale"}', 'meta' => '{"x":1}']);
     settings()->unlock('site.name');
     settings()->lock('site.name');
     DB::table('settings')->update(['deleted_at' => now()]);

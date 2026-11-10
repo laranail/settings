@@ -52,7 +52,9 @@ return new class extends Migration
                 $schema->create($names->categories(), function (Blueprint $table) use ($names, $tenant): void {
                     $name = $names->categories();
 
-                    $table->ulid('id')->primary();
+                    $table->ulid('id');
+                    // Declared before the self-referencing foreign key: Postgres needs the key to exist first.
+                    $table->primary('id');
 
                     if ($tenant) {
                         $table->string('tenant', 64)->default('');
