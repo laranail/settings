@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Closure;
-use Illuminate\Database\Eloquent\Model;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;

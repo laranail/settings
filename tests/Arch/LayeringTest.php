@@ -36,7 +36,6 @@ function sourceFiles(string $directory): array
 /** @return class-string the class a src/ file declares */
 function classOf(string $path): string
 {
-    /** @var class-string */
     return 'Simtabi\\Laranail\\Settings\\' . str_replace(['/', '.php'], ['\\', ''], $path);
 }
 

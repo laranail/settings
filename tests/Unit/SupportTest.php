@@ -2,15 +2,18 @@
 
 declare(strict_types=1);
 
+use Illuminate\Config\Repository;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Support\ConfigValues;
 use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Enums\TranslationsMode;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Definitions\DatabaseDefinitions;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 it('stores and reads titles in both translation modes', function (): void {
     $lang = new Translations(TranslationsMode::Lang);
@@ -35,7 +38,7 @@ it('stores and reads titles in both translation modes', function (): void {
 
 it('encodes JSON with one set of flags and names what failed', function (): void {
     expect(Json::encode(['a/b' => 'É'], 'A thing'))->toBe('{"a/b":"É"}')
-        ->and(fn () => Json::encode(['x' => NAN], 'A definition'))->toThrow(DriverFailure::class, 'A definition could not be encoded.')
+        ->and(fn (): string => Json::encode(['x' => NAN], 'A definition'))->toThrow(DriverFailure::class, 'A definition could not be encoded.')
         ->and(Json::strings('["a",1,"b"]'))->toBe(['a', 'b'])
         ->and(Json::strings('{"x":"a"}'))->toBe(['a'])
         ->and(Json::strings('oops'))->toBe([])
@@ -56,11 +59,11 @@ it('parses stored scopes and names their owner', function (): void {
         ->and(Scope::fromString('user:42')?->owner()?->id)->toBe('42')
         ->and(Scope::fromString('nocolon'))->toBeNull()
         ->and(Scope::global()->owner())->toBeNull()
-        ->and(fn () => Scope::fromString('App\\Models\\User:1'))->toThrow(InvalidIdentifier::class);
+        ->and(fn (): ?Scope => Scope::fromString('App\\Models\\User:1'))->toThrow(InvalidIdentifier::class);
 });
 
 it('reads configuration leniently, and lists strictly', function (): void {
-    $config = new Simtabi\Laranail\Settings\Support\ConfigValues(new Illuminate\Config\Repository([
+    $config = new ConfigValues(new Repository([
         'a' => ['name' => 'x', 'n' => '12', 'bad' => 1.5, 'list' => ['x', 2, 'y'], 'scalar' => 'no'],
     ]));
 
@@ -72,7 +75,7 @@ it('reads configuration leniently, and lists strictly', function (): void {
         ->and($config->integer('a.missing', 7))->toBe(7)
         ->and($config->array('a.scalar'))->toBe([])
         ->and($config->strings('a.list'))->toBe(['x', 'y'])
-        ->and(Simtabi\Laranail\Settings\Support\ConfigValues::listOfStrings(['x', 'y'], 'p'))->toBe(['x', 'y'])
-        ->and(fn () => Simtabi\Laranail\Settings\Support\ConfigValues::listOfStrings(['x', 2], 'p.q'))->toThrow(Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration::class, 'p.q: a list of strings is required.')
-        ->and(fn () => Simtabi\Laranail\Settings\Support\ConfigValues::listOfStrings('x', 'p.q'))->toThrow(Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration::class, 'p.q');
+        ->and(ConfigValues::listOfStrings(['x', 'y'], 'p'))->toBe(['x', 'y'])
+        ->and(fn (): array => ConfigValues::listOfStrings(['x', 2], 'p.q'))->toThrow(InvalidConfiguration::class, 'p.q: a list of strings is required.')
+        ->and(fn (): array => ConfigValues::listOfStrings('x', 'p.q'))->toThrow(InvalidConfiguration::class, 'p.q');
 });

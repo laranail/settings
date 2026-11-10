@@ -38,7 +38,7 @@ final readonly class AuditRepository
      */
     public static function locate(StoreRegistry $stores, ?StoreName $store): ?self
     {
-        $database = ($store === null ? $stores->default() : $stores->get($store))->database() ?? $stores->default()->database();
+        $database = ($store instanceof StoreName ? $stores->get($store) : $stores->default())->database() ?? $stores->default()->database();
 
         return $database instanceof DatabaseDriver ? new self($database) : null;
     }
