@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -11,7 +12,6 @@ use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Actions\MakeStore;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 // Writes into the testbench application shared by every process, so it cannot run in parallel.
 // It also carries `mutation-excluded`, because Pest's parallel runner honours one --exclude-group.
@@ -33,7 +33,7 @@ afterEach(function (): void {
     File::delete(config_path('laranail/settings.php'));
 });
 
-it('publishes the config and the one migration on install, and records the schema', function (): void {
+it('publishes the config and the one migration on install', function (): void {
     config()->set('laranail.settings.stores.settings.layers', ['database', 'runtime', 'shipped']);
 
     $this->artisan('laranail::settings.install')->assertSuccessful();
@@ -41,8 +41,7 @@ it('publishes the config and the one migration on install, and records the schem
     $names = array_map(static fn (string $path): string => preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path)) ?? '', settingsMigrations());
     sort($names);
 
-    expect($names)->toBe(['create_laranail_settings_tables.php'])
-        ->and(app(SchemaShapeRepository::class)->recorded()?->hasStore(new StoreName('settings')))->toBeTrue();
+    expect($names)->toBe(['create_laranail_settings_tables.php']);
 });
 
 it('refuses to install over a table of the same name that is not its own', function (): void {
@@ -121,7 +120,7 @@ it('generates the categories and audit tables too for a store on its own connect
         ->and($schema->hasTable('settings_audit'))->toBeFalse();
 });
 
-it('reports readiness, schema drift and rows the database cannot guard', function (): void {
+it('reports readiness, missing columns and rows the database cannot guard', function (): void {
     useDatabase([
         'stores.settings.owners' => ['user'],
         'stores.files'           => ['layers' => ['runtime']],
@@ -129,18 +128,19 @@ it('reports readiness, schema drift and rows the database cannot guard', functio
 
     $this->artisan('laranail::settings.doctor')
         ->expectsOutputToContain(sprintf('Table [settings] on [%s] is ready.', DB::getDefaultConnection()))
-        ->expectsOutputToContain('No schema drift.')
+        ->expectsOutputToContain('Every column is present.')
         ->expectsOutputToContain('Every scope uses a listed alias.')
         ->expectsOutputToContain('No database layer')
         ->assertSuccessful();
 
     $now = now();
-    $row = static fn (string $scope, string $uid, array $extra = []): array => $extra + ['scope' => $scope, 'key' => 'k', 'locale' => '', 'group' => 'k', 'uid' => $uid, 'value' => '1', 'version' => 1, 'created_at' => $now, 'updated_at' => $now];
+    $row = static fn (string $scope, string $uid, array $extra = []): array => $extra + ['id' => (string) Str::ulid(), 'scope' => $scope, 'key' => 'k', 'locale' => '', 'group' => 'k', 'uid' => $uid, 'value' => '1', 'version' => 1, 'created_at' => $now, 'updated_at' => $now];
     DB::table('settings')->insert($row('team:1', str_repeat('A', 26)));
     // A cross-store link only an import or manual SQL could make: the foreign key holds (the
     // category exists), but it belongs to another store. Disabling the key instead is not
     // portable: PostgreSQL only defers constraints declared deferrable.
-    $other = DB::table('settings_categories')->insertGetId(['store' => 'other', 'title' => 'Other', 'slug' => 'other', 'created_at' => $now, 'updated_at' => $now]);
+    $other = (string) Str::ulid();
+    DB::table('settings_categories')->insert(['id' => $other, 'store' => 'other', 'title' => '{"":"Other"}', 'slug' => 'other', 'created_at' => $now, 'updated_at' => $now]);
     DB::table('settings')->insert($row('global', str_repeat('B', 26), ['key' => 'c', 'category_id' => $other, 'category_store' => 'other']));
 
     $this->artisan('laranail::settings.doctor')

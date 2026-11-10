@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Blade;
 use Simtabi\Laranail\Settings\Actions\SetSetting;
 use Simtabi\Laranail\Settings\Actions\LockSetting;
 use Simtabi\Laranail\Settings\Typed\TypedSettings;
+use Simtabi\Laranail\Settings\Models\SettingsModel;
 use Simtabi\Laranail\Settings\Actions\ForgetSetting;
 use Simtabi\Laranail\Settings\Actions\UnlockSetting;
 use Simtabi\Laranail\Settings\Typed\SettingsMigration;
@@ -31,6 +32,8 @@ arch('classes are final unless they are an exception base')
         // Bases applications extend: a typed settings class, a settings migration.
         TypedSettings::class,
         SettingsMigration::class,
+        // The models' shared base.
+        SettingsModel::class,
     ]);
 
 arch('nothing outside Providers and Facades reaches into the container')
@@ -94,7 +97,7 @@ it('ships only the alert mail view and no assets, components or composers', func
     };
 
     // A scan that inspects nothing has broken, not found a clean tree.
-    expect($inspected)->toBeGreaterThanOrEqual(355)
+    expect($inspected)->toBeGreaterThanOrEqual(354)
         ->and($offending)->toBe([])
         ->and($files($root . '/resources/views'))->toBe(['mail/alert.blade.php'])
         ->and($files($root . '/resources/assets'))->toBe(['.gitkeep']);

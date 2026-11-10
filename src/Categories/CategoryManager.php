@@ -11,6 +11,7 @@ use Simtabi\Laranail\Settings\Data\Category;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
 use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
@@ -20,7 +21,6 @@ use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
 use Simtabi\Laranail\Settings\Actions\Categories\DeleteCategory;
 use Simtabi\Laranail\Settings\Actions\Categories\RenameCategory;
-use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * The categories of one store, as the handle's actor. Reads need `view`; changes need
@@ -79,20 +79,35 @@ final readonly class CategoryManager
     {
         $category = new CategorySlug($slug);
 
-        return $this->repository($category->value)->get($category);
+        foreach ($this->list($category->value) as $candidate) {
+            if ($candidate->slug->value === $category->value) {
+                return $candidate;
+            }
+        }
+
+        $database = $this->store()->requireDatabase('; categories are kept in the database.');
+
+        // Not in this store: name the store that has it, or report it unknown.
+        $database->attempt($this->store()->name, fn (): string => SettingCategory::idOf($database->connectionName(), $this->store()->name, $category));
+
+        throw new UnknownCategory(sprintf('Store [%s] has no category [%s].', $this->store()->name, $category));
     }
 
     /** @return list<Category> */
     public function all(): array
     {
-        return $this->repository(null)->all();
+        return $this->list(null);
     }
 
-    private function repository(?string $category): CategoryRepository
+    /** @return list<Category> */
+    private function list(?string $category): array
     {
         $this->access->authorize($this->actor, Ability::View, new Subject($this->store()->name, category: $category));
 
-        return CategoryRepository::of($this->store());
+        $store = $this->store();
+        $database = $store->requireDatabase('; categories are kept in the database.');
+
+        return $database->attempt($store->name, static fn (): array => SettingCategory::listFor($database->connectionName(), $store->name));
     }
 
     private function store(): Store

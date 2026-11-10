@@ -12,7 +12,6 @@ use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Tenancy\NullTenantDiscriminator;
 use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
-use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /*
  * Column-mode tenancy. One database; every values, categories and audit row carries
@@ -162,6 +161,5 @@ it('refuses an unknown tenancy mode', function (): void {
     config()->set('laranail.settings.tenancy.mode', 'schema');
     app()->forgetScopedInstances();
 
-    expect(fn () => app(SchemaShapeRepository::class)->configured())
-        ->toThrow(InvalidConfiguration::class, 'laranail.settings.tenancy.mode');
+    expect(ModelContext::hasTenantColumn(...))->toThrow(InvalidConfiguration::class, 'laranail.settings.tenancy.mode');
 });

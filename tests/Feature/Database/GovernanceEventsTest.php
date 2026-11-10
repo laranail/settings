@@ -36,7 +36,7 @@ it('announces a category move and a rename besides CategorySaved', function (): 
 });
 
 it('announces a definitions sync with its counts', function (): void {
-    useDatabase(['definitions.table' => true]);
+    useDatabase(['definitions.sources' => ['code', 'config', 'database']]);
     Event::fake([DefinitionsSynced::class]);
     app(DefinitionRegistry::class)->define('site.name')->register();
     app(DefinitionRegistry::class)->define('site.url')->register();

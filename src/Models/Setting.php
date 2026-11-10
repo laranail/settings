@@ -5,38 +5,42 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Models;
 
 use Override;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Simtabi\Laranail\Settings\Database\Factories\SettingFactory;
-use Simtabi\Laranail\Settings\Models\Concerns\UsesSettingsSchema;
 
 /**
  * A row of a store's values table, for factories, admin screens and tests. Belongs to the default
  * store unless {@see inStore()} or {@see forStore()} names another.
  *
  * `value` is the encoded payload. Writing it here bypasses validation, encryption, locks,
- * authorization and audit; application code uses `Settings::set()`.
+ * authorization and audit; application code uses `Settings::set()`. The engine reads and writes
+ * this table through the query builder, using {@see tableFor()} for its name.
  *
- * @property int|string $id
+ * @property string $id
+ * @property string $uid
  * @property string $scope
  * @property string $key
  * @property string $locale
  * @property ?string $value
  * @property int $version
  */
-final class Setting extends Model
+final class Setting extends SettingsModel
 {
     /** @use HasFactory<SettingFactory> */
     use HasFactory;
 
-    use UsesSettingsSchema;
-
-    protected $guarded = [];
-
     private ?string $store = null;
+
+    /** A store's values table: `tables.prefix` plus `stores.<name>.table`, else the store name. */
+    public static function tableFor(StoreName $store, ?string $table = null): string
+    {
+        $configured = ModelContext::store($store)['table'] ?? null;
+
+        return ModelContext::names()->store($store, $table ?? (is_string($configured) ? $configured : null));
+    }
 
     /** @return Builder<self> */
     public static function forStore(string $store): Builder
@@ -48,7 +52,7 @@ final class Setting extends Model
     public function inStore(string $store): static
     {
         $this->store = new StoreName($store)->value;
-        $this->setTable($this->storeTable());
+        $this->setTable(self::tableFor($this->storeName()));
         $this->setConnection(ModelContext::connectionOf($this->storeName()));
 
         return $this;
@@ -62,13 +66,18 @@ final class Setting extends Model
     #[Override]
     public function getTable(): string
     {
-        return $this->table ?? $this->storeTable();
+        return $this->table ?? self::tableFor($this->storeName());
     }
 
+    /**
+     * Both keys are ULIDs.
+     *
+     * @return list<string>
+     */
     #[Override]
-    public function getConnectionName(): ?string
+    public function uniqueIds(): array
     {
-        return parent::getConnectionName() ?? ModelContext::connectionOf($this->storeName());
+        return ['id', 'uid'];
     }
 
     /**
@@ -94,10 +103,11 @@ final class Setting extends Model
     #[Override]
     protected static function booted(): void
     {
+        // Trashed rows are hidden in stores that keep forgotten rows (`stores.<name>.soft_deletes`).
         self::addGlobalScope('laranail-settings.live', static function (Builder $query): void {
             $model = $query->getModel();
 
-            if ($model instanceof self && ModelContext::shape()->store($model->storeName())->softDeletes) {
+            if ($model instanceof self && (ModelContext::store($model->storeName())['soft_deletes'] ?? false) === true) {
                 $query->whereNull($query->qualifyColumn('deleted_at'));
             }
         });
@@ -108,11 +118,19 @@ final class Setting extends Model
         return SettingFactory::new();
     }
 
+    #[Override]
+    protected function defaultConnectionName(): ?string
+    {
+        return ModelContext::connectionOf($this->storeName());
+    }
+
     /** @return array<string, string> */
     #[Override]
     protected function casts(): array
     {
         return [
+            'label'        => 'array',
+            'description'  => 'array',
             'is_encrypted' => 'boolean',
             'is_locked'    => 'boolean',
             'is_public'    => 'boolean',
@@ -121,13 +139,5 @@ final class Setting extends Model
             'version'      => 'integer',
             'meta'         => 'array',
         ];
-    }
-
-    private function storeTable(): string
-    {
-        $shape = ModelContext::shape();
-        $store = $this->storeName();
-
-        return $shape->names->store($store, $shape->store($store)->table);
     }
 }

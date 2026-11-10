@@ -85,7 +85,7 @@ function useDatabase(array $config = [], array $stores = [], array $ownerTables 
 
     // One directory per distinct set of files, reused: the migrator requires each file, and PHP
     // keeps every compiled file for the life of the process, so a fresh path per call would leak
-    // a migration's worth of memory per test (the full switch matrix runs thousands of them).
+    // a migration's worth of memory per test.
     $migration = (string) file_get_contents(__DIR__ . '/../database/migrations/create_laranail_settings_tables.php');
     $directory = sys_get_temp_dir() . '/laranail-settings-migrations-' . sha1(serialize([$migration, $stores, $ownerTables]));
 

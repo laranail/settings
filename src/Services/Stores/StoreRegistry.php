@@ -10,12 +10,12 @@ use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Stores\Layer;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Enums\StoreMode;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Events\LayerSkipped;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
-use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
@@ -93,6 +93,12 @@ final class StoreRegistry
         return $store->fallback instanceof StoreName ? $this->get($store->fallback) : $store;
     }
 
+    /** The database layer holding a store's audit trail: its own, else the default store's, else null. */
+    public function auditDatabase(?StoreName $store): ?DatabaseDriver
+    {
+        return ($store instanceof StoreName ? $this->get($store) : $this->default())->database() ?? $this->default()->database();
+    }
+
     /** The one store whose owners include this alias. */
     public function forOwner(string $alias): Store
     {
@@ -164,20 +170,28 @@ final class StoreRegistry
             }
 
             $bootstrap = ($config['bootstrap'] ?? false) === true;
-            $schema = StoreSchema::fromConfig($storeName, $config, null, IdType::Bigint, new StoreName($this->default));
+            $softDeletes = $config['soft_deletes'] ?? false;
+
+            if (! is_bool($softDeletes)) {
+                throw new InvalidConfiguration($path . '.soft_deletes: true or false.');
+            }
+
+            $owner = $this->dedicatedOwner($config, $storeName, $path);
+            $options = ['table' => $table, 'soft_deletes' => $softDeletes, 'owner' => $owner];
 
             $built[$storeName->value] = new Store(
                 name: $storeName,
-                layers: array_map(fn (string $layer): Layer => $this->storeLayer($layer, $path, $storeName, $table, $bootstrap), $layerNames),
+                layers: array_map(fn (string $layer): Layer => $this->storeLayer($layer, $path, $storeName, $options, $bootstrap), $layerNames),
                 owners: $owners,
                 strict: ($config['strict'] ?? false) === true,
                 inherits: ($config['inherits'] ?? false) === true,
                 locksOverridable: $this->locksOverridable($config['locks'] ?? [], $path . '.locks'),
                 bootstrap: $bootstrap,
                 table: $table,
-                mode: $schema->mode,
-                fallback: $schema->fallback,
+                mode: $owner === null ? StoreMode::Polymorphic : StoreMode::Dedicated,
+                fallback: $owner === null ? null : new StoreName($owner['fallback']),
                 approvalKeys: $this->approvalKeys($config['approvals'] ?? [], $path . '.approvals'),
+                softDeletes: $softDeletes,
             );
         }
 
@@ -199,9 +213,10 @@ final class StoreRegistry
      *
      * The cache wraps the gate, so a skipped layer is never cached.
      */
-    private function storeLayer(string $name, string $storePath, StoreName $store, ?string $table, bool $bootstrap): Layer
+    /** @param array<string, mixed> $options the store's table, soft deletes and dedicated owner, for a database layer */
+    private function storeLayer(string $name, string $storePath, StoreName $store, array $options, bool $bootstrap): Layer
     {
-        $layer = $this->gatedLayer($this->layer($name, $storePath, $table === null ? [] : ['table' => $table]), $store, $bootstrap);
+        $layer = $this->gatedLayer($this->layer($name, $storePath, array_filter($options, static fn (mixed $value): bool => $value !== null)), $store, $bootstrap);
 
         return $this->cache instanceof SettingsCache && $layer->driver instanceof DatabaseBacked
             ? new Layer($layer->name, new CachingDriver($layer->driver, $this->cache), $layer->type)
@@ -278,6 +293,61 @@ final class StoreRegistry
     private function driverFactory(): DriverFactory
     {
         return $this->runtime instanceof RuntimeConfiguration ? $this->drivers->withExtensions($this->runtime->drivers()) : $this->drivers;
+    }
+
+    /**
+     * The owner of a dedicated store, or null for a polymorphic one.
+     *
+     * @param array<array-key, mixed> $config
+     *
+     * @return array{alias: string, table: string, key: string, type: ?string, fallback: string}|null
+     */
+    private function dedicatedOwner(array $config, StoreName $store, string $path): ?array
+    {
+        $mode = $config['mode'] ?? StoreMode::Polymorphic->value;
+        $mode = is_string($mode) ? StoreMode::tryFrom($mode) : null;
+
+        if (! $mode instanceof StoreMode) {
+            throw new InvalidConfiguration($path . '.mode: use [polymorphic] or [dedicated].');
+        }
+
+        if ($mode === StoreMode::Polymorphic) {
+            return null;
+        }
+
+        $owners = $config['owners'] ?? [];
+
+        if (! is_array($owners) || count($owners) !== 1 || ! is_string($owners[array_key_first($owners)])) {
+            throw new InvalidConfiguration($path . '.owners: a dedicated store holds exactly one owner alias.');
+        }
+
+        $owner = $config['owner'] ?? [];
+
+        if (! is_array($owner) || ! is_string($owner['table'] ?? null)) {
+            throw new InvalidConfiguration($path . '.owner.table: a dedicated store names the table its owners live in.');
+        }
+
+        SchemaNames::assertTable($owner['table'], $path . '.owner.table');
+        $key = $owner['key'] ?? 'id';
+        $type = $owner['type'] ?? null;
+
+        if (! is_string($key) || preg_match('/^[a-z_][a-z0-9_]{0,63}$/', $key) !== 1 || ($type !== null && (! is_string($type) || ! IdType::parse($type) instanceof IdType))) {
+            throw new InvalidConfiguration($path . '.owner: `key` is a column name and `type` one of bigint, uuid, ulid.');
+        }
+
+        $fallback = $config['fallback'] ?? $this->default;
+
+        try {
+            $fallback = new StoreName(is_string($fallback) ? $fallback : '');
+        } catch (InvalidIdentifier $exception) {
+            throw new InvalidConfiguration($path . '.fallback: ' . $exception->getMessage(), 0, $exception);
+        }
+
+        if ($fallback->value === $store->value) {
+            throw new InvalidConfiguration($path . '.fallback: a dedicated store has no global rows, so its fallback must be another store.');
+        }
+
+        return ['alias' => $owners[array_key_first($owners)], 'table' => $owner['table'], 'key' => $key, 'type' => $type, 'fallback' => $fallback->value];
     }
 
     private function locksOverridable(mixed $locks, string $path): bool

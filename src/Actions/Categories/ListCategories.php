@@ -9,8 +9,8 @@ use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\Category;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /** List a store's categories by sort order, then slug. */
 final readonly class ListCategories
@@ -24,6 +24,8 @@ final readonly class ListCategories
     {
         $this->access->authorize($actor, Ability::View, new Subject($store->name));
 
-        return CategoryRepository::of($store)->all();
+        $database = $store->requireDatabase('; categories are kept in the database.');
+
+        return $database->attempt($store->name, static fn (): array => SettingCategory::listFor($database->connectionName(), $store->name));
     }
 }

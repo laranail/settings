@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Migrations\Migration;
-use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
@@ -80,8 +79,8 @@ it('runs on the default store\'s connection', function (): void {
     expect(packageMigration()->getConnection())->toBe(DB::getDefaultConnection());
 });
 
-it('creates the definitions table on the default store\'s connection when it is on, after categories', function (): void {
-    useDatabase(['definitions.table' => true]);
+it('creates the definitions table on the default store\'s connection, after categories', function (): void {
+    useDatabase(['definitions.sources' => ['code', 'config', 'database']]);
 
     expect(Schema::hasTable('settings_definitions'))->toBeTrue()
         ->and(collect(Schema::getForeignKeys('settings_definitions'))->pluck('foreign_table')->all())->toBe(['settings_categories']);
@@ -98,7 +97,6 @@ it('reports nothing it cannot look at, rather than a finding', function (): void
     $inspector = new SchemaInspector(new DatabaseDriver(
         app('db'),
         'unreachable',
-        new SchemaNames,
         null,
         true,
         static fn (): SchemaReadinessInterface => app(SchemaReadinessInterface::class),

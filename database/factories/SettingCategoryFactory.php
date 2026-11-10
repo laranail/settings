@@ -11,8 +11,7 @@ use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
 
 /**
- * Categories for tests and seeding. Titles follow `translations.mode` (plain text, or a JSON map
- * of locale to text). No Faker: slugs and titles are generated, so host applications need not
+ * Categories for tests and seeding. Titles are JSON maps of locale to text. No Faker: slugs and titles are generated, so host applications need not
  * install it.
  *
  *     SettingCategory::factory()->forStore('user_settings')->system()->create(['slug' => 'mail']);
@@ -24,10 +23,14 @@ final class SettingCategoryFactory extends Factory
 {
     protected $model = SettingCategory::class;
 
-    /** Text as `translations.mode` stores it: as is, or `{"": text}` (the text for any locale), as the engine writes it. */
-    public static function text(string $text): string
+    /**
+     * Text as the engine stores it: `['' => text]`, the text for any locale.
+     *
+     * @return array<string, string>
+     */
+    public static function text(string $text): array
     {
-        return new Translations(ModelContext::shape()->translations)->store($text);
+        return Translations::of($text);
     }
 
     /** @return array<string, mixed> */
@@ -64,7 +67,7 @@ final class SettingCategoryFactory extends Factory
         return $this->state(['parent_id' => $parent->getKey(), 'store' => $parent->store]);
     }
 
-    /** A title (and optionally a description) as the shape stores them. */
+    /** A title, and optionally a description. */
     public function titled(string $title, ?string $description = null): static
     {
         return $this->state(['title' => self::text($title), 'description' => $description === null ? null : self::text($description)]);

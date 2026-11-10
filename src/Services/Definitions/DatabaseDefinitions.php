@@ -6,15 +6,13 @@ namespace Simtabi\Laranail\Settings\Services\Definitions;
 
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Support\DatabaseValues;
+use Simtabi\Laranail\Settings\Models\SettingDefinition;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
-use Simtabi\Laranail\Settings\Services\Database\DefinitionsRepository;
 
 /**
  * The `database` definition source: runtime rows of the definitions table.
@@ -46,7 +44,7 @@ final class DatabaseDefinitions
     {
         $database = $store->database();
 
-        if (! $this->enabled || ! $database instanceof DatabaseDriver || ! $database->shape()->definitionsTable) {
+        if (! $this->enabled || ! $database instanceof DatabaseDriver) {
             return [];
         }
 
@@ -61,7 +59,7 @@ final class DatabaseDefinitions
 
         $database = $store->database();
 
-        if (! $database instanceof DatabaseDriver || ! $database->shape()->definitionsTable) {
+        if (! $database instanceof DatabaseDriver) {
             return null;
         }
 
@@ -71,32 +69,32 @@ final class DatabaseDefinitions
     /** @return array<string, Definition> */
     private function load(Store $store, DatabaseDriver $database): array
     {
-        $rows = new DefinitionsRepository($database, $this->encoder)->runtimeRows($store->name);
-        $translations = new Translations($database->shape()->translations);
+        $rows = $database->attempt($store->name, static fn (): array => SettingDefinition::on($database->connectionName())
+            ->with('category')
+            ->forStore($store->name)
+            ->runtime()
+            ->get()
+            ->all());
         $definitions = [];
 
         foreach ($rows as $row) {
-            $definition = $this->definition($store, $row, $translations);
+            $definition = $this->definition($store, $row);
             $definitions[$definition->key->value] = $definition;
         }
 
         return $definitions;
     }
 
-    /** @param array<array-key, mixed> $row */
-    private function definition(Store $store, array $row, Translations $translations): Definition
+    private function definition(Store $store, SettingDefinition $row): Definition
     {
-        $text = static fn (string $column): ?string => is_string($row[$column] ?? null) && $row[$column] !== '' ? $row[$column] : null;
-        $flag = static fn (string $column): bool => DatabaseValues::boolean($row[$column] ?? false);
-        $key = new Key($text('key') ?? throw new InvalidDefinition('A definitions row has no key.'));
-        $type = $text('type');
+        $key = new Key($row->key);
+        $type = $row->type === '' ? null : $row->type;
 
         if ($type !== null && ! $this->casters->has($type)) {
             throw new InvalidDefinition(sprintf('Definitions table: setting [%s] uses unknown type [%s]; register a caster for it.', $key, $type));
         }
 
-        $default = $text('default');
-        $inherits = $row['inherits'] ?? null;
+        $default = $row->default === '' ? null : $row->default;
 
         return new Definition(
             store: $store->name,
@@ -104,24 +102,28 @@ final class DatabaseDefinitions
             type: $type,
             default: $default === null ? null : $this->encoder->decode($key, $default),
             hasDefault: $default !== null,
-            rules: $this->rules($text('rules')),
-            encrypted: $flag('is_encrypted'),
-            public: $flag('is_public'),
-            locked: $flag('is_locked'),
-            inherits: $inherits === null ? null : DatabaseValues::boolean($inherits),
-            overridableBy: Json::strings($text('overridable_by')),
-            label: $translations->nullableText($text('label')),
-            description: $translations->nullableText($text('description')),
-            category: $text('category_slug'),
-            group: $text('group'),
+            rules: $this->rules($row->rules ?? []),
+            encrypted: $row->is_encrypted,
+            public: $row->is_public,
+            locked: $row->is_locked,
+            inherits: $row->inherits,
+            overridableBy: array_values(array_filter($row->overridable_by ?? [], is_string(...))),
+            label: Translations::text($row->label),
+            description: Translations::text($row->description),
+            category: $row->category?->slug,
+            group: $row->group === '' ? null : $row->group,
         );
     }
 
-    /** @return list<string> the stored rules whose name is allowed */
-    private function rules(?string $json): array
+    /**
+     * @param array<array-key, mixed> $rules
+     *
+     * @return list<string> the stored rules whose name is allowed
+     */
+    private function rules(array $rules): array
     {
         return array_values(array_filter(
-            Json::strings($json),
+            array_values(array_filter($rules, is_string(...))),
             fn (string $rule): bool => in_array(explode(':', $rule, 2)[0], $this->allowedRules, true),
         ));
     }

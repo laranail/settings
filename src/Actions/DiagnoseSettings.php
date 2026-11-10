@@ -6,36 +6,33 @@ namespace Simtabi\Laranail\Settings\Actions;
 
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Diagnostics\Finding;
-use Simtabi\Laranail\Settings\Database\SchemaShape;
+use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
+use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
-use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
 /**
  * The findings of `laranail::settings.doctor`. Read-only.
  *
- * Per store with a database layer: readiness, schema drift, scopes that name a class or an alias
- * the store does not list, category links to another store, keys outside their category,
+ * Per store with a database layer: readiness, missing columns, scopes that name a class or an
+ * alias the store does not list, category links to another store, keys outside their category,
  * encrypted values no key can read, and overdue change requests. Then: every code or config
  * definition whose key sits outside its category, and persisted configuration entries skipped as
- * invalid. Schema drift compares the schema file with configuration, its shape version with this
- * release's, and the live tables with the recorded shape.
+ * invalid.
  */
 final readonly class DiagnoseSettings
 {
-    /** The values-table columns every shape has; the rest depend on the switches. */
-    private const array VALUES_COLUMNS = ['id', 'scope', 'category_id', 'category_store', 'group', 'key', 'locale', 'value', 'type', 'label', 'description', 'is_encrypted', 'is_locked', 'is_public', 'autoload', 'sort_order', 'meta', 'version', 'created_at', 'updated_at'];
+    /** The values-table columns every store has; owner columns depend on the store's mode. */
+    private const array VALUES_COLUMNS = ['id', 'uid', 'scope', 'category_id', 'category_store', 'group', 'key', 'locale', 'value', 'type', 'label', 'description', 'is_encrypted', 'is_locked', 'is_public', 'autoload', 'sort_order', 'meta', 'version', 'created_at', 'updated_at', 'deleted_at'];
 
     private const array CATEGORY_COLUMNS = ['id', 'store', 'parent_id', 'title', 'slug', 'description', 'icon', 'sort_order', 'is_system', 'meta', 'created_at', 'updated_at'];
 
@@ -51,7 +48,6 @@ final readonly class DiagnoseSettings
 
     public function __construct(
         private StoreRegistry $stores,
-        private SchemaShapeRepository $shapes,
         private LaravelValueEncrypter $encrypter,
         private PersistedConfiguration $persisted,
         private DefinitionRegistry $definitions,
@@ -60,7 +56,7 @@ final readonly class DiagnoseSettings
     /** @return list<Finding> */
     public function handle(): array
     {
-        $findings = $this->schemaFile($this->shapes);
+        $findings = [];
 
         foreach ($this->stores->all() as $name => $store) {
             $database = $this->databaseOf($store);
@@ -80,16 +76,13 @@ final readonly class DiagnoseSettings
             }
 
             $findings[] = new Finding("{$name}: readiness", 'The database layer answers and its table exists', DoctorResult::pass(sprintf('Table [%s] on [%s] is ready.', $database->tableFor($store->name), $database->connectionName())));
-            $findings[] = $this->drift($store, $database);
+            $findings[] = $this->columns($store, $database);
             $findings[] = $this->scopes($store, $database);
             $findings[] = $this->categories($store, $database);
             $findings[] = $this->categoryKeys($store, $database);
 
             $findings[] = $this->encryption($store, $database, $this->encrypter);
-
-            if ($database->shape()->changeRequestsTable) {
-                $findings[] = $this->changeRequests($store, $database);
-            }
+            $findings[] = $this->changeRequests($store, $database);
         }
 
         $findings[] = $this->definitionCategories();
@@ -113,132 +106,37 @@ final readonly class DiagnoseSettings
         return null;
     }
 
-    /**
-     * The schema file against the configuration and against this release.
-     *
-     * @return list<Finding>
-     */
-    private function schemaFile(SchemaShapeRepository $shapes): array
+    /** Every column the package uses exists on the store's tables. */
+    private function columns(Store $store, DatabaseDriver $database): Finding
     {
-        $name = 'schema file';
-        $description = 'The recorded schema matches the configuration and this release';
-
-        try {
-            $recorded = $shapes->recorded();
-            $configured = $shapes->configured();
-        } catch (SettingsException $exception) {
-            return [new Finding($name, $description, DoctorResult::fail($exception->getMessage()))];
-        }
-
-        if (! $recorded instanceof SchemaShape) {
-            return [new Finding($name, $description, DoctorResult::warn(sprintf('No schema file at [%s]; the shape is read from configuration. Run laranail::settings.install to record it.', $shapes->path())))];
-        }
-
-        $findings = [];
-
-        if ($recorded->version < SchemaShape::VERSION) {
-            $findings[] = new Finding('schema version', 'The schema is at this release\'s shape version', DoctorResult::fail(sprintf('The schema file is at shape version %d; this release needs %d. Publish and run the upgrade migrations, then record the new version.', $recorded->version, SchemaShape::VERSION)));
-        }
-
-        foreach ($this->stores->all() as $storeName => $store) {
-            if ($store->hasDatabaseLayer() && ! $recorded->hasStore($store->name)) {
-                $findings[] = new Finding("{$storeName}: recorded", 'The store is in the schema file', DoctorResult::fail(sprintf('Store [%s] has a database layer but no entry in the schema file: run laranail::settings.make-store %s.', $storeName, $storeName)));
-            }
-        }
-
-        $differences = array_values(array_filter(
-            $configured->differencesFrom($recorded),
-            static fn (string $line): bool => ! str_starts_with($line, 'stores.') || array_any(array_keys($recorded->stores), static fn (string $store): bool => str_starts_with($line, "stores.{$store}.")),
-        ));
-
-        $findings[] = new Finding($name, $description, $differences === []
-            ? DoctorResult::pass('The configuration matches the recorded schema.')
-            : DoctorResult::warn('The configuration differs from the recorded schema (the recorded one is in force; a migration is needed to change it): ' . implode('; ', $differences), ['differences' => $differences]));
-
-        return $findings;
-    }
-
-    private function drift(Store $store, DatabaseDriver $database): Finding
-    {
-        $shape = $database->shape();
-        $schema = $shape->store($store->name);
-        $missing = [];
-        $unexpected = [];
-        $tenant = $shape->tenancy->hasColumn() ? ['tenant'] : [];
+        $names = ModelContext::names();
+        $tenant = $database->hasTenantColumn() ? ['tenant'] : [];
+        $owner = $store->isDedicated() ? ['owner_id'] : ['settable_type', 'settable_id'];
         $expected = [
-            $database->tableFor($store->name) => [...self::VALUES_COLUMNS, ...$tenant, ...$this->switchColumns($shape, $schema->isDedicated(), $schema->softDeletes)],
-            $shape->names->categories()       => [...self::CATEGORY_COLUMNS, ...$tenant, ...($shape->categoriesSoftDeletes ? ['deleted_at'] : [])],
-            $shape->names->audit()            => [...self::AUDIT_COLUMNS, ...$tenant],
+            $database->tableFor($store->name) => [...self::VALUES_COLUMNS, ...$owner, ...$tenant],
+            $names->categories()              => [...self::CATEGORY_COLUMNS, ...$tenant],
+            $names->audit()                   => [...self::AUDIT_COLUMNS, ...$tenant],
+            $names->history()                 => [...self::HISTORY_COLUMNS, ...$tenant],
+            $names->changeRequests()          => [...self::CHANGE_REQUEST_COLUMNS, ...$tenant],
         ];
 
-        if ($shape->definitionsTable) {
-            $expected[$shape->names->definitions()] = self::DEFINITION_COLUMNS;
-        }
-
-        if ($shape->historyTable) {
-            $expected[$shape->names->history()] = [...self::HISTORY_COLUMNS, ...$tenant];
-        }
-
-        if ($shape->changeRequestsTable) {
-            $expected[$shape->names->changeRequests()] = [...self::CHANGE_REQUEST_COLUMNS, ...$tenant];
-        }
-
-        if ($shape->storesTable && $database->connectionName() === $this->stores->default()->database()?->connectionName()) {
-            $expected[$shape->names->stores()] = self::STORES_COLUMNS;
+        if ($database->connectionName() === $this->stores->default()->database()?->connectionName()) {
+            $expected[$names->definitions()] = self::DEFINITION_COLUMNS;
+            $expected[$names->stores()] = self::STORES_COLUMNS;
         }
 
         $inspector = new SchemaInspector($database);
+        $missing = [];
 
         foreach ($expected as $table => $columns) {
-            $present = $inspector->columns($table) ?? [];
-
-            foreach (array_diff($columns, $present) as $column) {
+            foreach (array_diff($columns, $inspector->columns($table) ?? []) as $column) {
                 $missing[] = $table . '.' . $column;
             }
-
-            foreach (array_diff(array_intersect($present, ['deleted_at', 'slug', 'uid', 'settable_type', 'settable_id', 'owner_id', 'tenant']), $columns) as $column) {
-                $unexpected[] = $table . '.' . $column;
-            }
         }
 
-        $idType = $this->idTypeDrift($inspector, $database->tableFor($store->name), $shape->ids);
-
-        if ($missing !== []) {
-            return new Finding("{$store->name}: schema", 'The tables have every column the recorded schema uses', DoctorResult::fail('Missing columns (publish and run the latest migrations): ' . implode(', ', $missing), ['missing' => $missing]));
-        }
-
-        if ($idType !== null) {
-            return new Finding("{$store->name}: schema", 'The tables have every column the recorded schema uses', DoctorResult::fail($idType));
-        }
-
-        return new Finding("{$store->name}: schema", 'The tables have every column the recorded schema uses', $unexpected === []
-            ? DoctorResult::pass('No schema drift.')
-            : DoctorResult::warn('Columns the recorded schema does not have (a switch changed without a migration?): ' . implode(', ', $unexpected), ['unexpected' => $unexpected]));
-    }
-
-    /** @return list<string> the values-table columns the switches add */
-    private function switchColumns(SchemaShape $shape, bool $dedicated, bool $softDeletes): array
-    {
-        return [
-            ...($dedicated ? ['owner_id'] : ['settable_type', 'settable_id']),
-            ...($shape->identity->hasSlug() ? ['slug'] : []),
-            ...($shape->identity->hasUid() ? ['uid'] : []),
-            ...($softDeletes ? ['deleted_at'] : []),
-        ];
-    }
-
-    /** A message when the table's `id` column is not of the recorded key type, else null. */
-    private function idTypeDrift(SchemaInspector $inspector, string $table, IdType $type): ?string
-    {
-        $typeName = $inspector->idType($table);
-
-        if ($typeName === null) {
-            return null;
-        }
-
-        $integer = str_contains(strtolower($typeName), 'int');
-
-        return $integer === ($type === IdType::Bigint) ? null : sprintf('Table [%s] has an id of type [%s], but the recorded key type is [%s].', $table, $typeName, $type->value);
+        return new Finding("{$store->name}: schema", 'The tables have every column the package uses', $missing === []
+            ? DoctorResult::pass('Every column is present.')
+            : DoctorResult::fail('Missing columns (publish and run the latest migrations): ' . implode(', ', $missing), ['missing' => $missing]));
     }
 
     private function scopes(Store $store, DatabaseDriver $database): Finding
@@ -306,7 +204,7 @@ final readonly class DiagnoseSettings
     /** Open change requests past their expiry: prune-changes has not run. */
     private function changeRequests(Store $store, DatabaseDriver $database): Finding
     {
-        $overdue = new ChangeRequestRepository($database)->overdue(CarbonImmutable::now(), $store->name);
+        $overdue = $database->attempt($store->name, static fn (): int => SettingChangeRequest::on($database->connectionName())->overdue(CarbonImmutable::now())->count());
 
         return new Finding("{$store->name}: change requests", 'No open change request is past its expiry', $overdue === 0
             ? DoctorResult::pass('No overdue change requests.')

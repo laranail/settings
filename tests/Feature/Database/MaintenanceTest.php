@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
 use Simtabi\Laranail\Settings\Data\Actor;
@@ -90,16 +91,15 @@ it('needs manage_stores to re-encrypt or rescope', function (): void {
 });
 
 it('renames an owner alias in values, history and change requests, and doctor stops flagging it', function (): void {
-    useDatabase(['stores.settings.owners' => ['user', 'member'], 'identity.mode' => 'slug_per_row']);
+    useDatabase(['stores.settings.owners' => ['user', 'member']]);
     settings()->for(new OwnerRef('user', 4))->set('theme', 'dark');
     settings()->for(new OwnerRef('user', 4))->propose('theme', 'light');
-    DB::table('settings')->insert(['scope' => 'App\\Models\\Legacy:9', 'settable_type' => 'App\\Models\\Legacy', 'settable_id' => '9', 'key' => 'theme', 'group' => 'theme', 'locale' => '', 'value' => '"blue"', 'slug' => sha1('legacy'), 'created_at' => now(), 'updated_at' => now()]);
+    DB::table('settings')->insert(['id' => (string) Str::ulid(), 'uid' => (string) Str::ulid(), 'scope' => 'App\\Models\\Legacy:9', 'settable_type' => 'App\\Models\\Legacy', 'settable_id' => '9', 'key' => 'theme', 'group' => 'theme', 'locale' => '', 'value' => '"blue"', 'created_at' => now(), 'updated_at' => now()]);
 
     expect(Artisan::call('laranail::settings.rescope', ['from' => 'user', 'to' => 'member']))->toBe(0)
         ->and(Artisan::output())->toContain('in 1 value(s), 1 history entry and 1 change request(s)')
         ->and(settings()->for(new OwnerRef('member', 4))->get('theme'))->toBe('dark')
         ->and(DB::table('settings')->where('scope', 'member:4')->value('settable_type'))->toBe('member')
-        ->and(DB::table('settings')->where('scope', 'member:4')->value('slug'))->toBe(sha1('member:4|theme|'))
         ->and(DB::table('settings_history')->where('scope', 'member:4')->count())->toBe(1)
         ->and(DB::table('settings_change_requests')->where('scope', 'member:4')->count())->toBe(1);
 
@@ -114,7 +114,7 @@ it('renames an owner alias in values, history and change requests, and doctor st
         ->and(Artisan::call('laranail::settings.rescope', ['from' => 'user', 'to' => 'Bad Alias']))->toBe(1);
 });
 
-it('reports overdue change requests and schema drift on the governance tables', function (): void {
+it('reports overdue change requests and missing columns on the governance tables', function (): void {
     app(DefinitionRegistry::class)->define('mail.host')->requiresApproval()->register();
     settings()->set('mail.host', 'a.test');
     $this->travel(8)->days();
@@ -128,6 +128,6 @@ it('reports overdue change requests and schema drift on the governance tables', 
     Artisan::call('laranail::settings.doctor', ['--json' => true]);
 
     expect($report)->toContain('past their expiry')
-        ->and($report)->toContain('No schema drift.')
+        ->and($report)->toContain('Every column is present.')
         ->and(Artisan::output())->toContain('settings_change_requests.decision_reason');
 });

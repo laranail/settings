@@ -133,9 +133,9 @@ it('documents every shipped config key with its default', function (): void {
     $keys = documentedConfigKeys($config);
     $rows = array_filter(explode("\n", referencePage('configuration.md')), static fn (string $line): bool => str_starts_with($line, '| `'));
     // A default that is resolved later, or that differs by store or layer, is documented in words.
-    $describedDefaults = ['schema.path', 'stores.<name>.layers', 'seed.categories', 'definitions.allowed_rules', 'readiness.flush_on', 'importers', 'authorization.permissions', 'definitions.sources', 'configuration.sources', 'audit.sinks', 'verification.abilities'];
+    $describedDefaults = ['stores.<name>.layers', 'seed.categories', 'definitions.allowed_rules', 'readiness.flush_on', 'importers', 'authorization.permissions', 'definitions.sources', 'configuration.sources', 'audit.sinks', 'verification.abilities'];
 
-    expect(count($keys))->toBeGreaterThanOrEqual(80);
+    expect(count($keys))->toBeGreaterThanOrEqual(74);
 
     foreach ($keys as $key => $default) {
         $row = array_values(array_filter($rows, static fn (string $line): bool => str_contains(explode('|', $line)[1] ?? '', '`' . $key . '`')))[0] ?? null;

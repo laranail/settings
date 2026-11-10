@@ -11,7 +11,7 @@ use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
 
 beforeEach(function (): void {
-    useDatabase(['stores.settings.soft_deletes' => true, 'stores.settings.owners' => ['user'], 'categories.soft_deletes' => true]);
+    useDatabase(['stores.settings.soft_deletes' => true, 'stores.settings.owners' => ['user']]);
 });
 
 it('trashes a forgotten row instead of deleting it, and reads past it', function (): void {
@@ -43,7 +43,7 @@ it('restores a trashed row on the next set, continuing its version, never as a c
 it('does not bring back the lock or labels of the forgotten row', function (): void {
     settings()->set('site.name', 'One');
     settings()->lock('site.name');
-    DB::table('settings')->update(['label' => 'Stale', 'meta' => '{"x":1}']);
+    DB::table('settings')->update(['label' => '{"":"Stale"}', 'meta' => '{"x":1}']);
     settings()->unlock('site.name');
     settings()->lock('site.name');
     DB::table('settings')->update(['deleted_at' => now()]);
@@ -82,20 +82,19 @@ it('trashes a whole scope on flush, and does not list it as an owner any more', 
         ->and(settings()->for($owner)->has('locale'))->toBeFalse();
 });
 
-it('trashes a deleted category and restores it when its slug is created again', function (): void {
+it('deletes a category for good, so creating its slug again makes a new one', function (): void {
     $categories = settings()->categories();
     $first = $categories->create(new NewCategory('mail', 'Mail'));
     $categories->delete('mail');
 
     expect(fn (): Category => $categories->get('mail'))->toThrow(UnknownCategory::class)
-        ->and(DB::table('settings_categories')->count())->toBe(1);
+        ->and(DB::table('settings_categories')->count())->toBe(0);
 
     $again = $categories->create(new NewCategory('mail', 'Email'));
 
-    expect($again->id)->toBe($first->id)
+    expect($again->id)->not->toBe($first->id)
         ->and($again->title)->toBe('Email')
-        ->and(DB::table('settings_categories')->count())->toBe(1)
-        ->and(DB::table('settings_categories')->value('deleted_at'))->toBeNull();
+        ->and(DB::table('settings_categories')->count())->toBe(1);
 });
 
 it('does not link a setting to a trashed category', function (): void {

@@ -6,10 +6,10 @@ Nineteen Artisan commands, all named `laranail::settings.<command>`.
 
 | Command | Does |
 |---|---|
-| `laranail::settings.install` | publishes the config and the package's one migration, records the schema file, syncs definitions once the table exists; refuses to run over a foreign table of the same name |
-| `laranail::settings.make-store {store} [--owner=*] [--connection=]` | writes a new store's migration (a copy of the package migration pinned to that store), records it in the schema file and prints its configuration entry |
+| `laranail::settings.install` | publishes the config and the package's one migration, syncs definitions once the table exists; refuses to run over a foreign table of the same name |
+| `laranail::settings.make-store {store} [--owner=*] [--connection=]` | writes a new store's migration (a copy of the package migration pinned to that store) and prints its configuration entry |
 | `laranail::settings.promote [store] [--force] [--from=]` | copies values written before install from the runtime file into the database |
-| `laranail::settings.doctor [--json] [--fix]` | checks readiness, schema drift against the schema file and rows the database cannot guard; `--fix` syncs definitions first |
+| `laranail::settings.doctor [--json] [--fix]` | checks readiness, missing columns and rows the database cannot guard; `--fix` syncs definitions first |
 | `laranail::settings.show {key} [--store=] [--owner=] [--locale=] [--reveal]` | prints how one setting resolves: value, layer, scope, type, version, flags and the latest audit entry |
 | `laranail::settings.sync-definitions` | copies code and config definitions into the definitions table as system rows |
 | `laranail::settings.prune-orphans [--dry-run]` | removes the settings of owners that no longer exist |
@@ -53,9 +53,8 @@ For every store with a database layer:
 
 | Check | Fails when |
 |---|---|
-| schema file | the file is older than this release's shape version, or a database store has no entry (warns when there is no file, or when configuration differs from it) |
 | readiness | the connection does not answer or the table is missing (a warning in bootstrap mode) |
-| schema | a column the recorded shape uses is missing, or `id` has the wrong type (warns on a column the shape does not have) |
+| schema | a column the package uses is missing from the values, categories, audit, history or change requests table (and, on the default store's connection, the definitions and stores tables) |
 | scopes | a scope names a class instead of a morph alias (fails) or an alias the store does not list (warns) |
 | categories | a row points at a category of another store |
 | category keys | warns when a value's key does not start with its category's slug |
@@ -139,8 +138,7 @@ version, through the same action as `rollback()`. See [History](history.md).
 system actor, is audited under its name, and delegates to the same action as the PHP API.
 
 `doctor` also checks, per database store: encrypted values no current or previous key can read,
-open change requests past their expiry, schema drift on the history, change requests and
-persisted configuration tables, and persisted configuration entries skipped as invalid.
+open change requests past their expiry, and persisted configuration entries skipped as invalid.
 
 ## Pruning and access
 

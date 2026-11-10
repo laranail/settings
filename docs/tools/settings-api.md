@@ -354,7 +354,7 @@ Resets cached values; stored values are untouched. Needs `manage_stores` with an
 
 ## History
 
-All three need a store that keeps history (`history.enabled` when it was migrated); otherwise `HistoryUnavailable`. See [History](history.md).
+All three need a store with an active database layer; otherwise `HistoryUnavailable`. See [History](history.md).
 
 ### `history()`
 

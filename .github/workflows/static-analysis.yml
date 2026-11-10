@@ -117,12 +117,10 @@ jobs:
       - name: Mutation testing (minimum score 70)
         # Pest's own mutator, not Infection: Infection has no Pest adapter, reads Pest's
         # version as PHPUnit's, writes a config PHPUnit 12 rejects, and cannot map Pest's
-        # generated test classes to its JUnit report. The schema matrix (group `matrix`)
-        # covers almost every line, so it is left out, and group `shared-app` writes into the
-        # testbench application every process shares; the Tests workflow runs both. Both carry
-        # group `mutation-excluded`, which is what is excluded: under --parallel Pest honours
-        # only the first --exclude-group, and a comma-separated list excludes nothing, so
-        # `--exclude-group=matrix,shared-app` ran every test and raced on the shared config file.
+        # generated test classes to its JUnit report. Group `shared-app` writes into the
+        # testbench application every process shares, so it is left out; the Tests workflow
+        # runs it. It also carries group `mutation-excluded`, which is what is excluded: under
+        # --parallel Pest honours only the first --exclude-group.
         env:
           MUTATE_PATHS: ${{ steps.scope.outputs.paths }}
         run: |

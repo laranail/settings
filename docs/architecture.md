@@ -22,13 +22,16 @@ How `laranail/settings` is shaped, and why.
 |---|---|---|
 | Entry points | resolve inputs and delegate; no work of their own | `SettingsManager`, `CategoryManager`, `AuditQuery`, `HistoryQuery`, the console commands, the facade |
 | Actions (`Actions/`) | one intent each, `handle()` only, final and readonly | `SetSetting`, `RollbackSetting`, `PromoteStore`, `SyncDefinitions`, `FindOrphans` |
-| Services (`Services/`) | the database, the files, a body of rules | `Services\Database\AuditRepository`, `Services\Database\HistoryRepository`, `Services\Database\CategoryRepository`, `Services\Stores\SettingWriter`, `Services\Resolution\Resolver`, `Services\Access\AccessGuard`, `Services\Tenancy\TenantDiscriminators`, `Services\Cache\SettingsCache` |
+| Services (`Services/`) | the database, the files, a body of rules | `Services\Database\SchemaInspector`, `Services\Stores\SettingWriter`, `Services\Resolution\Resolver`, `Services\Access\AccessGuard`, `Services\Tenancy\TenantDiscriminators`, `Services\Cache\SettingsCache` |
 | Contract implementations | one per kind, beside its kind | the drivers, the audit sinks, the authorizers, the casters, the verifiers, the actor resolvers |
 | Listeners (`Listeners/`) and notifications | react to events | `SendSettingsAlert`, `LogSettingsEvent`, `Notifications\SettingsAlert` |
+| Models (`Models/`) | one table each: its name, casts, relations, scopes and the tenant scope | `SettingCategory`, `SettingDefinition`, `SettingAuditEntry`, `SettingHistory`, `SettingChangeRequest`, `Setting` |
 | Support (`Support/`) | stateless logic shared by several classes | `AuditedTransaction`, `Translations`, `Json`, `DatabaseValues`, `ValueEncoder`, `BagCodec`, `Clock` |
 
-An action never builds a query or reads the schema itself; it asks a repository, so the table,
-the tenant filter and the row format live in one place. A change and its audit entry always go
+Actions query categories, definitions, audit, history and change requests through the Eloquent
+models and their scopes, so each table's name, casts and tenant filter live on its model. Values
+are read and written by the database driver on the query builder, because that path runs on
+every request. An action never touches a connection or the schema builder itself. A change and its audit entry always go
 through `Support\AuditedTransaction`, so every write, category change and promotion commits and
 audits the same way. Only entry points depend on actions. Architecture tests hold each rule,
 and each exemption (the guards the actions run through, the action bundles, `QueryAudit`'s three
@@ -136,33 +139,29 @@ The package is used from controllers, jobs, commands and other packages, and it 
 
 Every write is one `final` action (`Actions\SetSetting`, …) that authorizes, writes and audits. The PHP API, the console commands and the REST API all delegate to these actions, so the rules cannot drift between channels.
 
-## Why are the table shapes switches, and why are they recorded?
+## Why a fixed schema?
 
-The owner's standing rule is that where several styles are reasonable, all are supported through
-configuration with the recommended one as the default. Identity columns, key types, owner
-columns, soft deletes, JSON translations and the definitions table each have applications that
-need the other value (uuid-keyed estates, a users table that should cascade, an admin UI that
-edits definitions), so they are switches (see [Schema switches](tools/schema-switches.md)).
+Every application gets the same tables: ULID keys, a `uid` per values row, a string owner key
+(`settable_id`, 36 characters, which fits integer, UUID and ULID model keys alike), and titles,
+labels and descriptions as JSON maps of locale to text. Each of those used to be a migration-time
+switch, recorded in a schema file the runtime read back, and the suite ran a pairwise matrix of
+every combination. Most of the combinations served no application, and every one of them was a
+branch in the migration, the driver, the models and the doctor.
 
-A switch decides a column, so it is migration-time, and the package must not trust configuration
-for it afterwards: flipping `soft_deletes` on after migrating would make every read filter on a
-`deleted_at` column that does not exist. So `install` and `make-store` record the shape the
-migration produces in a schema file the application commits, the runtime and the migration read that file,
-and `doctor` reports any drift between configuration, the file and the database. A later
-`make-store` keeps the file's key type, so a new table's `category_id` can never disagree with the
-categories key it points at.
-
-Every combination is a shape the suite has to keep working. A pairwise set (every pair of switch
-values meets at least once, asserted along with the number of shapes) runs on every pull request
-on SQLite, MySQL and PostgreSQL, and the full product weekly.
+A fixed shape is the shape `spatie/laravel-permission` ships: one migration that reads as what it
+creates, models with one table each, and nothing to keep in step with configuration. The one
+switch left is `tenancy.mode`, because a `tenant` column changes the unique keys and every query;
+it is one plain `if` per table in the migration, and one global scope on the models. A dedicated
+store keeps its `owner_id` foreign key to the owner table, because cascading deletes in the
+database is the reason to choose one. `doctor` checks that every column the package uses exists.
 
 ## Why one migration?
 
 Every table the package uses is created by one migration file, in dependency order (categories,
 definitions, each store's values, audit, history), with a `down()` that drops them in reverse. Four
 migration stubs used to do this, each repeating the same connection and shape lookups, and a new
-store meant copying a stub. Nothing in the migration varies per application any more (the shape
-comes from the schema file), so it ships as a real PHP file. Its table definitions stay inline,
+store meant copying a stub. Nothing in the migration varies per application beyond table names
+and `tenancy.mode`, so it ships as a real PHP file. Its table definitions stay inline,
 in short private methods, rather than in a schema-builder class: a migration is read when it
 fails, and one file that says what it creates is easier to maintain than a migration delegating
 to code elsewhere. `make-store` copies that same file and pins one store (and, with
@@ -253,7 +252,7 @@ The API is a channel, not a product: every endpoint runs an action the PHP API a
 
 ## Why change requests are a table
 
-A write that needs approval has to outlive the request that proposed it: the approver acts later, from another request, maybe another server, and a queue or a cache entry can be evicted before anyone looks. So a proposal is a row, written in the same transaction as its `pending` audit entry, on the store's own connection (one table per connection, like the history), with the proposed value stored exactly as the values table would store it, encrypted for an encrypted definition. Keeping the base version on the row is what makes applying it safe: the approval writes through the version-checked update, so a setting that changed in the meantime is never overwritten and the request becomes `stale`. Requests are keyed by ULID, so the table never depends on `ids.type`, and the table is a schema switch (`approvals.table`) like the history.
+A write that needs approval has to outlive the request that proposed it: the approver acts later, from another request, maybe another server, and a queue or a cache entry can be evicted before anyone looks. So a proposal is a row, written in the same transaction as its `pending` audit entry, on the store's own connection (one table per connection, like the history), with the proposed value stored exactly as the values table would store it, encrypted for an encrypted definition. Keeping the base version on the row is what makes applying it safe: the approval writes through the version-checked update, so a setting that changed in the meantime is never overwritten and the request becomes `stale`. Requests are keyed by ULID, like every package table.
 
 ## Why code definitions win over the definitions table
 
@@ -345,7 +344,7 @@ and request are read per call, because they change under a scoped service.
 
 Built on `laranail/package-tools` (provider, testing guards), `laranail/console` (command base),
 `laranail/db-tools` (schema readiness, configured key types) and `laranail/enumerator` (every
-closed set — drivers, store modes, identity modes — is an enumerator-backed enum).
+closed set — drivers, store modes, tenancy modes — is an enumerator-backed enum).
 
 ---
 

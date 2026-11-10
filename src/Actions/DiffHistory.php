@@ -10,11 +10,11 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Data\HistoryEntry;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
+use Simtabi\Laranail\Settings\Models\SettingHistory;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
-use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 
 /**
  * Compare one setting at two versions. Sensitive values are decrypted only for an actor with
@@ -36,16 +36,14 @@ final readonly class DiffHistory
         $store = $target->store;
         $scope = $subject->scope();
         $database = $store->database();
-        $history = $database instanceof DatabaseDriver && $database->shape()->historyTable ? new HistoryRepository($database) : null;
-
-        if (! $history instanceof HistoryRepository) {
+        if (! $database instanceof DatabaseDriver) {
             throw new HistoryUnavailable(sprintf('Store [%s] keeps no history.', $store->name));
         }
 
         $entries = [];
 
         foreach ([$from, $to] as $version) {
-            $entries[] = $history->find($store->name, $scope, $target->key, $target->locale, $version)
+            $entries[] = $database->attempt($store->name, static fn (): ?HistoryEntry => SettingHistory::entryAt($database->connectionName(), $store->name, $scope, $target->key, $target->locale, $version))
                 ?? throw new HistoryUnavailable(sprintf('Setting [%s] in store [%s] for scope [%s] has no version %d in its history.', $target->key, $store->name, $scope, $version));
         }
 

@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Simtabi\Laranail\Settings\Models\SettingDefinition;
 
 /**
- * Rows of the definitions table (`definitions.table`). `default` holds the encoded default, as
+ * Rows of the definitions table. `default` holds the encoded default, as
  * the definitions sync writes it.
  *
  * @extends Factory<SettingDefinition>

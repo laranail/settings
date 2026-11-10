@@ -17,7 +17,7 @@ php artisan laranail::settings.install
 php artisan migrate
 ```
 
-The mode is a migration-time switch, recorded in the schema file; changing it later needs a migration. With `database` mode instead, publish the migration into the tenant migrations folder and let the tenancy package switch connections.
+The migration reads the mode to decide whether to add the `tenant` column, and the runtime reads the same key, so changing it later needs a migration. With `database` mode instead, publish the migration into the tenant migrations folder and let the tenancy package switch connections.
 
 ## Tell the package who the tenant is
 

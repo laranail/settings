@@ -52,7 +52,7 @@ final readonly class WriteGuard
             $this->access->auditor()->record($action, AuditOutcome::Failed, $subject, $actor, $target->reason, meta: ['refusal' => 'approval_unavailable']);
 
             throw new ApprovalUnavailable($proposal instanceof ChangeProposal
-                ? sprintf('Setting [%s] in store [%s] requires approval, and the store cannot hold change requests (it needs an active database layer and the change requests table).', $target->key, $target->store->name)
+                ? sprintf('Setting [%s] in store [%s] requires approval, and the store cannot hold change requests (it needs an active database layer).', $target->key, $target->store->name)
                 : sprintf('Setting [%s] in store [%s] requires approval; propose the change instead of making it directly.', $target->key, $target->store->name));
         }
 

@@ -17,7 +17,10 @@ use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
  */
 final class DefinitionRegistry
 {
-    /** Names under `laranail.settings.definitions` that are options, not setting keys. */
+    /**
+     * Names under `laranail.settings.definitions` that are options, not setting keys. `table` is
+     * no longer an option; it stays so an older config file never defines a setting named `table`.
+     */
     public const array OPTIONS = ['table', 'sources', 'allowed_rules'];
 
     /** @var array<string, Definition> */

@@ -14,7 +14,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Logging\LogContext;
-use Simtabi\Laranail\Settings\Database\SchemaShape;
+use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Illuminate\Database\ConnectionResolverInterface;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
@@ -23,7 +23,6 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /**
  * Store and layer configuration saved in the `settings_stores` table.
@@ -47,10 +46,10 @@ final class PersistedConfiguration
      * @param mixed $enabled `configuration.persisted`
      * @param array<array-key, mixed> $configStores `laranail.settings.stores`
      * @param array<array-key, mixed> $configLayers `laranail.settings.layers`
+     * @param array<array-key, mixed> $tables `laranail.settings.tables`
      */
     public function __construct(
         private readonly ConnectionResolverInterface $db,
-        private readonly SchemaShapeRepository $shapes,
         private readonly DriverFactory $drivers,
         private readonly OperationalLogger $log,
         #[Config('laranail.settings.configuration.persisted', false)]
@@ -61,11 +60,13 @@ final class PersistedConfiguration
         private readonly array $configLayers = [],
         #[Config('laranail.settings.default', 'settings')]
         private readonly string $default = 'settings',
+        #[Config('laranail.settings.tables', [])]
+        private readonly array $tables = [],
     ) {}
 
     public function isEnabled(): bool
     {
-        return filter_var($this->enabled, FILTER_VALIDATE_BOOL) && $this->shape()->storesTable;
+        return filter_var($this->enabled, FILTER_VALIDATE_BOOL);
     }
 
     /** Changes whenever an entry is saved or deleted so registries rebuild. */
@@ -249,7 +250,7 @@ final class PersistedConfiguration
     private function assertEnabled(): void
     {
         if (! $this->isEnabled()) {
-            throw new InvalidConfiguration('laranail.settings.configuration.persisted: persisted configuration is off (or its table was never migrated); turn it on and run the migration first.');
+            throw new InvalidConfiguration('laranail.settings.configuration.persisted: persisted configuration is off; turn it on first.');
         }
     }
 
@@ -261,12 +262,7 @@ final class PersistedConfiguration
             throw new DriverFailure('The persisted configuration connection is unavailable.', 0, $exception);
         }
 
-        return $connection->table($this->shape()->names->stores());
-    }
-
-    private function shape(): SchemaShape
-    {
-        return $this->shapes->current();
+        return $connection->table(SchemaNames::fromConfig($this->tables)->stores());
     }
 
     /** The connection of the default store's first database layer. */
