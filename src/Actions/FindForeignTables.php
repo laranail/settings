@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Throwable;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
+use Simtabi\Laranail\Settings\Database\SchemaInspector;
 
 /**
  * The tables `install` would create that already exist and are not this package's (D-4). A bare
@@ -45,15 +45,14 @@ final readonly class FindForeignTables
                     $database->names()->audit()       => self::SIGNATURES['audit'],
                 ];
 
-                foreach ($tables as $table => $signature) {
-                    try {
-                        $schema = $database->connection()->getSchemaBuilder();
+                $inspector = new SchemaInspector($database);
 
-                        if ($schema->hasTable($table) && array_diff($signature, $schema->getColumnListing($table)) !== []) {
-                            $foreign[$database->connectionName() . '.' . $table] = true;
-                        }
-                    } catch (Throwable) {
-                        // Unreachable: nothing exists to collide with.
+                foreach ($tables as $table => $signature) {
+                    // Unreachable (null): nothing exists to collide with.
+                    $columns = $inspector->hasTable($table) === true ? $inspector->columns($table) : null;
+
+                    if ($columns !== null && array_diff($signature, $columns) !== []) {
+                        $foreign[$database->connectionName() . '.' . $table] = true;
                     }
                 }
             }
