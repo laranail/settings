@@ -126,10 +126,18 @@ final readonly class SyncDefinitions
     /** @return array<string, mixed> */
     private function columns(DatabaseDriver $database, Store $store, Definition $definition, bool $json): array
     {
-        $category = $definition->category === null ? null : $database->connection()->table($database->names()->categories())
-            ->where('store', $store->name->value)
-            ->where('slug', $definition->category)
-            ->value('id');
+        $category = null;
+
+        if ($definition->category !== null) {
+            $categories = $database->connection()->table($database->names()->categories());
+
+            // Definitions are shared by every tenant, so they link to the central categories ('').
+            if ($database->shape()->tenancy->hasColumn()) {
+                $categories->where('tenant', '');
+            }
+
+            $category = $categories->where('store', $store->name->value)->where('slug', $definition->category)->value('id');
+        }
 
         return [
             'slug'        => $definition->key->slug(),

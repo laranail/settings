@@ -13,21 +13,23 @@ use Simtabi\Laranail\Settings\Data\StoreName;
  * Records loaded ahead of time for a list of owners (`preload()`, `withSettings()`), so reading a
  * page of owners costs one query per store instead of one per owner (G-9). Held for the request
  * only (the resolver that owns it is scoped) and dropped for a scope when that scope is written.
+ * Records are kept per tenant, so a tenant switch inside one request or job can never answer one
+ * tenant's read from another tenant's preload.
  */
 final class PreloadedRecords
 {
-    /** @var array<string, array<string, array<string, list<Record>>>> store => scope => layer => records */
+    /** @var array<string, array<string, array<string, list<Record>>>> tenant|store => scope => layer => records */
     private array $records = [];
 
     /**
      * @param list<Scope> $scopes
      * @param array<string, RecordSet> $loaded layer => records, as the store loaded them for these scopes
      */
-    public function remember(StoreName $store, array $scopes, array $loaded): void
+    public function remember(StoreName $store, array $scopes, array $loaded, string $tenant = ''): void
     {
         foreach ($scopes as $scope) {
             foreach ($loaded as $layer => $records) {
-                $this->records[$store->value][$scope->value][$layer] = array_values(array_filter(
+                $this->records[$this->slot($store, $tenant)][$scope->value][$layer] = array_values(array_filter(
                     $records->all(),
                     static fn (Record $record): bool => $record->scope->equals($scope),
                 ));
@@ -35,19 +37,25 @@ final class PreloadedRecords
         }
     }
 
-    public function has(StoreName $store, Scope $scope): bool
+    public function has(StoreName $store, Scope $scope, string $tenant = ''): bool
     {
-        return isset($this->records[$store->value][$scope->value]);
+        return isset($this->records[$this->slot($store, $tenant)][$scope->value]);
     }
 
     /** @return array<string, list<Record>> layer => records */
-    public function get(StoreName $store, Scope $scope): array
+    public function get(StoreName $store, Scope $scope, string $tenant = ''): array
     {
-        return $this->records[$store->value][$scope->value] ?? [];
+        return $this->records[$this->slot($store, $tenant)][$scope->value] ?? [];
     }
 
-    public function forget(StoreName $store, Scope $scope): void
+    public function forget(StoreName $store, Scope $scope, string $tenant = ''): void
     {
-        unset($this->records[$store->value][$scope->value]);
+        unset($this->records[$this->slot($store, $tenant)][$scope->value]);
+    }
+
+    /** One slot per tenant and store; `|` cannot occur in a store name. */
+    private function slot(StoreName $store, string $tenant): string
+    {
+        return $tenant . '|' . $store->value;
     }
 }

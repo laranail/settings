@@ -37,6 +37,7 @@ final class DriverFactory
         private readonly SchemaNames $names = new SchemaNames,
         private readonly ?Closure $probe = null,
         private readonly ?Closure $shape = null,
+        private readonly ?Closure $tenant = null,
     ) {}
 
     /** @param Closure(LayerConfig): Driver $factory */
@@ -119,7 +120,10 @@ final class DriverFactory
         /** @var (Closure(): SchemaShape)|null $shape */
         $shape = $this->shape;
 
-        return new DatabaseDriver($this->db, $connection, $this->names, $table, $layer->writable, $probe, $shape);
+        /** @var (Closure(): ?string)|null $tenant */
+        $tenant = $this->tenant;
+
+        return new DatabaseDriver($this->db, $connection, $this->names, $table, $layer->writable, $probe, $shape, $tenant);
     }
 
     private function json(LayerConfig $layer): JsonDriver

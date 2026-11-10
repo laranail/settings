@@ -61,6 +61,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
      * @param ?string $table the store's configured table (`stores.<name>.table`); null uses the store name
      * @param Closure(): ReadinessProbe $probe resolved only after a database error
      * @param (Closure(): SchemaShape)|null $shape the recorded schema shape; null is the default shape over $names
+     * @param (Closure(): ?string)|null $tenant the current tenant (column-mode tenancy); null is no tenant
      */
     public function __construct(
         private ConnectionResolverInterface $db,
@@ -70,6 +71,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         private bool $writable,
         private Closure $probe,
         private ?Closure $shape = null,
+        private ?Closure $tenant = null,
     ) {}
 
     /**
@@ -127,6 +129,36 @@ final readonly class DatabaseDriver implements DatabaseBacked
         $shape = $this->shape();
 
         return $shape->names->store($store, $shape->hasStore($store) ? $shape->store($store)->table : $this->table);
+    }
+
+    /**
+     * The tenant the rows of this call belong to, in column-mode tenancy: the discriminator's
+     * key, or '' (the central rows) outside any tenant. Always '' in the other modes.
+     */
+    public function tenant(): string
+    {
+        if (! $this->shape()->tenancy->hasColumn() || ! $this->tenant instanceof Closure) {
+            return '';
+        }
+
+        $tenant = ($this->tenant)();
+
+        return is_string($tenant) ? $tenant : '';
+    }
+
+    /**
+     * Limit a query on a values, categories or audit table to the current tenant (column-mode
+     * tenancy); any other mode leaves it as it is.
+     */
+    public function scoped(Builder $query): Builder
+    {
+        return $this->shape()->tenancy->hasColumn() ? $query->where('tenant', $this->tenant()) : $query;
+    }
+
+    /** @return array{tenant?: string} the tenant column a new row carries */
+    public function tenantColumns(): array
+    {
+        return $this->shape()->tenancy->hasColumn() ? ['tenant' => $this->tenant()] : [];
     }
 
     public function names(): SchemaNames
@@ -214,7 +246,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
                 try {
                     // A savepoint: on Postgres a unique violation would otherwise abort the
                     // whole surrounding transaction, not just this statement.
-                    $this->connection()->transaction(fn (): bool => $this->table($store)->insert($columns + $this->identityColumns($record) + [
+                    $this->connection()->transaction(fn (): bool => $this->table($store)->insert($columns + $this->identityColumns($record) + $this->tenantColumns() + [
                         'scope'      => $record->scope->value,
                         'key'        => $record->key->value,
                         'locale'     => $record->locale->value,
@@ -404,9 +436,10 @@ final readonly class DatabaseDriver implements DatabaseBacked
             || str_contains($exception->getMessage(), 'no such table');
     }
 
+    /** The store's values table, limited to the current tenant (column-mode tenancy). */
     private function table(StoreName $store): Builder
     {
-        return $this->connection()->table($this->tableFor($store));
+        return $this->scoped($this->connection()->table($this->tableFor($store)));
     }
 
     /** Rows that are not trashed (every row, without soft deletes). */
@@ -524,7 +557,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
             return null;
         }
 
-        $categories = $this->connection()->table($this->names()->categories())->where('slug', $record->category);
+        $categories = $this->scoped($this->connection()->table($this->names()->categories()))->where('slug', $record->category);
 
         if ($this->shape()->categoriesSoftDeletes) {
             $categories->whereNull('deleted_at');

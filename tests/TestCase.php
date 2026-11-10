@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Simtabi\Laranail\Package\Tools\Testing\IsolatedTestCase;
 use Simtabi\Laranail\DbTools\Providers\DbToolsServiceProvider;
 use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
+use Simtabi\Laranail\Package\Tools\Providers\PackageToolsServiceProvider;
 
 abstract class TestCase extends IsolatedTestCase
 {
@@ -62,6 +63,8 @@ abstract class TestCase extends IsolatedTestCase
     #[Override]
     protected function getPackageProviders($app): array
     {
-        return [DbToolsServiceProvider::class, SettingsServiceProvider::class];
+        // package-tools' own provider is auto-discovered in an application; it holds the seeder
+        // registry the package's seeders are registered into.
+        return [PackageToolsServiceProvider::class, DbToolsServiceProvider::class, SettingsServiceProvider::class];
     }
 }

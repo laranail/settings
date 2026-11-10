@@ -88,7 +88,8 @@ final readonly class QueryAudit
             throw new DriverUnavailable(sprintf('Store [%s] has no active database layer, so its audit trail went to the log and cannot be queried.', $store->name));
         }
 
-        $query = $database->connection()->table($database->names()->audit());
+        // In column-mode tenancy a tenant reads its own trail only.
+        $query = $database->scoped($database->connection()->table($database->names()->audit()));
 
         if ($filter->store instanceof StoreName) {
             $query->where('store', $filter->store->value);

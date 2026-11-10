@@ -69,12 +69,14 @@ it('identifies a row by scope, key and locale, never by group (G-25)', function 
         ->and($unique->pluck('columns')->flatten()->all())->not->toContain('group');
 });
 
-it('keeps the identity index inside the utf8mb4 byte budget (G-5)', function (): void {
-    $stub = (string) file_get_contents(dirname(__DIR__, 3) . '/database/migrations/create_settings_table.php.stub');
-    preg_match_all("/string\\('(scope|key|locale)', (\\d+)\\)/", $stub, $matches);
+it('keeps the identity index inside the utf8mb4 byte budget, tenant column included (G-5)', function (): void {
+    $migration = (string) file_get_contents(dirname(__DIR__, 3) . '/database/migrations/create_laranail_settings_tables.php');
+    $values = substr($migration, (int) strpos($migration, 'private function createValues'), 4000);
+    preg_match_all("/string\\('(tenant|scope|key|locale)', (\\d+)\\)/", $values, $matches);
     $lengths = array_combine($matches[1], array_map(intval(...), $matches[2]));
+    ksort($lengths);
 
-    expect($lengths)->toBe(['scope' => 128, 'key' => 191, 'locale' => 16])
+    expect($lengths)->toBe(['key' => 191, 'locale' => 16, 'scope' => 128, 'tenant' => 64])
         ->and(array_sum($lengths) * 4)->toBeLessThan(3072);
 });
 
