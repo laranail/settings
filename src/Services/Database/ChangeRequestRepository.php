@@ -199,12 +199,30 @@ final readonly class ChangeRequestRepository
             ];
         }
 
-        $updated = $this->database->attempt(new StoreName($request->store), fn (): int => $this->database->scoped($this->table())
-            ->where('id', $request->id)
-            ->whereIn('status', array_map(static fn (ChangeStatus $status): string => $status->value, $from))
-            ->update($columns));
+        $statuses = array_map(static fn (ChangeStatus $status): string => $status->value, $from);
 
-        return $updated > 0;
+        return $this->database->attempt(new StoreName($request->store), function () use ($request, $statuses, $columns): bool {
+            $updated = $this->database->scoped($this->table())
+                ->where('id', $request->id)
+                ->whereIn('status', $statuses)
+                ->update($columns);
+
+            if ($updated > 0) {
+                return true;
+            }
+
+            // MySQL reports changed rows, not matched rows, so an update writing identical
+            // values reports 0. That can only happen when the target status is itself one of
+            // the allowed ones (approved -> approved); any other target means somebody else won.
+            if (! in_array($columns['status'], $statuses, true)) {
+                return false;
+            }
+
+            return $this->database->scoped($this->table())
+                ->where('id', $request->id)
+                ->where('status', $columns['status'])
+                ->exists();
+        });
     }
 
     /**
