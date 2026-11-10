@@ -9,6 +9,7 @@ use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\SettingView;
 use Simtabi\Laranail\Settings\Data\SettingAddress;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Services\Resolution\ScopeKeys;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
@@ -30,23 +31,7 @@ final readonly class ReadSettings
     public function handle(SettingAddress $scope, ?Actor $actor = null, int $limit = 50, ?string $after = null): array
     {
         $store = $this->targets->store($scope->store);
-        $owner = Scope::of($scope->ownerRef());
-        $keys = [];
-
-        foreach ($store->load([$owner]) as $records) {
-            foreach ($records->all() as $record) {
-                $keys[$record->key->value] = true;
-            }
-        }
-
-        foreach ($this->definitions->all() as $definition) {
-            if ($definition->store->value === $store->name->value) {
-                $keys[$definition->key->value] = true;
-            }
-        }
-
-        $keys = array_keys($keys);
-        sort($keys);
+        $keys = new ScopeKeys($this->definitions)->keys($store, Scope::of($scope->ownerRef()));
         $keys = array_values(array_filter($keys, static fn (string $key): bool => $after === null || strcmp($key, $after) > 0));
         $items = [];
         $last = null;

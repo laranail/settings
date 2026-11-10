@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Database;
 
-use Closure;
 use Throwable;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Contracts\Config\Repository;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
@@ -22,11 +22,11 @@ final class SchemaShapeRepository
 {
     private ?SchemaShape $current = null;
 
-    /** @param Closure(): SchemaShape $configured the shape the current configuration describes */
+    /** @param Repository $config the configuration the configured shape is described by */
     public function __construct(
         private readonly Filesystem $files,
         private readonly string $path,
-        private readonly Closure $configured,
+        private readonly Repository $config,
     ) {}
 
     public function path(): string
@@ -64,7 +64,9 @@ final class SchemaShapeRepository
     /** The shape the current configuration describes. */
     public function configured(): SchemaShape
     {
-        return ($this->configured)();
+        $settings = $this->config->get('laranail.settings');
+
+        return SchemaShape::fromConfig(is_array($settings) ? $settings : [], $this->config->get('laranail.db-tools.id_type'));
     }
 
     /** What the runtime and the migrations use: the recorded shape, else the configured one. */

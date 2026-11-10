@@ -6,22 +6,24 @@ namespace Simtabi\Laranail\Settings\Services\Values;
 
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Record;
+use Illuminate\Container\Attributes\Singleton;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
-use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
-use Simtabi\Laranail\Settings\Contracts\ValueValidator;
+use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
+use Simtabi\Laranail\Settings\Support\LaravelValueValidator;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
 
 /**
  * Turns a caller's value into a stored payload (validate raw → cast → encode → encrypt) and a
  * stored record back into a value (decrypt → decode → cast).
  */
+#[Singleton]
 final readonly class ValuePipeline
 {
     public function __construct(
         private CasterRegistry $casters,
-        private ValueValidator $validator,
-        private ValueEncrypter $encrypter,
+        private LaravelValueValidator $validator,
+        private LaravelValueEncrypter $encrypter,
         private ValueEncoder $encoder,
     ) {}
 

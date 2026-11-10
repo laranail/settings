@@ -10,6 +10,7 @@ use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\SettingView;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
 /**
  * A setting as the API returns it. A value the actor may not see is left out (`redacted` true),
@@ -17,16 +18,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * @property SettingView $resource
  */
+#[PreserveKeys]
 final class SettingResource extends JsonResource
 {
-    public function __construct(SettingView $view)
-    {
-        parent::__construct($view);
-    }
+    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    public static $wrap = 'data';
 
     /** @return array<string, mixed> */
-    public static function fields(SettingView $view): array
+    #[Override]
+    public function toArray(Request $request): array
     {
+        $view = $this->resource;
         $fields = [
             'store'    => $view->address->store,
             'scope'    => Scope::of($view->address->ownerRef())->value,
@@ -44,12 +46,5 @@ final class SettingResource extends JsonResource
         }
 
         return $fields;
-    }
-
-    /** @return array<string, mixed> */
-    #[Override]
-    public function toArray(Request $request): array
-    {
-        return self::fields($this->resource);
     }
 }

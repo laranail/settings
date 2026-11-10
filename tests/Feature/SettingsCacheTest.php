@@ -15,9 +15,11 @@ use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\CacheTarget;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
+use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Illuminate\Contracts\Cache\Repository as CacheContract;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 
 /*
  * The cache service on its own (design §7.5), over an in-memory cache store: the database side is
@@ -142,13 +144,27 @@ it('keys every component apart, including a split that a plain join would collid
         ->and($cache->bagKey(cacheTarget('mysql', 'app'), Scope::global()))->toBe($keys[3]);
 });
 
+/** An operational log that hands each warning's context and message to `$record`. */
+function failureLog(Closure $record): OperationalLogger
+{
+    return new OperationalLogger(new class($record) extends AbstractLogger
+    {
+        public function __construct(private readonly Closure $record) {}
+
+        public function log($level, string|Stringable $message, array $context = []): void
+        {
+            ($this->record)($context, (string) $message);
+        }
+    });
+}
+
 it('keys the tenant into every bag', function (): void {
     $tenant = new class
     {
         public ?string $id = 'a';
     };
     $calls = [];
-    $cache = new SettingsCache(new Repository(new ArrayStore), tenant: static fn (): ?string => $tenant->id);
+    $cache = new SettingsCache(new Repository(new ArrayStore), tenant: new ClosureTenantDiscriminator(static fn (): ?string => $tenant->id));
 
     $a = $cache->bagKey(cacheTarget(), Scope::global());
     $cache->load(cacheTarget(), [Scope::global()], countingLoader($calls));
@@ -180,9 +196,9 @@ it('uses the configured prefix and key lifetimes', function (): void {
 it('reads from the database and reports it when the cache fails', function (): void {
     $calls = [];
     $failures = [];
-    $cache = new SettingsCache(brokenCache(), onFailure: static function (string $operation, Throwable $exception) use (&$failures): void {
-        $failures[] = $operation . ': ' . $exception->getMessage();
-    });
+    $cache = new SettingsCache(brokenCache(), log: failureLog(static function (array $context, string $message) use (&$failures): void {
+        $failures[] = $context['operation'] . ': ' . (str_contains($message, 'cache down') ? 'cache down' : $message);
+    }));
 
     $records = $cache->load(cacheTarget(), [Scope::global()], countingLoader($calls));
     $cache->forgetScope(cacheTarget(), Scope::global());
@@ -203,9 +219,9 @@ it('reports a failed write of fresh bags and still answers them', function (): v
             throw new RuntimeException('full');
         }
     });
-    $cache = new SettingsCache($store, onFailure: static function (string $operation) use (&$failures): void {
-        $failures[] = $operation;
-    });
+    $cache = new SettingsCache($store, log: failureLog(static function (array $context) use (&$failures): void {
+        $failures[] = $context['operation'];
+    }));
 
     expect($cache->load(cacheTarget(), [Scope::global()], countingLoader($calls))->count())->toBe(1)
         ->and($failures)->toBe(['write']);

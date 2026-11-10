@@ -33,10 +33,10 @@ final class ReencryptCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info(sprintf('Re-encrypted %d value(s), %d history entr%s and %d change request(s).', $result['values'], $result['history'], $result['history'] === 1 ? 'y' : 'ies', $result['changes']));
+        $this->info(trans_choice('laranail/settings::settings.console.reencrypted', $result['history'], ['values' => $result['values'], 'changes' => $result['changes']]));
 
         if ($result['failed'] > 0) {
-            $this->error(sprintf('%d payload(s) could not be decrypted with the current or previous keys and were left as they were.', $result['failed']));
+            $this->error(__('laranail/settings::settings.console.reencrypt_failed', ['failed' => $result['failed']]));
 
             return self::FAILURE;
         }

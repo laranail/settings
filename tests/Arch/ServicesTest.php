@@ -1,44 +1,30 @@
 <?php
 
 declare(strict_types=1);
-
-use Illuminate\Contracts\Config\Repository;
-use Illuminate\Contracts\Filesystem\Factory;
 use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Contracts\Importer;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Support\ValueEncoder;
-use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
-use Simtabi\Laranail\Settings\Contracts\OwnerResolver;
-use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
-use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
-use Simtabi\Laranail\Settings\Contracts\ValueValidator;
-use Simtabi\Laranail\Settings\Support\RecordSerializer;
-use Simtabi\Laranail\Settings\Contracts\BootstrapEvidence;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
-use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 
 /*
  * The Services namespace (Phase 4 plan §1): stateful collaborators that own I/O or a body of
  * rules live under Services\, and nowhere else. Contract implementations (drivers, sinks,
  * authorizers, casters, verifiers, resolvers, discriminators) stay beside their kind, so nothing
  * under Services\ implements a plug-in contract; and a repository or registry anywhere else is a
- * service that was filed in the wrong place. The classes moved in 0.1 keep their old names
- * through src/deprecated-aliases.php until 1.0, and that file names exactly them.
+ * service that was filed in the wrong place. The classes moved in 0.1 have no old name left:
+ * the aliases were removed before the first tag, so nothing resolves under the old namespaces.
  */
 
 const PLUGIN_CONTRACTS = [
     Driver::class, AuditSink::class, Authorizer::class, Caster::class, Verifier::class, ActorResolver::class,
-    TenantDiscriminator::class, ReadinessProbe::class, ValueEncrypter::class, ValueValidator::class, BootstrapEvidence::class,
-    Importer::class, OwnerResolver::class,
+    TenantDiscriminator::class, Importer::class,
 ];
 
-/** The 19 classes moved into Services\ in 0.1: old name => new name. */
+/** The 19 classes moved into Services\ in 0.1, whose old names were removed: old name => new name. */
 const MOVED_SERVICES = [
     'Database\\AuditRepository'           => 'Services\\Database\\AuditRepository',
     'Database\\CategoryRepository'        => 'Services\\Database\\CategoryRepository',
@@ -110,49 +96,17 @@ it('files every repository and registry under Services', function (): void {
     ));
 
     // The positive control: the scan does find the repositories and registries that exist.
-    expect(count($files))->toBeGreaterThanOrEqual(360)
+    expect(count($files))->toBeGreaterThanOrEqual(355)
         ->and(count($found))->toBeGreaterThanOrEqual(9)
         ->and($offenders)->toBe([]);
 });
 
-it('aliases exactly the moved classes, and each old name still works', function (): void {
-    $file = (string) file_get_contents(dirname(__DIR__, 2) . '/src/deprecated-aliases.php');
-    preg_match_all('/^\s*(?:\\\\)?Simtabi\\\\Laranail\\\\Settings\\\\([A-Za-z\\\\]+)::class\s*=>/m', $file, $matches);
-    $aliased = $matches[1];
+it('leaves no old name for a moved class, and every new name loads', function (): void {
     $base = 'Simtabi\\Laranail\\Settings\\';
-    $broken = [];
-
-    foreach (MOVED_SERVICES as $old => $new) {
-        $reflection = new ReflectionClass($base . $old);
-
-        if ($reflection->getName() !== $base . $new || ! is_a($base . $new, $base . $old, true)) {
-            $broken[] = $old;
-        }
-    }
+    $root = dirname(__DIR__, 2);
 
     expect(count(MOVED_SERVICES))->toBe(19)
-        ->and($aliased)->toHaveCount(19)
-        ->and(array_values(array_diff($aliased, array_keys(MOVED_SERVICES))))->toBe([])
-        ->and(array_values(array_diff(array_keys(MOVED_SERVICES), $aliased)))->toBe([])
-        ->and($broken)->toBe([])
-        // No old file is left behind to shadow the alias.
-        ->and(array_filter(array_keys(MOVED_SERVICES), static fn (string $old): bool => is_file(dirname(__DIR__, 2) . '/src/' . str_replace('\\', '/', $old) . '.php')))->toBe([]);
-});
-
-it('keeps an old name working in a type declaration', function (): void {
-    $accepts = static fn (StoreRegistry $registry): string => $registry::class;
-    $registry = new Simtabi\Laranail\Settings\Services\Stores\StoreRegistry(
-        new DriverFactory(
-            Mockery::mock(Factory::class),
-            Mockery::mock(Repository::class),
-            new ReadOnlyValues(new ValueEncoder),
-            new RecordSerializer,
-            sys_get_temp_dir(),
-        ),
-        'settings',
-        ['settings' => ['layers' => []]],
-        [],
-    );
-
-    expect($accepts($registry))->toBe(Simtabi\Laranail\Settings\Services\Stores\StoreRegistry::class);
+        ->and(is_file($root . '/src/deprecated-aliases.php'))->toBeFalse()
+        ->and(array_keys(array_filter(MOVED_SERVICES, static fn (string $new, string $old): bool => class_exists($base . $old), ARRAY_FILTER_USE_BOTH)))->toBe([])
+        ->and(array_values(array_filter(MOVED_SERVICES, static fn (string $new): bool => ! class_exists($base . $new))))->toBe([]);
 });

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
@@ -20,10 +20,8 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
  */
 final readonly class FindOrphans
 {
-    /** @param Closure(string): ?string $models the model class of a morph alias (the morph map) */
     public function __construct(
         private StoreRegistry $stores,
-        private Closure $models,
     ) {}
 
     /**
@@ -44,7 +42,7 @@ final readonly class FindOrphans
             }
 
             foreach ($store->owners as $alias) {
-                $model = ($this->models)($alias);
+                $model = Relation::getMorphedModel($alias);
 
                 if ($model === null || ! is_subclass_of($model, Model::class)) {
                     $unmapped[] = $alias;

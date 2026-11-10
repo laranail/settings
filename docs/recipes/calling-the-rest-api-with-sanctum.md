@@ -41,7 +41,7 @@ curl -s -X PUT https://app.example/api/settings/v1/stores/settings/settings/site
      -d '{"value": "Acme Ltd", "reason": "rebrand"}'
 ```
 
-`412` means the setting changed since you read its ETag; read it again. `428` means the ability needs step-up verification (`verification.abilities`): use the `actor` verifier and send a fresh `verifiedAt`, or leave such abilities to people. Generate a client from `php artisan laranail::settings.openapi`.
+`412` means the setting changed since you read its ETag; read it again. `428` means the ability needs step-up verification (`verification.abilities`): use the `actor` verifier and send a fresh `verifiedAt`, or leave such abilities to people.
 
 See [REST API](../tools/rest-api.md).
 

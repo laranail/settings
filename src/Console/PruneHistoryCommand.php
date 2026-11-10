@@ -32,13 +32,13 @@ final class PruneHistoryCommand extends Command
         $versions = $this->number($this->option('versions') ?? $config->get('laranail.settings.history.keep_versions'));
 
         if ($days === false || $versions === false) {
-            $this->error('The retention period and the number of versions must be whole numbers.');
+            $this->error(__('laranail/settings::settings.console.history_invalid'));
 
             return self::FAILURE;
         }
 
         if ($days === null && $versions === null) {
-            $this->info('No history retention is configured (history.keep_days and history.keep_versions are null); nothing to prune.');
+            $this->info(__('laranail/settings::settings.console.history_unconfigured'));
 
             return self::SUCCESS;
         }
@@ -51,7 +51,7 @@ final class PruneHistoryCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info(sprintf('Removed %d history entr%s.', $removed, $removed === 1 ? 'y' : 'ies'));
+        $this->info(trans_choice('laranail/settings::settings.console.history_pruned', $removed));
 
         return self::SUCCESS;
     }

@@ -511,7 +511,7 @@ return [
 
     'http' => [
         'enabled'    => env('LARANAIL_SETTINGS_HTTP', false),
-        'prefix'     => 'api/settings',
+        'prefix'     => env('LARANAIL_SETTINGS_HTTP_PREFIX', 'api/settings'),
         'middleware' => null,
         'rate_limit' => 60,
         'routes'     => [

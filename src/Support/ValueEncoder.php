@@ -6,12 +6,14 @@ namespace Simtabi\Laranail\Settings\Support;
 
 use JsonException;
 use Simtabi\Laranail\Settings\Data\Key;
+use Illuminate\Container\Attributes\Singleton;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 /**
  * Encodes values as JSON for storage. A stored null becomes the string `null`, which keeps it
  * distinct from "no value" (a null payload).
  */
+#[Singleton]
 final readonly class ValueEncoder
 {
     private const int FLAGS = JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;

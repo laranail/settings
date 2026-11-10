@@ -10,8 +10,9 @@ use Simtabi\Laranail\Settings\Tests\TestCase;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
-use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 
 // Feature tests boot the application; Unit and Arch tests deliberately do not, so a unit
 // that quietly relies on the container fails instead of passing.
@@ -90,7 +91,7 @@ function useDatabase(array $config = [], array $stores = [], array $ownerTables 
 
     if (is_dir($directory)) {
         Artisan::call('migrate:fresh', ['--path' => $directory, '--realpath' => true]);
-        app(ReadinessProbe::class)->flush();
+        app(SchemaReadinessInterface::class)->flush();
 
         return;
     }
@@ -126,5 +127,26 @@ function useDatabase(array $config = [], array $stores = [], array $ownerTables 
     }
 
     Artisan::call('migrate:fresh', ['--path' => $directory, '--realpath' => true]);
-    app(ReadinessProbe::class)->flush();
+    app(SchemaReadinessInterface::class)->flush();
+}
+
+/**
+ * The problem type of every exception that names one (the base's `settings-error` aside), read
+ * from the exception classes themselves.
+ *
+ * @return list<string>
+ */
+function problemTypes(): array
+{
+    $types = [];
+
+    foreach (glob(__DIR__ . '/../src/Exceptions/*.php') ?: [] as $file) {
+        $class = 'Simtabi\\Laranail\\Settings\\Exceptions\\' . basename($file, '.php');
+
+        if (is_subclass_of($class, SettingsException::class) && $class::TYPE !== SettingsException::TYPE) {
+            $types[] = $class::TYPE;
+        }
+    }
+
+    return array_values(array_unique($types));
 }

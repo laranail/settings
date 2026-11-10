@@ -25,86 +25,107 @@ use Simtabi\Laranail\Settings\Actions\WarmCache;
 use Simtabi\Laranail\Settings\Data\HistoryEntry;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
 use Simtabi\Laranail\Settings\Actions\ClearCache;
+use Simtabi\Laranail\Settings\Actions\FlushScope;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
+use Simtabi\Laranail\Settings\Actions\SetSetting;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Data\HistoryFilter;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
+use Simtabi\Laranail\Settings\Actions\DiffHistory;
+use Simtabi\Laranail\Settings\Actions\LockSetting;
 use Simtabi\Laranail\Settings\Approvals\Approvals;
 use Simtabi\Laranail\Settings\Data\ChangeProposal;
-use Simtabi\Laranail\Settings\Actions\StoreActions;
+use Simtabi\Laranail\Settings\Actions\PromoteStore;
+use Simtabi\Laranail\Settings\Actions\QueryHistory;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
+use Simtabi\Laranail\Settings\Actions\ForgetSetting;
+use Simtabi\Laranail\Settings\Actions\UnlockSetting;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
-use Simtabi\Laranail\Settings\Actions\HistoryActions;
-use Simtabi\Laranail\Settings\Actions\SettingActions;
+use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Actions\RollbackSetting;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
+use Simtabi\Laranail\Settings\Actions\Transfer\DiffStore;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Actions\Transfer\ExportStore;
+use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
-use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
+use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
+use Simtabi\Laranail\Settings\Services\Resolution\ScopeKeys;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Actions\Transfer\TransferActions;
-use Simtabi\Laranail\Settings\Actions\Approvals\ApprovalActions;
+use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
-use Simtabi\Laranail\Settings\Actions\Configuration\ConfigurationActions;
 use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
  * The {@see Settings} implementation: an immutable handle over the store, owner, locale and
  * actor it targets. Reads go through the {@see Resolver} after the {@see AccessGuard} has
- * checked them; writes go through the {@see SettingActions}, which authorize and audit.
+ * checked them; writes go through the write actions, which authorize and audit. Every fluent
+ * method returns a copy, so a handle is never changed in place.
  */
-final readonly class SettingsManager implements Settings
+final class SettingsManager implements Settings
 {
-    private SettingActions $actions;
+    private ?StoreName $storeName = null;
 
-    private AccessGuard $access;
+    private ?OwnerRef $owner = null;
+
+    /** @var list<OwnerRef> */
+    private array $parents = [];
+
+    private ?Locale $selectedLocale = null;
+
+    private ?Actor $actingAs = null;
+
+    private ?string $reason = null;
 
     /**
-     * The trailing collaborators are optional so a hand-built manager keeps working: without an
-     * access guard every actor is denied (fail closed) while trusted calls behave as before.
-     *
-     * @param list<OwnerRef> $parents
+     * Every collaborator is required and built by the container; what a handle targets (store,
+     * owner, locale, actor, reason) is set on a copy by the fluent methods ({@see with()}).
      */
     public function __construct(
-        private StoreRegistry $stores,
-        private DefinitionRegistry $definitions,
-        private Resolver $resolver,
-        private SettingWriter $writer,
-        private ?StoreName $storeName = null,
-        private ?OwnerRef $owner = null,
-        private array $parents = [],
-        private ?Locale $selectedLocale = null,
-        ?SettingActions $actions = null,
-        ?AccessGuard $access = null,
-        private ?RuntimeConfiguration $runtime = null,
-        private ?Actor $actingAs = null,
-        private ?string $reason = null,
-        private ?StoreActions $storeActions = null,
-        private ?QueryAudit $auditQuery = null,
-        private ?DatabaseDefinitions $databaseDefinitions = null,
-        private ?HistoryActions $historyActions = null,
-        private ?ApprovalActions $approvalActions = null,
-        private ?TransferActions $transferActions = null,
-        private ?ConfigurationActions $configurationActions = null,
-    ) {
-        $this->access = $access ?? AccessGuard::closed();
-        $this->actions = $actions ?? SettingActions::using($writer, $this->access);
-    }
+        private readonly StoreRegistry $stores,
+        private readonly DefinitionRegistry $registry,
+        private readonly Definitions $definitions,
+        private readonly Resolver $resolver,
+        private readonly AccessGuard $access,
+        private readonly RuntimeConfiguration $runtime,
+        private readonly SetSetting $set,
+        private readonly ForgetSetting $forget,
+        private readonly LockSetting $lock,
+        private readonly UnlockSetting $unlock,
+        private readonly FlushScope $flushScope,
+        private readonly ClearCache $clearCache,
+        private readonly WarmCache $warmCache,
+        private readonly PromoteStore $promote,
+        private readonly QueryAudit $auditQuery,
+        private readonly QueryHistory $historyQuery,
+        private readonly RollbackSetting $rollback,
+        private readonly DiffHistory $diffHistory,
+        private readonly ProposeChange $propose,
+        private readonly ExportStore $export,
+        private readonly ImportStore $import,
+        private readonly DiffStore $diffStore,
+        private readonly ListDefinitions $listDefinitions,
+        private readonly CategoryManager $categories,
+        private readonly Approvals $approvals,
+        private readonly PersistedConfigurationEditor $configurationEditor,
+    ) {}
 
     public function store(string $name): static
     {
@@ -156,7 +177,7 @@ final readonly class SettingsManager implements Settings
 
     public function configuration(): RuntimeConfiguration
     {
-        return $this->runtime ?? throw new LogicException('This settings handle was built without runtime configuration; resolve Settings from the container.');
+        return $this->runtime;
     }
 
     public function withConfiguration(callable $change, callable $run): mixed
@@ -183,6 +204,57 @@ final readonly class SettingsManager implements Settings
     public function has(string $key): bool
     {
         return $this->lookup($key)->isFound();
+    }
+
+    public function missing(string $key): bool
+    {
+        return ! $this->has($key);
+    }
+
+    public function many(array $keys): array
+    {
+        $values = [];
+
+        foreach ($keys as $key => $default) {
+            if (is_int($key)) {
+                $key = is_string($default) ? $default : throw new InvalidKey('many() takes setting keys, or key => default pairs.');
+                $default = null;
+            }
+
+            $values[$key] = $this->get($key, $default);
+        }
+
+        return $values;
+    }
+
+    public function all(?string $prefix = null): array
+    {
+        $store = $this->targetStore();
+        $prefix = $prefix === null ? null : new Key(rtrim($prefix, '.'))->value;
+        $values = [];
+
+        foreach (new ScopeKeys($this->registry)->keys($store, $this->scope()) as $key) {
+            if ($prefix !== null && $key !== $prefix && ! str_starts_with($key, $prefix . '.')) {
+                continue;
+            }
+
+            try {
+                $lookup = $this->lookup($key);
+            } catch (AccessDenied|UnknownSetting) {
+                continue;
+            }
+
+            if ($lookup->isFound()) {
+                $values[$key] = $lookup->value();
+            }
+        }
+
+        return $values;
+    }
+
+    public function definitions(): array
+    {
+        return $this->listDefinitions->handle($this->targetStore(), $this->actingAs);
     }
 
     public function string(string $key): string
@@ -237,7 +309,7 @@ final readonly class SettingsManager implements Settings
         $target = $this->writeTarget($key);
 
         try {
-            $this->actions->set->handle(new SettingWrite($target, $value), $this->actingAs);
+            $this->set->handle(new SettingWrite($target, $value), $this->actingAs);
         } finally {
             $this->resolver->forgetPreloaded($target->store, $this->scope());
         }
@@ -248,10 +320,38 @@ final readonly class SettingsManager implements Settings
         $target = $this->writeTarget($key);
 
         try {
-            $this->actions->forget->handle($target, $this->actingAs);
+            $this->forget->handle($target, $this->actingAs);
         } finally {
             $this->resolver->forgetPreloaded($target->store, $this->scope());
         }
+    }
+
+    public function setMany(array $values): void
+    {
+        foreach ($values as $key => $value) {
+            $this->set($key, $value);
+        }
+    }
+
+    public function forgetMany(iterable $keys): void
+    {
+        foreach ($keys as $key) {
+            $this->forget($key);
+        }
+    }
+
+    public function remember(string $key, callable $value): mixed
+    {
+        $lookup = $this->lookup($key);
+
+        if ($lookup->isFound()) {
+            return $lookup->value();
+        }
+
+        $computed = $value();
+        $this->set($key, $computed);
+
+        return $this->get($key, $computed);
     }
 
     public function lock(string $key): void
@@ -259,7 +359,7 @@ final readonly class SettingsManager implements Settings
         $target = $this->writeTarget($key);
 
         try {
-            $this->actions->lock->handle($target, $this->actingAs);
+            $this->lock->handle($target, $this->actingAs);
         } finally {
             $this->resolver->forgetPreloaded($target->store, $this->scope());
         }
@@ -270,7 +370,7 @@ final readonly class SettingsManager implements Settings
         $target = $this->writeTarget($key);
 
         try {
-            $this->actions->unlock->handle($target, $this->actingAs);
+            $this->unlock->handle($target, $this->actingAs);
         } finally {
             $this->resolver->forgetPreloaded($target->store, $this->scope());
         }
@@ -282,7 +382,7 @@ final readonly class SettingsManager implements Settings
         $owner = $this->owner ?? throw new LogicException('flush() removes one owner\'s values; call for($owner) first.');
 
         try {
-            $this->storeActions()->flush->handle($store, $owner, $this->actingAs);
+            $this->flushScope->handle($store, $owner, $this->actingAs);
         } finally {
             $this->resolver->forgetPreloaded($store, $this->scope());
         }
@@ -290,12 +390,12 @@ final readonly class SettingsManager implements Settings
 
     public function clearCache(): void
     {
-        $this->clearCacheAction()->handle($this->targetStore(), $this->owner, $this->actingAs);
+        $this->clearCache->handle($this->targetStore(), $this->owner, $this->actingAs);
     }
 
     public function warmCache(): int
     {
-        return $this->warmCacheAction()->handle($this->targetStore(), $this->owner, $this->actingAs);
+        return $this->warmCache->handle($this->targetStore(), $this->owner, $this->actingAs);
     }
 
     public function preload(iterable $owners): void
@@ -325,20 +425,17 @@ final readonly class SettingsManager implements Settings
 
     public function categories(): CategoryManager
     {
-        return new CategoryManager($this->targetStore(), $this->actingAs, $this->storeActions()->categories, $this->access);
+        return $this->categories->in($this->targetStore(), $this->actingAs);
     }
 
     public function promote(?PromotionRequest $request = null): PromotionReport
     {
-        return $this->storeActions()->promote->handle($this->targetStore(), $request ?? new PromotionRequest, $this->actingAs);
+        return $this->promote->handle($this->targetStore(), $request ?? new PromotionRequest, $this->actingAs);
     }
 
     public function audit(): AuditQuery
     {
-        $query = new AuditQuery(
-            $this->auditQuery ?? throw new LogicException('This settings handle was built without the audit query; resolve Settings from the container.'),
-            $this->actingAs,
-        );
+        $query = new AuditQuery($this->auditQuery, $this->actingAs);
 
         return $this->storeName instanceof StoreName ? $query->store($this->storeName->value) : $query;
     }
@@ -350,7 +447,7 @@ final readonly class SettingsManager implements Settings
         $actor = $this->actingAs;
 
         return new HistoryQuery(
-            $this->historyActions()->query,
+            $this->historyQuery,
             $actor,
             $filter,
             $actor instanceof Actor ? function (HistoryEntry $entry) use ($actor): bool {
@@ -369,7 +466,7 @@ final readonly class SettingsManager implements Settings
         $target = $this->writeTarget($key);
 
         try {
-            return $this->historyActions()->rollback->handle($target, $toVersion, $this->actingAs);
+            return $this->rollback->handle($target, $toVersion, $this->actingAs);
         } finally {
             $this->resolver->forgetPreloaded($target->store, $this->scope());
         }
@@ -377,76 +474,42 @@ final readonly class SettingsManager implements Settings
 
     public function historyDiff(string $key, int $from, int $to): HistoryDiff
     {
-        return $this->historyActions()->diff->handle($this->writeTarget($key), $from, $to, $this->actingAs);
+        return $this->diffHistory->handle($this->writeTarget($key), $from, $to, $this->actingAs);
     }
 
     public function propose(string $key, mixed $value): ChangeRequest
     {
-        return $this->approvalActions()->propose->handle(new ChangeProposal($this->writeTarget($key), ChangeOperation::Set, $value), $this->actingAs);
+        return $this->propose->handle(new ChangeProposal($this->writeTarget($key), ChangeOperation::Set, $value), $this->actingAs);
     }
 
     public function approvals(): Approvals
     {
-        return new Approvals($this->approvalActions(), $this->targetStore(), $this->actingAs);
+        return $this->approvals->in($this->targetStore(), $this->actingAs);
     }
 
     public function export(ExportMode $mode = ExportMode::Redacted): ExportDocument
     {
-        return $this->transferActions()->export->handle(new ExportRequest($this->targetStore(), $mode), $this->actingAs);
+        return $this->export->handle(new ExportRequest($this->targetStore(), $mode), $this->actingAs);
     }
 
     public function import(ExportDocument $document): ImportReport
     {
-        return $this->transferActions()->import->handle(new ImportRequest($this->targetStore(), $document, apply: true, reason: $this->reason ?? $this->actingAs?->context->reason), $this->actingAs);
+        return $this->import->handle(new ImportRequest($this->targetStore(), $document, apply: true, reason: $this->reason ?? $this->actingAs?->context->reason), $this->actingAs);
     }
 
     public function previewImport(ExportDocument $document): ImportReport
     {
-        return $this->transferActions()->import->handle(new ImportRequest($this->targetStore(), $document), $this->actingAs);
+        return $this->import->handle(new ImportRequest($this->targetStore(), $document), $this->actingAs);
     }
 
     public function compare(ExportDocument $document): StoreDiff
     {
-        return $this->transferActions()->diff->handle($this->targetStore(), $document, $this->actingAs);
+        return $this->diffStore->handle($this->targetStore(), $document, $this->actingAs);
     }
 
     public function persistedConfiguration(): PersistedConfigurationEditor
     {
-        return new PersistedConfigurationEditor(
-            $this->configurationActions ?? throw new LogicException('This settings handle was built without the configuration actions; resolve Settings from the container.'),
-            $this->targetStore(),
-            $this->actingAs,
-        );
-    }
-
-    private function transferActions(): TransferActions
-    {
-        return $this->transferActions ?? throw new LogicException('This settings handle was built without the transfer actions; resolve Settings from the container.');
-    }
-
-    private function approvalActions(): ApprovalActions
-    {
-        return $this->approvalActions ?? throw new LogicException('This settings handle was built without the approval actions; resolve Settings from the container.');
-    }
-
-    private function historyActions(): HistoryActions
-    {
-        return $this->historyActions ?? throw new LogicException('This settings handle was built without the history actions; resolve Settings from the container.');
-    }
-
-    private function storeActions(): StoreActions
-    {
-        return $this->storeActions ?? throw new LogicException('This settings handle was built without store actions; resolve Settings from the container.');
-    }
-
-    private function clearCacheAction(): ClearCache
-    {
-        return $this->storeActions()->clearCache ?? throw new LogicException('This settings handle was built without the cache actions; resolve Settings from the container.');
-    }
-
-    private function warmCacheAction(): WarmCache
-    {
-        return $this->storeActions()->warmCache ?? throw new LogicException('This settings handle was built without the cache actions; resolve Settings from the container.');
+        return $this->configurationEditor->in($this->targetStore(), $this->actingAs);
     }
 
     private function scope(): Scope
@@ -522,9 +585,7 @@ final readonly class SettingsManager implements Settings
      */
     private function definition(Store $store, Key $key): ?Definition
     {
-        return $this->runtime?->findDefinition($store->name, $key)
-            ?? $this->definitions->find($store->name, $key)
-            ?? $this->databaseDefinitions?->find($store, $key);
+        return $this->definitions->find($store, $key);
     }
 
     private function required(string $key): mixed
@@ -548,27 +609,14 @@ final readonly class SettingsManager implements Settings
         ?Actor $actor = null,
         ?string $reason = null,
     ): self {
-        return new self(
-            $this->stores,
-            $this->definitions,
-            $this->resolver,
-            $this->writer,
-            $storeName ?? $this->storeName,
-            $owner ?? $this->owner,
-            $parents ?? $this->parents,
-            $locale ?? $this->selectedLocale,
-            $this->actions,
-            $this->access,
-            $this->runtime,
-            $actor ?? $this->actingAs,
-            $reason ?? $this->reason,
-            $this->storeActions,
-            $this->auditQuery,
-            $this->databaseDefinitions,
-            $this->historyActions,
-            $this->approvalActions,
-            $this->transferActions,
-            $this->configurationActions,
-        );
+        $handle = clone $this;
+        $handle->storeName = $storeName ?? $this->storeName;
+        $handle->owner = $owner ?? $this->owner;
+        $handle->parents = $parents ?? $this->parents;
+        $handle->selectedLocale = $locale ?? $this->selectedLocale;
+        $handle->actingAs = $actor ?? $this->actingAs;
+        $handle->reason = $reason ?? $this->reason;
+
+        return $handle;
     }
 }

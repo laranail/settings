@@ -12,10 +12,10 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
 use Simtabi\Laranail\Settings\Services\Transfer\Importers;
+use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Actions\Transfer\TransferActions;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
@@ -38,7 +38,7 @@ final class ImportCommand extends Command
 
     protected $description = 'Import settings from an export file or another package (dry run by default)';
 
-    public function handle(TransferActions $transfer, StoreRegistry $stores, Importers $importers, Filesystem $files): int
+    public function handle(ImportStore $import, StoreRegistry $stores, Importers $importers, Filesystem $files): int
     {
         $source = $this->argument('source');
         $source = is_string($source) ? $source : '';
@@ -58,7 +58,7 @@ final class ImportCommand extends Command
                 $document = ExportDocument::fromJson($files->get($source));
             }
 
-            $report = $transfer->import->handle(new ImportRequest(
+            $report = $import->handle(new ImportRequest(
                 $store,
                 $document,
                 apply: $this->option('apply') === true,
@@ -78,27 +78,24 @@ final class ImportCommand extends Command
 
     private function report(ImportReport $report): void
     {
-        $this->info(sprintf(
-            '%s %d created, %d updated, %d unchanged, %d skipped; %d categor%s created.',
-            $report->applied ? 'Imported:' : 'Dry run (add --apply to write):',
-            count($report->created),
-            count($report->updated),
-            count($report->unchanged),
-            count($report->skipped),
-            count($report->categories),
-            count($report->categories) === 1 ? 'y' : 'ies',
-        ));
+        $this->info(trans_choice('laranail/settings::settings.console.imported', count($report->categories), [
+            'prefix'    => $report->applied ? __('laranail/settings::settings.console.import_applied') : __('laranail/settings::settings.console.import_dry_run'),
+            'created'   => count($report->created),
+            'updated'   => count($report->updated),
+            'unchanged' => count($report->unchanged),
+            'skipped'   => count($report->skipped),
+        ]));
 
         foreach ([...array_map(static fn (string $id): string => '+ ' . $id, $report->created), ...array_map(static fn (string $id): string => '~ ' . $id, $report->updated)] as $line) {
             $this->line('  ' . $line);
         }
 
         foreach ($report->skipped as $identity => $reason) {
-            $this->line(sprintf('  ! %s skipped: %s', $identity, $reason));
+            $this->line('  ! ' . __('laranail/settings::settings.console.import_skipped', ['identity' => $identity, 'reason' => $reason]));
         }
 
         if ($report->proposed !== []) {
-            $this->comment(sprintf('%d setting(s) need approval: change requests %s.', count($report->proposed), implode(', ', $report->proposed)));
+            $this->comment(__('laranail/settings::settings.console.import_proposed', ['count' => count($report->proposed), 'ids' => implode(', ', $report->proposed)]));
         }
     }
 }

@@ -15,9 +15,13 @@ use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Enums\ChangeStatus;
 use Simtabi\Laranail\Settings\Data\ChangeDecision;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Actions\Approvals\CancelChange;
+use Simtabi\Laranail\Settings\Actions\Approvals\QueryChanges;
+use Simtabi\Laranail\Settings\Actions\Approvals\RejectChange;
 use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
+use Simtabi\Laranail\Settings\Actions\Approvals\ApproveChange;
 use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
-use Simtabi\Laranail\Settings\Actions\Approvals\ApprovalActions;
 
 /**
  * The change requests of one store (§16.7), as the handle's actor: list them (`->pending()`,
@@ -26,12 +30,23 @@ use Simtabi\Laranail\Settings\Actions\Approvals\ApprovalActions;
  */
 final readonly class Approvals
 {
+    /** The store and actor are set by {@see in()}; without them, the default store as trusted code. */
     public function __construct(
-        private ApprovalActions $actions,
-        private Store $store,
+        private QueryChanges $query,
+        private ApproveChange $approve,
+        private RejectChange $reject,
+        private CancelChange $cancel,
+        private StoreRegistry $stores,
+        private ?Store $store = null,
         private ?Actor $actor = null,
         private ?ChangeFilter $filter = null,
     ) {}
+
+    /** These change requests: the store's, as this actor. */
+    public function in(Store $store, ?Actor $actor = null): self
+    {
+        return new self($this->query, $this->approve, $this->reject, $this->cancel, $this->stores, $store, $actor);
+    }
 
     /** Open requests only (pending, or approved and waiting for more approvals). */
     public function pending(): self
@@ -61,7 +76,7 @@ final readonly class Approvals
      */
     public function get(int $limit = 100, ?string $after = null): array
     {
-        return $this->actions->query->handle($this->filter(), $this->actor, $limit, $after);
+        return $this->query->handle($this->filter(), $this->actor, $limit, $after);
     }
 
     /**
@@ -71,7 +86,7 @@ final readonly class Approvals
      */
     public function find(string $id): ChangeRequest
     {
-        return $this->actions->query->handle(new ChangeFilter($this->store->name, id: $id), $this->actor, 1)[0] ?? throw new UnknownChangeRequest(sprintf('Store [%s] has no change request [%s].', $this->store->name, $id));
+        return $this->query->handle(new ChangeFilter($this->store()->name, id: $id), $this->actor, 1)[0] ?? throw new UnknownChangeRequest(sprintf('Store [%s] has no change request [%s].', $this->store()->name, $id));
     }
 
     /**
@@ -80,28 +95,33 @@ final readonly class Approvals
      */
     public function approve(string $id, ?string $reason = null): ChangeRequest
     {
-        return $this->actions->approve->handle(new ChangeDecision($this->store, $id, $reason), $this->actor);
+        return $this->approve->handle(new ChangeDecision($this->store(), $id, $reason), $this->actor);
     }
 
     /** @throws ChangeRequestClosed */
     public function reject(string $id, ?string $reason = null): ChangeRequest
     {
-        return $this->actions->reject->handle(new ChangeDecision($this->store, $id, $reason), $this->actor);
+        return $this->reject->handle(new ChangeDecision($this->store(), $id, $reason), $this->actor);
     }
 
     /** @throws ChangeRequestClosed */
     public function cancel(string $id, ?string $reason = null): ChangeRequest
     {
-        return $this->actions->cancel->handle(new ChangeDecision($this->store, $id, $reason), $this->actor);
+        return $this->cancel->handle(new ChangeDecision($this->store(), $id, $reason), $this->actor);
     }
 
     private function filter(): ChangeFilter
     {
-        return $this->filter ?? new ChangeFilter($this->store->name);
+        return $this->filter ?? new ChangeFilter($this->store()->name);
+    }
+
+    private function store(): Store
+    {
+        return $this->store ?? $this->stores->default();
     }
 
     private function with(ChangeFilter $filter): self
     {
-        return new self($this->actions, $this->store, $this->actor, $filter);
+        return new self($this->query, $this->approve, $this->reject, $this->cancel, $this->stores, $this->store, $this->actor, $filter);
     }
 }

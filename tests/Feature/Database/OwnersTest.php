@@ -149,7 +149,7 @@ it('needs prune (and forget) to prune orphans with an actor, and audits the run'
     Event::assertDispatched(OrphansPruned::class, static fn (OrphansPruned $event): bool => $event->owners === 1 && $event->rows === 1);
 });
 
-it('finds orphans with FindOrphans, and through the deprecated PruneOrphans::find()', function (): void {
+it('finds orphans with FindOrphans', function (): void {
     $gone = SettingsOwner::query()->create();
     $gone->settings()->set('ui.theme', 'dark');
     SettingsOwner::query()->whereKey($gone->id)->delete();
@@ -157,7 +157,6 @@ it('finds orphans with FindOrphans, and through the deprecated PruneOrphans::fin
     $found = app(FindOrphans::class)->handle();
 
     expect(array_map(static fn (OwnerRef $owner): string => $owner->scope()->value, $found['orphans']['settings'] ?? []))->toBe(['owner:' . $gone->id])
-        ->and(app(PruneOrphans::class)->find())->toEqual($found)
         ->and(DB::table('settings')->count())->toBe(1);
 });
 

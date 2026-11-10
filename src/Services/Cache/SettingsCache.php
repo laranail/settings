@@ -13,6 +13,8 @@ use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\CacheTarget;
 use Simtabi\Laranail\Settings\Support\BagCodec;
+use Simtabi\Laranail\Settings\Logging\OperationalLogger;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
@@ -37,7 +39,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
  * `scoped`, so Octane and queue workers start each request and job empty).
  *
  * A failing cache never fails a read: the bag is read from the database and the failure is
- * reported through `$onFailure`. A failing invalidation is reported the same way.
+ * reported to the operational log. A failing invalidation is reported the same way.
  */
 final class SettingsCache
 {
@@ -50,16 +52,16 @@ final class SettingsCache
     /**
      * @param int $ttl seconds a bag is fresh
      * @param int $stale seconds after that a stale bag is still answered while it is refreshed
-     * @param (Closure(): ?string)|null $tenant the current tenant, null outside any tenant
-     * @param (Closure(string, Throwable): void)|null $onFailure told (operation, exception) when the cache fails
+     * @param ?TenantDiscriminator $tenant the current tenant, none outside any tenant
+     * @param ?OperationalLogger $log told when the cache fails
      */
     public function __construct(
         private readonly Repository $cache,
         private readonly string $prefix = 'laranail-settings',
         private readonly int $ttl = 3600,
         private readonly int $stale = 300,
-        private readonly ?Closure $tenant = null,
-        private readonly ?Closure $onFailure = null,
+        private readonly ?TenantDiscriminator $tenant = null,
+        private readonly ?OperationalLogger $log = null,
         private readonly BagCodec $codec = new BagCodec,
     ) {
         if ($prefix === '' || $ttl < 1 || $stale < 0) {
@@ -313,7 +315,7 @@ final class SettingsCache
 
     private function currentTenant(): string
     {
-        return ($this->tenant instanceof Closure ? ($this->tenant)() : null) ?? '';
+        return $this->tenant?->current() ?? '';
     }
 
     /** Seconds a bag (and a scope token) is kept: fresh plus stale. */
@@ -345,8 +347,9 @@ final class SettingsCache
 
     private function failed(string $operation, Throwable $exception): void
     {
-        if ($this->onFailure instanceof Closure) {
-            ($this->onFailure)($operation, $exception);
-        }
+        $this->log?->warning(sprintf('laranail/settings: the settings cache failed (%s): %s. Reads fall back to the database; a failed invalidation leaves bags stale until they expire or clear-cache runs.', $operation, $exception->getMessage()), [
+            'operation' => $operation,
+            'exception' => $exception::class,
+        ]);
     }
 }

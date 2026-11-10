@@ -10,10 +10,10 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
@@ -31,7 +31,7 @@ final readonly class ReencryptSettings
     public function __construct(
         private StoreRegistry $stores,
         private AccessGuard $access,
-        private ValueEncrypter $encrypter,
+        private LaravelValueEncrypter $encrypter,
     ) {}
 
     /** @return array{values: int, history: int, changes: int, failed: int} */

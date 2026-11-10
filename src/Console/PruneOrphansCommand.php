@@ -29,7 +29,7 @@ final class PruneOrphansCommand extends Command
             $found = $find->handle();
 
             foreach ($found['unmapped'] as $alias) {
-                $this->warn(sprintf('Alias [%s] has no model in the morph map; its settings were not checked.', $alias));
+                $this->warn(__('laranail/settings::settings.console.orphans_unmapped', ['alias' => $alias]));
             }
 
             $rows = [];
@@ -41,7 +41,7 @@ final class PruneOrphansCommand extends Command
             }
 
             if ($rows === []) {
-                $this->info('No orphaned settings.');
+                $this->info(__('laranail/settings::settings.console.orphans_none'));
 
                 return self::SUCCESS;
             }
@@ -49,7 +49,7 @@ final class PruneOrphansCommand extends Command
             $this->table(['Store', 'Scope'], $rows);
 
             if ($this->option('dry-run') === true) {
-                $this->info(sprintf('%d orphaned owner(s) found; nothing removed (dry run).', count($rows)));
+                $this->info(__('laranail/settings::settings.console.orphans_dry_run', ['count' => count($rows)]));
 
                 return self::SUCCESS;
             }
@@ -61,7 +61,7 @@ final class PruneOrphansCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info(sprintf('Removed %d row(s) of %d orphaned owner(s).', $removed, count($rows)));
+        $this->info(__('laranail/settings::settings.console.orphans_removed', ['removed' => $removed, 'count' => count($rows)]));
 
         return self::SUCCESS;
     }

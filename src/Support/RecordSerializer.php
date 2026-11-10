@@ -9,11 +9,13 @@ use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
+use Illuminate\Container\Attributes\Singleton;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 
 /**
  * Converts records to and from the plain arrays file layers store.
  */
+#[Singleton]
 final readonly class RecordSerializer
 {
     /** @return array<string, mixed> */

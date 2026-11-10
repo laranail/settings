@@ -8,7 +8,6 @@ use Closure;
 use Illuminate\Encryption\MissingAppKeyException;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Contracts\Encryption\DecryptException;
-use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Exceptions\UndecryptableValue;
 use Simtabi\Laranail\Settings\Exceptions\EncryptionUnavailable;
 
@@ -17,7 +16,7 @@ use Simtabi\Laranail\Settings\Exceptions\EncryptionUnavailable;
  * without an APP_KEY yet (before install) still boots and reads its unencrypted settings.
  * Laravel's encrypter already tries APP_PREVIOUS_KEYS when decrypting.
  */
-final class LaravelValueEncrypter implements ValueEncrypter
+final class LaravelValueEncrypter
 {
     private ?StringEncrypter $encrypter = null;
 

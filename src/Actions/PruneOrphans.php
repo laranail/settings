@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Closure;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
@@ -24,30 +22,13 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
  */
 final readonly class PruneOrphans
 {
-    private AccessGuard $access;
-
-    /** @param Closure(string): ?string $models the model class of a morph alias (the morph map) */
     public function __construct(
         private StoreRegistry $stores,
         private FlushScope $flush,
-        private Closure $models,
-        ?AccessGuard $access = null,
-        private ?Dispatcher $events = null,
-    ) {
-        $this->access = $access ?? AccessGuard::closed();
-    }
-
-    /**
-     * The orphaned owners per store, and the aliases no model answers for.
-     *
-     * @deprecated 0.1 Use {@see FindOrphans::handle()}; this forwards to it and is removed in 1.0.
-     *
-     * @return array{orphans: array<string, list<OwnerRef>>, unmapped: list<string>}
-     */
-    public function find(): array
-    {
-        return $this->finder()->handle();
-    }
+        private FindOrphans $find,
+        private AccessGuard $access,
+        private Dispatcher $events,
+    ) {}
 
     /**
      * Remove every orphan's settings; returns the number of rows removed.
@@ -59,7 +40,7 @@ final readonly class PruneOrphans
         $removed = 0;
         $flushed = 0;
 
-        foreach ($this->finder()->handle()['orphans'] as $name => $owners) {
+        foreach ($this->find->handle()['orphans'] as $name => $owners) {
             $store = $this->stores->all()[$name];
 
             foreach ($owners as $owner) {
@@ -69,13 +50,8 @@ final readonly class PruneOrphans
         }
 
         $this->access->auditor()->record(AuditAction::Prune, AuditOutcome::Allowed, $subject, $actor, meta: ['target' => 'orphans', 'owners' => $flushed, 'removed' => $removed]);
-        $this->events?->dispatch(new OrphansPruned($flushed, $removed));
+        $this->events->dispatch(new OrphansPruned($flushed, $removed));
 
         return $removed;
-    }
-
-    private function finder(): FindOrphans
-    {
-        return new FindOrphans($this->stores, $this->models);
     }
 }

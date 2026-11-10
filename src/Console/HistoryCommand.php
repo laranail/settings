@@ -82,7 +82,7 @@ final class HistoryCommand extends Command
         $entries = $settings->history()->key($key)->get(is_string($limit) && ctype_digit($limit) ? (int) $limit : 20);
 
         if ($entries === []) {
-            $this->info(sprintf('No history for [%s].', $key));
+            $this->info(__('laranail/settings::settings.console.history_none', ['key' => $key]));
 
             return self::SUCCESS;
         }
@@ -106,7 +106,7 @@ final class HistoryCommand extends Command
     private function diff(Settings $settings, string $key, string $range): int
     {
         if (preg_match('/^(\d+)\.\.(\d+)$/', $range, $versions) !== 1) {
-            $this->error('--diff takes two versions, FROM..TO (for example 3..5).');
+            $this->error(__('laranail/settings::settings.console.history_diff_usage'));
 
             return self::FAILURE;
         }
@@ -121,7 +121,7 @@ final class HistoryCommand extends Command
 
         $this->line(sprintf('v%d: %s', $diff->fromVersion, $show($diff->from, $diff->fromFound)));
         $this->line(sprintf('v%d: %s', $diff->toVersion, $show($diff->to, $diff->toFound)));
-        $this->info($diff->changed ? 'The value changed.' : 'The value is the same.');
+        $this->info($diff->changed ? __('laranail/settings::settings.console.history_changed') : __('laranail/settings::settings.console.history_same'));
 
         return self::SUCCESS;
     }
@@ -129,13 +129,13 @@ final class HistoryCommand extends Command
     private function rollback(Settings $settings, string $key, string $version): int
     {
         if (! ctype_digit($version) || (int) $version < 1) {
-            $this->error('--rollback takes a version number.');
+            $this->error(__('laranail/settings::settings.console.rollback_usage'));
 
             return self::FAILURE;
         }
 
         $new = $settings->rollback($key, (int) $version);
-        $this->info(sprintf('Rolled [%s] back to version %d; it is now at version %d.', $key, (int) $version, $new));
+        $this->info(__('laranail/settings::settings.console.rolled_back', ['key' => $key, 'version' => (int) $version, 'new' => $new]));
 
         return self::SUCCESS;
     }

@@ -154,11 +154,18 @@ it('renames, moves, adds and deletes keys in a settings migration', function ():
         ->and(settings()->history()->global()->key('mail.from_address')->get())->toHaveCount(1);
 });
 
-it('resolves a typed settings class from the container, loaded', function (): void {
+it('resolves a class listed in typed.classes from the container, loaded', function (): void {
+    $this->rebootWith(['laranail.settings.typed.classes' => [MailSettings::class]]);
+    useDatabase(['stores.settings.owners' => ['user'], 'typed.classes' => [MailSettings::class]]);
     settings()->set('mail.port', 465);
 
     expect(app(MailSettings::class)->port)->toBe(465)
-        ->and(app(MailSettings::class))->toBeInstanceOf(TypedSettings::class);
+        ->and(app(MailSettings::class))->toBeInstanceOf(TypedSettings::class)
+        ->and(app()->bound(MailSettings::class))->toBeTrue();
+});
+
+it('binds only the classes typed.classes lists when the application boots', function (): void {
+    expect(app()->bound(MailSettings::class))->toBeFalse();
 });
 
 it('refuses a typed.classes entry that is not a typed settings class', function (): void {

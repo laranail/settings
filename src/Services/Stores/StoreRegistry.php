@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Services\Stores;
 
 use Closure;
+use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Stores\Layer;
 use Simtabi\Laranail\Settings\Stores\Store;
@@ -12,15 +13,14 @@ use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
+use Simtabi\Laranail\Settings\Events\LayerSkipped;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Database\StoreSchema;
-use Simtabi\Laranail\Settings\Support\ConfigValues;
 use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
-use Simtabi\Laranail\Settings\Contracts\BootstrapEvidence;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 use Simtabi\Laranail\Settings\Drivers\BootstrapGatedDriver;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
@@ -45,7 +45,7 @@ final class StoreRegistry
     /**
      * @param array<array-key, mixed> $storeConfig `laranail.settings.stores`
      * @param array<array-key, mixed> $layerConfig `laranail.settings.layers`
-     * @param (Closure(string, string, string): void)|null $onLayerSkipped told (store, layer, reason) when bootstrap mode skips a layer
+     * @param ?Dispatcher $events told ({@see LayerSkipped}) when bootstrap mode skips a layer
      * @param list<string> $sources `configuration.sources`: the merge order of config, database (persisted) and runtime entries, later wins
      */
     public function __construct(
@@ -55,8 +55,8 @@ final class StoreRegistry
         private readonly array $layerConfig,
         private readonly ?Driver $override = null,
         private readonly ?RuntimeConfiguration $runtime = null,
-        private readonly ?BootstrapEvidence $evidence = null,
-        private readonly ?Closure $onLayerSkipped = null,
+        private readonly ?InstallationEvidence $evidence = null,
+        private readonly ?Dispatcher $events = null,
         private readonly ?SettingsCache $cache = null,
         private readonly ?PersistedConfiguration $persisted = null,
         private readonly array $sources = ['config', 'database', 'runtime'],
@@ -65,7 +65,7 @@ final class StoreRegistry
     /** A copy whose every layer is replaced by one driver (used by the fake). */
     public function withEveryLayer(Driver $driver): self
     {
-        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->onLayerSkipped, $this->cache, $this->persisted, $this->sources);
+        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->events, $this->cache, $this->persisted, $this->sources);
     }
 
     /**
@@ -220,16 +220,7 @@ final class StoreRegistry
             return $layer;
         }
 
-        $onSkip = $this->onLayerSkipped;
-
-        return new Layer($name, new BootstrapGatedDriver(
-            $layer->driver,
-            $store,
-            $this->evidence ?? new InstallationEvidence(false),
-            $onSkip instanceof Closure ? static function (string $reason) use ($onSkip, $store, $name): void {
-                $onSkip($store->value, $name, $reason);
-            } : null,
-        ), $layer->type);
+        return new Layer($name, new BootstrapGatedDriver($layer->driver, $store, $this->evidence ?? new InstallationEvidence(false), $this->events, $name), $layer->type);
     }
 
     /** @param array<string, mixed> $extra options the store adds (the database table) */
@@ -320,9 +311,15 @@ final class StoreRegistry
         return $globs;
     }
 
-    /** @return list<string> */
+    /** @return list<string> a list of strings, or InvalidConfiguration naming `$path` */
     private function strings(mixed $value, string $path): array
     {
-        return ConfigValues::listOfStrings($value, $path);
+        $strings = is_array($value) ? array_values(array_filter($value, is_string(...))) : null;
+
+        if ($strings === null || count($strings) !== count($value)) {
+            throw new InvalidConfiguration($path . ': a list of strings is required.');
+        }
+
+        return $strings;
     }
 }

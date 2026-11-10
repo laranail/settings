@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Closure;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Scope;
@@ -14,7 +13,6 @@ use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
@@ -23,6 +21,7 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 
 /**
  * Run one settings migration step (G-17): rename or move a key across every owner and locale,
@@ -35,13 +34,12 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
  */
 final readonly class MigrateSettings
 {
-    /** @param Closure(Store, Key): ?Definition $definitions */
     public function __construct(
         private StoreRegistry $stores,
         private SettingWriter $writer,
         private ValuePipeline $pipeline,
         private AccessGuard $access,
-        private Closure $definitions,
+        private Definitions $definitions,
     ) {}
 
     public function handle(SettingsMigrationStep $step, ?Actor $actor = null): int
@@ -67,8 +65,8 @@ final readonly class MigrateSettings
                 $owner = $record->scope->owner();
 
                 if ($to instanceof Store && $step->toKey instanceof Key && $record->payload !== null) {
-                    $value = $this->pipeline->fromRecord($record, ($this->definitions)($from, $step->fromKey));
-                    $writer->set($to, $step->toKey, $record->locale, $owner, ($this->definitions)($to, $step->toKey), $value);
+                    $value = $this->pipeline->fromRecord($record, $this->definitions->find($from, $step->fromKey));
+                    $writer->set($to, $step->toKey, $record->locale, $owner, $this->definitions->find($to, $step->toKey), $value);
 
                     if ($record->locked) {
                         $writer->lock($to, $step->toKey, $record->locale, $owner);
@@ -98,7 +96,7 @@ final readonly class MigrateSettings
 
     private function add(Store $store, SettingsMigrationStep $step, SettingWriter $writer): int
     {
-        $writer->set($store, $step->fromKey, Locale::none(), null, ($this->definitions)($store, $step->fromKey), $step->value);
+        $writer->set($store, $step->fromKey, Locale::none(), null, $this->definitions->find($store, $step->fromKey), $step->value);
 
         return 1;
     }

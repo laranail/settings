@@ -13,6 +13,10 @@ use Simtabi\Laranail\Settings\Enums\Ability;
  */
 final class AccessDenied extends SettingsException
 {
+    public const int STATUS = 403;
+
+    public const string TYPE = 'access-denied';
+
     public function __construct(
         public readonly Ability $ability,
         public readonly string $store,

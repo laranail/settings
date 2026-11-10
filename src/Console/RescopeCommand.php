@@ -39,7 +39,7 @@ final class RescopeCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info(sprintf('Renamed [%s] to [%s] in %d value(s), %d history entr%s and %d change request(s). Update the stores\' owners lists to match.', $from, $to, $result['values'], $result['history'], $result['history'] === 1 ? 'y' : 'ies', $result['changes']));
+        $this->info(trans_choice('laranail/settings::settings.console.rescoped', $result['history'], ['from' => $from, 'to' => $to, 'values' => $result['values'], 'changes' => $result['changes']]));
 
         return self::SUCCESS;
     }

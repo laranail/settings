@@ -11,27 +11,41 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\SettingsManager;
 use Simtabi\Laranail\Settings\Testing\FakeLog;
 use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Data\HistoryDiff;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
+use Simtabi\Laranail\Settings\Actions\SetSetting;
+use Simtabi\Laranail\Settings\Actions\WriteGuard;
 use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Actions\LockSetting;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
 use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
-use Simtabi\Laranail\Settings\Actions\StoreActions;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
+use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Testing\SettingsFake;
+use Simtabi\Laranail\Settings\Actions\ForgetSetting;
+use Simtabi\Laranail\Settings\Actions\UnlockSetting;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
-use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
 use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
@@ -66,6 +80,25 @@ use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
  * @method static CategoryManager categories()
  * @method static PromotionReport promote(?PromotionRequest $request = null)
  * @method static AuditQuery audit()
+ * @method static bool missing(string $key)
+ * @method static array<string, mixed> many(array<array-key, mixed> $keys)
+ * @method static array<string, mixed> all(?string $prefix = null)
+ * @method static list<Definition> definitions()
+ * @method static void setMany(array<string, mixed> $values)
+ * @method static void forgetMany(iterable<string> $keys)
+ * @method static mixed remember(string $key, callable $value)
+ * @method static void clearCache()
+ * @method static int warmCache()
+ * @method static HistoryQuery history()
+ * @method static int rollback(string $key, int $toVersion)
+ * @method static HistoryDiff historyDiff(string $key, int $from, int $to)
+ * @method static ChangeRequest propose(string $key, mixed $value)
+ * @method static Approvals approvals()
+ * @method static ExportDocument export(ExportMode $mode = ExportMode::Redacted)
+ * @method static ImportReport import(ExportDocument $document)
+ * @method static ImportReport previewImport(ExportDocument $document)
+ * @method static StoreDiff compare(ExportDocument $document)
+ * @method static PersistedConfigurationEditor persistedConfiguration()
  *
  * @see SettingsContract
  */
@@ -87,19 +120,21 @@ final class Settings extends Facade
         $log = new FakeLog(new InMemoryAuditSink);
         $access = $app->make(AccessGuard::class);
         $access = $access->withAuditor($access->auditor()->alsoTo($log->audit));
-        $writer = $app->make(SettingWriter::class);
+        $guard = new WriteGuard($access, $app->make(SettingWriter::class), $app->make(ProposeChange::class));
 
-        $fake = new SettingsFake(new SettingsManager(
-            $stores,
-            $app->make(DefinitionRegistry::class),
-            new Resolver($stores, $app->make(ValuePipeline::class), self::fallbackLocale($app->make('config')->get('app.fallback_locale'))),
-            $writer,
-            actions: SettingActions::using($writer, $access),
-            access: $access,
-            runtime: $app->make(RuntimeConfiguration::class),
-            storeActions: $app->make(StoreActions::class),
-            auditQuery: new QueryAudit($stores, $access),
-        ), $log);
+        // The real engine, with the in-memory stores, the recording access guard and the writes
+        // that go through it; every other collaborator is the container's.
+        $fake = new SettingsFake($app->make(SettingsManager::class, [
+            'stores'          => $stores,
+            'resolver'        => new Resolver($stores, $app->make(ValuePipeline::class), self::fallbackLocale($app->make('config')->get('app.fallback_locale'))),
+            'access'          => $access,
+            'set'             => $app->make(SetSetting::class, ['guard' => $guard]),
+            'forget'          => $app->make(ForgetSetting::class, ['guard' => $guard]),
+            'lock'            => $app->make(LockSetting::class, ['guard' => $guard]),
+            'unlock'          => $app->make(UnlockSetting::class, ['guard' => $guard]),
+            'auditQuery'      => new QueryAudit($stores, $access),
+            'listDefinitions' => $app->make(ListDefinitions::class, ['access' => $access]),
+        ]), $log);
 
         self::swap($fake);
         $app->instance(SettingsContract::class, $fake);

@@ -35,7 +35,7 @@ final readonly class SyncDefinitions
         private DefinitionRegistry $definitions,
         private ValueEncoder $encoder,
         private AccessGuard $access,
-        private ?Dispatcher $events = null,
+        private Dispatcher $events,
     ) {}
 
     /** @return SyncReport */
@@ -73,7 +73,7 @@ final readonly class SyncDefinitions
             'removed'   => $report['removed'],
             'conflicts' => count($report['conflicts']),
         ]);
-        $this->events?->dispatch(new DefinitionsSynced($report['synced'], $report['removed'], count($report['conflicts']), count($report['skipped'])));
+        $this->events->dispatch(new DefinitionsSynced($report['synced'], $report['removed'], count($report['conflicts']), count($report['skipped'])));
 
         return $report;
     }

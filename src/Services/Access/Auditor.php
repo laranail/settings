@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Access;
 
-use Closure;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
@@ -21,13 +20,10 @@ use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
  */
 final readonly class Auditor
 {
-    /**
-     * @param list<AuditSink> $sinks
-     * @param Closure(): CarbonImmutable $clock
-     */
+    /** @param list<AuditSink> $sinks */
     public function __construct(
         private array $sinks,
-        private Closure $clock,
+        private Clock $clock,
         private ?RuntimeConfiguration $runtime = null,
     ) {}
 
@@ -52,7 +48,7 @@ final readonly class Auditor
 
         $entry = new AuditEntry(
             id: (string) Str::ulid(),
-            occurredAt: ($this->clock)(),
+            occurredAt: $this->clock->now(),
             action: $action,
             outcome: $outcome,
             store: $subject?->store->value,

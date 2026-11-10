@@ -6,14 +6,14 @@ namespace Simtabi\Laranail\Settings\Http\Support;
 
 use Simtabi\Laranail\Settings\Data\SettingAddress;
 use Simtabi\Laranail\Settings\Data\Http\AddressInput;
-use Simtabi\Laranail\Settings\Contracts\OwnerResolver;
 use Simtabi\Laranail\Settings\Exceptions\UnknownOwner;
+use Simtabi\Laranail\Settings\Owners\MorphMapOwnerResolver;
 
 /** Turns what a URL names into a {@see SettingAddress}, resolving the owner by alias and id. */
 final readonly class Addresses
 {
     public function __construct(
-        private OwnerResolver $owners,
+        private MorphMapOwnerResolver $owners,
     ) {}
 
     /** @throws UnknownOwner */

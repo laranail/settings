@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
-use Carbon\CarbonImmutable;
 use Psr\Log\AbstractLogger;
 use Illuminate\Support\Stringable;
 use Illuminate\Contracts\Cache\Repository;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Illuminate\Support\Facades\Notification;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Data\AlertRule;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Illuminate\Contracts\Translation\Translator;
 use Simtabi\Laranail\Settings\Data\AlertContext;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Simtabi\Laranail\Settings\Events\AuditPruned;
@@ -24,6 +25,7 @@ use Simtabi\Laranail\Settings\Listeners\SendSettingsAlert;
 use Simtabi\Laranail\Settings\Notifications\SettingsAlert;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
@@ -103,7 +105,7 @@ it('sends anyway when the throttle cache fails, and logs it', function (): void 
     $cache = Mockery::mock(Repository::class);
     $cache->shouldReceive('add')->andThrow(new RuntimeException('cache down'));
     $logger = alertLogger();
-    $listener = new SendSettingsAlert(app(Dispatcher::class), [AlertRule::fromConfig(['events' => ['SettingSaved'], 'notify' => ['mail' => ['ops@example.test']]], 0)], static fn (): bool => false, static fn (): CarbonImmutable => now()->toImmutable(), $logger, $cache, 60);
+    $listener = new SendSettingsAlert(app(Dispatcher::class), [AlertRule::fromConfig(['events' => ['SettingSaved'], 'notify' => ['mail' => ['ops@example.test']]], 0)], app(Definitions::class), new Clock, $logger, app(Translator::class), $cache, 60);
 
     $listener->handle(new SettingSaved('settings', 'global', 'site.name', '', 1));
 

@@ -9,4 +9,9 @@ namespace Simtabi\Laranail\Settings\Exceptions;
  * history table (`history.enabled` was off when it was migrated), or the version asked for is
  * not in it.
  */
-final class HistoryUnavailable extends SettingsException {}
+final class HistoryUnavailable extends SettingsException
+{
+    public const int STATUS = 409;
+
+    public const string TYPE = 'history-unavailable';
+}

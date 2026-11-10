@@ -41,17 +41,9 @@ function classOf(string $path): string
 
 /** Actions with more than handle() public, and why. */
 const ACTION_EXEMPTIONS = [
-    'Actions\\WriteGuard'                          => 'run(): the guard every write action runs through; not an intent of its own',
-    'Actions\\Categories\\CategoryGuard'           => 'run(): the guard every category action runs through',
-    'Actions\\SettingActions'                      => 'a bundle of the write actions for entry points (using())',
-    'Actions\\StoreActions'                        => 'a bundle of the store actions for entry points',
-    'Actions\\HistoryActions'                      => 'a bundle of the history actions for entry points',
-    'Actions\\Approvals\\ApprovalActions'          => 'a bundle of the approval actions for entry points',
-    'Actions\\Transfer\\TransferActions'           => 'a bundle of the export, import and diff actions for entry points',
-    'Actions\\Configuration\\ConfigurationActions' => 'a bundle of the persisted configuration actions for entry points',
-    'Actions\\Categories\\CategoryActions'         => 'a bundle of the category actions for entry points (using())',
-    'Actions\\QueryAudit'                          => 'get(), cursor(), paginate(): one authorized read in three result shapes, part of the public API',
-    'Actions\\PruneOrphans'                        => 'find(): deprecated in 0.1, forwards to FindOrphans, removed in 1.0',
+    'Actions\\WriteGuard'                => 'run(): the guard every write action runs through; not an intent of its own',
+    'Actions\\Categories\\CategoryGuard' => 'run(): the guard every category action runs through',
+    'Actions\\QueryAudit'                => 'get(), cursor(), paginate(): one authorized read in three result shapes, part of the public API',
 ];
 
 it('gives every action handle() as its only public method', function (): void {
@@ -71,7 +63,7 @@ it('gives every action handle() as its only public method', function (): void {
         }
     }
 
-    expect(count($files))->toBeGreaterThanOrEqual(55)
+    expect(count($files))->toBeGreaterThanOrEqual(50)
         ->and(array_keys(array_diff_key($offenders, ACTION_EXEMPTIONS)))->toBe([])
         // An exemption that no longer needs to be one is stale.
         ->and(array_keys(array_diff_key(ACTION_EXEMPTIONS, $offenders)))->toBe([]);
@@ -81,12 +73,12 @@ it('keeps database access out of actions', function (): void {
     $files = sourceFiles('Actions');
     $offenders = array_keys(array_filter($files, static fn (string $code): bool => preg_match('/->connection\(\)|getSchemaBuilder\(|DB::/', $code) === 1));
 
-    expect(count($files))->toBeGreaterThanOrEqual(55)
+    expect(count($files))->toBeGreaterThanOrEqual(50)
         ->and($offenders)->toBe([]);
 });
 
 it('lets only entry points depend on actions', function (): void {
-    $entryPoints = ['SettingsManager.php', 'Providers/', 'Facades/', 'Console/', 'Categories/CategoryManager.php', 'Audit/AuditQuery.php', 'History/HistoryQuery.php', 'Approvals/Approvals.php', 'Configuration/PersistedConfigurationEditor.php', 'Http/', 'Enums/Capability.php', 'Typed/SettingsMigrator.php'];
+    $entryPoints = ['SettingsManager.php', 'Providers/', 'Facades/', 'Console/', 'Categories/CategoryManager.php', 'Audit/AuditQuery.php', 'History/HistoryQuery.php', 'Approvals/Approvals.php', 'Configuration/PersistedConfigurationEditor.php', 'Http/', 'Typed/SettingsMigrator.php'];
     $files = sourceFiles('');
     $offenders = [];
 
@@ -100,7 +92,7 @@ it('lets only entry points depend on actions', function (): void {
         }
     }
 
-    expect(count($files))->toBeGreaterThanOrEqual(360)
+    expect(count($files))->toBeGreaterThanOrEqual(355)
         ->and($offenders)->toBe([]);
 });
 

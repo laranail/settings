@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions\Approvals;
 
-use Closure;
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
@@ -22,6 +19,7 @@ use Simtabi\Laranail\Settings\Data\ChangeDecision;
 use Simtabi\Laranail\Settings\Events\ChangeRejected;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
@@ -30,11 +28,10 @@ use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
  */
 final readonly class RejectChange
 {
-    /** @param Closure(Store, Key): ?Definition $definitions */
     public function __construct(
         private AccessGuard $access,
         private Dispatcher $events,
-        private Closure $definitions,
+        private Definitions $definitions,
     ) {}
 
     /** @throws ChangeRequestClosed */
@@ -44,7 +41,7 @@ final readonly class RejectChange
         $repository = ChangeRequestRepository::of($store);
         $request = $repository->get($store->name, $decision->id);
         $key = new Key($request->key);
-        $subject = Subject::of($store->name, $key, new Locale($request->locale), $request->owner(), ($this->definitions)($store, $key));
+        $subject = Subject::of($store->name, $key, new Locale($request->locale), $request->owner(), $this->definitions->find($store, $key));
 
         $this->access->authorize($actor, Ability::Approve, $subject);
 

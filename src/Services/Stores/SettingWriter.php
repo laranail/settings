@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Stores;
 
-use Closure;
-use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
+use Illuminate\Container\Attributes\Config;
 use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Stores\Layer;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Events\SettingSaved;
 use Simtabi\Laranail\Settings\Events\SettingLocked;
@@ -27,6 +27,7 @@ use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Events\SettingForgetting;
 use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
+use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
@@ -51,16 +52,14 @@ use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
  */
 final readonly class SettingWriter
 {
-    /**
-     * @param Closure(): CarbonImmutable $clock
-     * @param (Closure(Store, Key, Scope, ConcurrentModification): void)|null $onRetry told before a retry (logging)
-     */
+    /** @param bool $retryOnConflict `writes.retry_on_conflict`; a retry is logged */
     public function __construct(
         private ValuePipeline $pipeline,
         private Dispatcher $events,
-        private Closure $clock,
-        private bool $retryOnConflict = false,
-        private ?Closure $onRetry = null,
+        private Clock $clock,
+        private OperationalLogger $log,
+        #[Config('laranail.settings.writes.retry_on_conflict', true)]
+        private bool $retryOnConflict = true,
         private ?Actor $causer = null,
         private ?string $reason = null,
     ) {}
@@ -68,7 +67,7 @@ final readonly class SettingWriter
     /** A copy whose history entries name this causer and reason (null causer: the system). */
     public function causedBy(?Actor $causer, ?string $reason = null): self
     {
-        return new self($this->pipeline, $this->events, $this->clock, $this->retryOnConflict, $this->onRetry, $causer, $reason);
+        return new self($this->pipeline, $this->events, $this->clock, $this->log, $this->retryOnConflict, $causer, $reason);
     }
 
     /**
@@ -155,9 +154,12 @@ final readonly class SettingWriter
                     throw $conflict;
                 }
 
-                if ($this->onRetry instanceof Closure) {
-                    ($this->onRetry)($store, $key, $this->scope($owner), $conflict);
-                }
+                $scope = $this->scope($owner);
+                $this->log->info(sprintf('laranail/settings retried a write of [%s] in store [%s] for scope [%s] after a concurrent change.', $key, $store->name, $scope), [
+                    'store' => $store->name->value,
+                    'key'   => $key->value,
+                    'scope' => $scope->value,
+                ]);
             }
         }
     }
@@ -188,7 +190,7 @@ final readonly class SettingWriter
             encrypted: $definition instanceof Definition && $definition->encrypted,
             locked: $existing->locked ?? false,
             version: $version,
-            writtenAt: ($this->clock)(),
+            writtenAt: $this->clock->now(),
             group: $definition?->group(),
             category: $definition?->category,
             public: $definition instanceof Definition && $definition->public,
@@ -233,7 +235,7 @@ final readonly class SettingWriter
 
         $history->database()->transaction(function () use ($store, $layer, $history, $operation, $before, $after): void {
             $layer->driver->put($store->name, $after);
-            $history->record($store->name, $operation, $before, $after, $after->version, $history->database()->reference($store->name, $after->scope, $after->key, $after->locale), $this->causer, $this->reason, ($this->clock)());
+            $history->record($store->name, $operation, $before, $after, $after->version, $history->database()->reference($store->name, $after->scope, $after->key, $after->locale), $this->causer, $this->reason, $this->clock->now());
         }, $store->name);
     }
 
@@ -270,7 +272,7 @@ final readonly class SettingWriter
             $history->database()->transaction(function () use ($store, $layer, $history, $scope, $key, $locale, $existing): void {
                 $reference = $history->database()->reference($store->name, $scope, $key, $locale);
                 $layer->driver->forget($store->name, $scope, $key, $locale);
-                $history->record($store->name, HistoryOperation::Forget, $existing, null, $existing->version, $reference, $this->causer, $this->reason, ($this->clock)());
+                $history->record($store->name, HistoryOperation::Forget, $existing, null, $existing->version, $reference, $this->causer, $this->reason, $this->clock->now());
             }, $store->name);
         } else {
             $layer->driver->forget($store->name, $scope, $key, $locale);
@@ -299,7 +301,7 @@ final readonly class SettingWriter
             $existing->encrypted,
             $locked,
             $existing->version + 1,
-            ($this->clock)(),
+            $this->clock->now(),
             $definition?->group(),
             $definition?->category,
             $definition instanceof Definition && $definition->public,

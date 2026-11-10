@@ -7,4 +7,9 @@ namespace Simtabi\Laranail\Settings\Exceptions;
 /**
  * The owner's morph alias is not allowed in the store, or no store accepts it.
  */
-final class OwnerNotAllowed extends SettingsException {}
+final class OwnerNotAllowed extends SettingsException
+{
+    public const int STATUS = 409;
+
+    public const string TYPE = 'owner-not-allowed';
+}

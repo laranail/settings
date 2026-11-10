@@ -19,9 +19,9 @@ use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Contracts\Filesystem\Factory as Disks;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
-use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 
 /**
  * Builds a layer's driver. Built-in names resolve through {@see DriverType} and an exhaustive
@@ -120,7 +120,7 @@ final class DriverFactory
             SchemaNames::assertTable($table, sprintf('laranail.settings.layers.%s.table', $layer->name));
         }
 
-        /** @var Closure(): ReadinessProbe $probe */
+        /** @var Closure(): SchemaReadinessInterface $probe */
         $probe = $this->probe;
 
         /** @var (Closure(): SchemaShape)|null $shape */

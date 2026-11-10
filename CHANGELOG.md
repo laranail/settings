@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Consumer conveniences on the `Settings` contract, each a thin delegation onto the existing read
+  and write paths: `missing()`, `many()` (keys or `key => default` pairs), `setMany()` and
+  `forgetMany()` (one write each, not atomic), `remember()` (read-through: writes a computed value
+  once through `set()`), `all(?string $prefix)` (every visible value of the handle's scope, the PHP
+  form of the REST listing) and `definitions()` (the store's definitions, the PHP form of
+  `GET stores/{store}/definitions`). `SettingsFake` implements all of them and records the writes.
+  The facade's docblock now lists every contract method.
+- A namespaced `Simtabi\Laranail\Settings\settings()` helper (`use function …\settings;`): the
+  handle with no argument, else `get($key, $default)`. Deliberately not a global function.
+- `Services\Resolution\ScopeKeys`: the key walk a listing uses, shared by `all()` and the REST
+  listing (moved verbatim out of `Actions\Reads\ReadSettings`).
+- Documentation: a complete PHP API reference (every contract method with signature, example,
+  exceptions and events, plus the facade, the helper, `HasSettings` and typed settings), a per-route
+  REST API reference with every problem type, an exceptions reference, the six approval events and
+  a call-to-event table in the events reference, and recipes for an admin UI on the REST API, SPA and
+  mobile clients, a per-user preferences screen, multi-tenancy, auditing a change, moving settings
+  between environments and typed settings. Tests fail when a contract method, route, event,
+  exception, command or config key (and its default) goes undocumented.
+
 - Approvals (design §16.7, Phase 4b): a write (`set`, `forget`, `lock`, `unlock`) to a setting
   whose definition is `requiresApproval()`, or whose key matches the store's new
   `approvals.keys` globs, opens a change request instead of writing. A
@@ -179,6 +198,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The package is wired the way Laravel wires an application (conventions review, 2026-11-10).
+  `routes/api.php` declares every REST route by hand in named, nested groups, each `http.routes`
+  switch an `if` around its group; the service provider loads it once, under `http.prefix`/v1 and
+  the `laranail-settings.api.` name prefix. URIs, names, methods and middleware are unchanged (39
+  routes). `routes/web.php` is no longer loaded while it holds no routes.
+- `http.prefix` reads `LARANAIL_SETTINGS_HTTP_PREFIX` (default still `api/settings`); slashes are
+  trimmed and an empty prefix mounts the API at `/v1`. Change it when the application already has
+  routes under `/api/settings`: Laravel keeps the last route registered for a method and URI.
+- Most classes are autowired, with their lifetime as `#[Scoped]` / `#[Singleton]` on the class and
+  their configuration as `#[Config]` on the parameter; the service provider binds only what
+  configuration chooses or validates (1,180 lines to about 700). Closure collaborators became
+  injected ones: one `Support\Clock` (Laravel's `Date` seam) for every timestamp, the operational
+  log for write retries and cache failures, the event dispatcher for skipped layers, and a
+  `Services\Definitions\Definitions` service for "which definition applies", which replaced a
+  provider closure and two copies of the same rule.
+- `SettingsManager` takes every collaborator, required, and its fluent methods return a copy; the
+  "built without X" `LogicException`s are gone. `CategoryManager`, `Approvals` and
+  `PersistedConfigurationEditor` take their actions and are narrowed with `in($store, $actor)`.
+- REST controllers take their actions per method, return JSON resources and resource collections
+  (bodies unchanged), and validate each write with its own form request.
+- Each exception names its HTTP status and problem type (`STATUS`, `TYPE`); `Problems` renders them
+  and reads its titles through the translator. Messages are read through Laravel's translator
+  (`laranail/settings::settings.*`), `__()` and `trans_choice()` in the commands.
+- Typed settings classes listed in `typed.classes` are bound when the application boots; the global
+  `beforeResolving` hook is gone, so a class not listed resolves unloaded (build it with
+  `::load()`).
+- The REST rate limiter is registered through package-tools' `registerRateLimiter()` and reads
+  `http.rate_limit` per request.
+- Configuration is read with the repository's typed getters, which throw on a value of the wrong
+  type where the old reader fell back to the default (a digit string for a number is now an error).
+
 - A write to a setting that needs approval opens a change request where the store can hold one;
   `ApprovalUnavailable` is now raised only where it cannot (no active database layer, or no
   change requests table). `SetSetting`, `ForgetSetting`, `LockSetting` and `UnlockSetting` return
@@ -226,21 +276,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Contracts\Settings` gains `clearCache()` and `warmCache()`; `Actions\StoreActions` gains the
   optional `warmCache` and `clearCache` actions.
 
-### Deprecated
+### Removed
 
-- The old names of the 19 classes moved into `Services\` (listed under Changed):
-  `Database\AuditRepository`, `Database\CategoryRepository`, `Database\DefinitionsRepository`,
-  `Database\SchemaInspector`, `Database\SchemaShapeRepository`, `Stores\SettingWriter`,
-  `Stores\StoreRegistry`, `Resolution\Resolver`, `Resolution\PreloadedRecords`,
-  `Authorization\AccessGuard`, `Audit\Auditor`, `Configuration\RuntimeConfiguration`,
-  `Definitions\DefinitionRegistry`, `Definitions\DatabaseDefinitions`,
-  `Tenancy\TenantDiscriminators`, `Casting\CasterRegistry`, `Support\ValuePipeline`,
-  `Drivers\DriverFactory` and `Caching\SettingsCache`. Each still resolves to the moved class
-  through `class_alias` in `src/deprecated-aliases.php` (Composer `autoload.files`), so imports,
-  type declarations, container bindings and `instanceof` keep working; removed in 1.0.
-- `PruneOrphans::find()`: use `FindOrphans::handle()`. It forwards; removed in 1.0.
-- `DatabaseDefinitions::localised()`: use `Support\Translations::nullableText()`. It forwards;
-  removed in 1.0.
+- Removed with the owner's approval (2026-11-10), before the first tag: `Http\ApiRoutes`,
+  `Enums\Capability`, `Http\OpenApi\OpenApiDocument` and the `laranail::settings.openapi`
+  command; `Http\Middleware\FreshControllers`; the seven action bundles (`SettingActions`,
+  `StoreActions`, `HistoryActions`, `ApprovalActions`, `TransferActions`, `ConfigurationActions`,
+  `CategoryActions`); `Http\Requests\BodyRequest`, `Data\Http\BodyInput` and
+  `Http\Support\ListResponse`; the static `fields()` of the five resources; `Support\Messages`
+  and `Support\ConfigValues`; and the single-implementation contracts `ReadinessProbe` (with
+  `Database\SchemaReadinessProbe`), `ValueValidator`, `ValueEncrypter`, `BootstrapEvidence` and
+  `OwnerResolver`. Inject the action, the concrete class or db-tools' `SchemaReadinessInterface`
+  instead.
+
+- The old names of the 19 classes moved into `Services\` (listed under Changed), the
+  `src/deprecated-aliases.php` file that aliased them, `PruneOrphans::find()` (use
+  `FindOrphans::handle()`) and `DatabaseDefinitions::localised()` (use
+  `Support\Translations::nullableText()`). None was ever in a tagged release.
 
 - The four migration stubs are replaced by one migration,
   `database/migrations/create_laranail_settings_tables.php`, which creates categories, the

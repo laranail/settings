@@ -27,7 +27,6 @@ use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Illuminate\Database\ConnectionResolverInterface;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
@@ -37,6 +36,7 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 
 /**
  * Records in a database table, through the query builder (no Eloquent on the hot path).
@@ -60,7 +60,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
 
     /**
      * @param ?string $table the store's configured table (`stores.<name>.table`); null uses the store name
-     * @param Closure(): ReadinessProbe $probe resolved only after a database error
+     * @param Closure(): SchemaReadinessInterface $probe db-tools' schema readiness, resolved only after a database error
      * @param (Closure(): SchemaShape)|null $shape the recorded schema shape; null is the default shape over $names
      * @param (Closure(): ?string)|null $tenant the current tenant (column-mode tenancy); null is no tenant
      */
@@ -178,7 +178,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     public function isReady(StoreName $store): bool
     {
         try {
-            return ($this->probe)()->isReady($this->connectionName(), [$this->tableFor($store)]);
+            return ($this->probe)()->isReady([$this->tableFor($store)], $this->connectionName());
         } catch (Exception) {
             return false;
         }
@@ -507,7 +507,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
             $probe = ($this->probe)();
             $probe->flush();
 
-            return $probe->isReady($this->connectionName(), [$this->tableFor($store)]);
+            return $probe->isReady([$this->tableFor($store)], $this->connectionName());
         } catch (Exception) {
             return false;
         }

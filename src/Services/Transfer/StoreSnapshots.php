@@ -11,10 +11,10 @@ use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
-use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
+use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
@@ -26,7 +26,7 @@ use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 final readonly class StoreSnapshots
 {
     public function __construct(
-        private ValueEncrypter $encrypter,
+        private LaravelValueEncrypter $encrypter,
         private ValueEncoder $encoder,
     ) {}
 

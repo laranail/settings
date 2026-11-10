@@ -38,7 +38,7 @@ $mail->save($settings->for($otherTeam));                     // writes every pro
 
 `load()` reads each key through the handle, so the store, owner, locale and actor apply exactly as for `get()`, including the cascade and `view` / `view_sensitive`. `save()` writes each property that changed through `set()`: validation, casting, encryption, locks, approvals, history and audit all apply, as the handle's actor. A stored value the property cannot hold raises `TypeMismatch` naming the key.
 
-Resolving a typed class from the container loads it through the request's settings handle.
+Resolving a class listed in `typed.classes` from the container loads it through the request's settings handle; the package binds each listed class when the application boots. A class not listed is not bound: build it with `MailSettings::load(settings())`.
 
 ## Definitions
 

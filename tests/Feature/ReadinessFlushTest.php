@@ -3,26 +3,40 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Event;
-use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
+use Simtabi\Laranail\DbTools\Schema\SchemaReadinessReport;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 
 /** A probe that counts flushes. */
-function countingProbe(): ReadinessProbe
+function countingProbe(): object
 {
-    $probe = new class implements ReadinessProbe
+    $real = app(SchemaReadinessInterface::class);
+    $probe = new class($real) implements SchemaReadinessInterface
     {
         public int $flushes = 0;
 
-        public function isReady(?string $connection, array $tables): bool
+        public function __construct(private readonly SchemaReadinessInterface $real) {}
+
+        public function report(array $requiredTables = [], ?string $connection = null): SchemaReadinessReport
+        {
+            return $this->real->report($requiredTables, $connection);
+        }
+
+        public function isReady(array $requiredTables = [], ?string $connection = null): bool
         {
             return true;
         }
 
-        public function flush(): void
+        public function whenReady(callable $callback, mixed $default = null, array $requiredTables = [], ?string $connection = null): mixed
+        {
+            return $callback();
+        }
+
+        public function flush(?string $connection = null): void
         {
             $this->flushes++;
         }
     };
-    app()->instance(ReadinessProbe::class, $probe);
+    app()->instance(SchemaReadinessInterface::class, $probe);
 
     return $probe;
 }

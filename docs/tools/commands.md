@@ -1,6 +1,6 @@
 # Commands
 
-Nineteen Artisan commands, all named `laranail::settings.<command>`.
+Eighteen Artisan commands, all named `laranail::settings.<command>`.
 
 ## The commands
 
@@ -23,7 +23,6 @@ Nineteen Artisan commands, all named `laranail::settings.<command>`.
 | `laranail::settings.diff {path} [--store=]` | compares a store with an export file, by identity only; exits 1 when they differ |
 | `laranail::settings.reencrypt` | encrypts every stored secret again under the current key (values, history, change requests) |
 | `laranail::settings.rescope {from} {to}` | renames an owner alias in stored values, history and change requests |
-| `laranail::settings.openapi [--output=]` | writes the OpenAPI 3.1 document of the REST API (needs `http.enabled`) |
 
 Each one delegates to an action (`Actions\PromoteStore`, `Actions\PruneOrphans`, …) that the PHP
 API uses too, so the console and the API cannot behave differently.
@@ -96,7 +95,7 @@ version, through the same action as `rollback()`. See [History](history.md).
 
 `export`, `import` and `diff` are described in [Import and export](import-export.md) and
 [Importers](importers.md); `reencrypt` and `rescope` in [Re-encryption and rescoping](reencryption.md);
-`prune-changes` in [Approvals](approvals.md); `openapi` in [REST API](rest-api.md). Each runs as the
+`prune-changes` in [Approvals](approvals.md). Each runs as the
 system actor, is audited under its name, and delegates to the same action as the PHP API.
 
 `doctor` also checks, per database store: encrypted values no current or previous key can read,

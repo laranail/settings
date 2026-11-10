@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Transfer;
 
-use Closure;
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Contracts\Container\Container;
 use Simtabi\Laranail\Settings\Contracts\Importer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
@@ -16,12 +17,13 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 final readonly class Importers
 {
     /**
+     * @param Container $container builds a configured importer with its dependencies
      * @param array<array-key, mixed> $classes `laranail.settings.importers`
-     * @param Closure(class-string): object $make builds a class with its dependencies
      */
     public function __construct(
-        private array $classes,
-        private Closure $make,
+        private Container $container,
+        #[Config('laranail.settings.importers', [])]
+        private array $classes = [],
     ) {}
 
     /** @return list<string> */
@@ -38,7 +40,7 @@ final readonly class Importers
             throw new InvalidConfiguration(sprintf('laranail.settings.importers.%s: [%s] is not a class implementing %s (known importers: %s).', $name, is_string($class) ? $class : 'missing', Importer::class, implode(', ', $this->names())));
         }
 
-        $importer = ($this->make)($class);
+        $importer = $this->container->make($class);
 
         return $importer instanceof Importer ? $importer : throw new InvalidConfiguration(sprintf('laranail.settings.importers.%s: [%s] did not build an importer.', $name, $class));
     }

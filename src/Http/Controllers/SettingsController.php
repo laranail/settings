@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
+use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
@@ -17,11 +18,11 @@ use Simtabi\Laranail\Settings\Http\Support\ApiActor;
 use Simtabi\Laranail\Settings\Http\Support\Addresses;
 use Simtabi\Laranail\Settings\Actions\Reads\ReadSetting;
 use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
-use Simtabi\Laranail\Settings\Http\Support\ListResponse;
 use Simtabi\Laranail\Settings\Actions\Reads\ReadSettings;
 use Simtabi\Laranail\Settings\Actions\Reads\ExplainSetting;
 use Simtabi\Laranail\Settings\Http\Requests\SettingRequest;
 use Simtabi\Laranail\Settings\Http\Resources\SettingResource;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 use Simtabi\Laranail\Settings\Http\Requests\WriteSettingRequest;
 use Simtabi\Laranail\Settings\Http\Resources\ExplanationResource;
@@ -35,79 +36,66 @@ use Simtabi\Laranail\Settings\Http\Resources\ChangeRequestResource;
  */
 final readonly class SettingsController
 {
-    public function __construct(
-        private ApiActor $actors,
-        private Addresses $addresses,
-        private SettingTargets $targets,
-        private ReadSetting $read,
-        private ReadSettings $readMany,
-        private ExplainSetting $explain,
-        private SetSetting $set,
-        private ForgetSetting $forget,
-        private LockSetting $lock,
-        private UnlockSetting $unlock,
-    ) {}
-
-    public function index(PageRequest $request): JsonResponse
+    public function index(PageRequest $request, ReadSettings $readMany, Addresses $addresses, ApiActor $actors): AnonymousResourceCollection
     {
         $page = $request->toData();
-        $result = $this->readMany->handle($this->addresses->of($request->addressData()), $this->actors->of($request), $page->limit, $page->cursor);
+        $result = $readMany->handle($addresses->of($request->addressData()), $actors->of($request), $page->limit, $page->cursor);
 
-        return ListResponse::make(array_map(SettingResource::fields(...), $result['items']), $result['next']);
+        return SettingResource::collection($result['items'])->additional(['meta' => ['next_cursor' => $result['next']]]);
     }
 
-    public function show(SettingRequest $request): JsonResponse
+    public function show(SettingRequest $request, ReadSetting $read, Addresses $addresses, ApiActor $actors): JsonResponse
     {
-        $view = $this->read->handle($this->addresses->of($request->toData()), $this->actors->of($request));
+        $view = $read->handle($addresses->of($request->toData()), $actors->of($request));
 
-        return new JsonResponse(['data' => SettingResource::fields($view)], 200, ['ETag' => $view->etag()]);
+        return SettingResource::make($view)->response()->header('ETag', $view->etag());
     }
 
-    public function explain(SettingRequest $request): JsonResponse
+    public function explain(SettingRequest $request, ExplainSetting $explain, Addresses $addresses, ApiActor $actors): ExplanationResource
     {
-        return new JsonResponse(['data' => ExplanationResource::fields($this->explain->handle($this->addresses->of($request->toData()), $this->actors->of($request)))]);
+        return ExplanationResource::make($explain->handle($addresses->of($request->toData()), $actors->of($request)));
     }
 
-    public function update(WriteSettingRequest $request): JsonResponse
-    {
-        $input = $request->toData();
-        $actor = $this->actors->of($request, $input->reason);
-        $address = $this->addresses->of($input->address);
-        $expected = $this->expectedVersion($address, $input->ifMatch);
-        $change = $this->set->handle(new SettingWrite($this->targets->target($address, $input->reason), $input->value, $expected), $actor);
-
-        return $change instanceof ChangeRequest ? $this->accepted($change) : $this->render($address, $actor);
-    }
-
-    public function destroy(WriteSettingRequest $request): JsonResponse
+    public function update(WriteSettingRequest $request, SetSetting $set, ReadSetting $read, Addresses $addresses, SettingTargets $targets, ApiActor $actors): JsonResponse
     {
         $input = $request->toData();
-        $actor = $this->actors->of($request, $input->reason);
-        $address = $this->addresses->of($input->address);
-        $this->expectedVersion($address, $input->ifMatch);
-        $change = $this->forget->handle($this->targets->target($address, $input->reason), $actor);
+        $actor = $actors->of($request, $input->reason);
+        $address = $addresses->of($input->address);
+        $expected = $this->expectedVersion($targets, $address, $input->ifMatch);
+        $change = $set->handle(new SettingWrite($targets->target($address, $input->reason), $input->value, $expected), $actor);
 
-        return $change instanceof ChangeRequest ? $this->accepted($change) : new JsonResponse(null, 204);
+        return $change instanceof ChangeRequest ? $this->accepted($change) : $this->render($read, $address, $actor);
     }
 
-    public function lock(WriteSettingRequest $request): JsonResponse
+    public function destroy(WriteSettingRequest $request, ForgetSetting $forget, Addresses $addresses, SettingTargets $targets, ApiActor $actors): JsonResponse|Response
     {
         $input = $request->toData();
-        $actor = $this->actors->of($request, $input->reason);
-        $address = $this->addresses->of($input->address);
-        $change = $this->lock->handle($this->targets->target($address, $input->reason), $actor);
+        $actor = $actors->of($request, $input->reason);
+        $address = $addresses->of($input->address);
+        $this->expectedVersion($targets, $address, $input->ifMatch);
+        $change = $forget->handle($targets->target($address, $input->reason), $actor);
 
-        return $change instanceof ChangeRequest ? $this->accepted($change) : $this->render($address, $actor);
+        return $change instanceof ChangeRequest ? $this->accepted($change) : new Response(status: 204);
     }
 
-    public function unlock(WriteSettingRequest $request): JsonResponse
+    public function lock(WriteSettingRequest $request, LockSetting $lock, ReadSetting $read, Addresses $addresses, SettingTargets $targets, ApiActor $actors): JsonResponse
     {
         $input = $request->toData();
-        $actor = $this->actors->of($request, $input->reason);
-        $address = $this->addresses->of($input->address);
-        $change = $this->unlock->handle($this->targets->target($address, $input->reason), $actor);
+        $actor = $actors->of($request, $input->reason);
+        $address = $addresses->of($input->address);
+        $change = $lock->handle($targets->target($address, $input->reason), $actor);
 
-        return $change instanceof ChangeRequest ? $this->accepted($change) : $this->render($address, $actor);
+        return $change instanceof ChangeRequest ? $this->accepted($change) : $this->render($read, $address, $actor);
+    }
+
+    public function unlock(WriteSettingRequest $request, UnlockSetting $unlock, ReadSetting $read, Addresses $addresses, SettingTargets $targets, ApiActor $actors): JsonResponse
+    {
+        $input = $request->toData();
+        $actor = $actors->of($request, $input->reason);
+        $address = $addresses->of($input->address);
+        $change = $unlock->handle($targets->target($address, $input->reason), $actor);
+
+        return $change instanceof ChangeRequest ? $this->accepted($change) : $this->render($read, $address, $actor);
     }
 
     /**
@@ -116,13 +104,13 @@ final readonly class SettingsController
      *
      * @throws ConcurrentModification
      */
-    private function expectedVersion(SettingAddress $address, ?string $ifMatch): ?int
+    private function expectedVersion(SettingTargets $targets, SettingAddress $address, ?string $ifMatch): ?int
     {
         if ($ifMatch === null || $ifMatch === '*') {
             return null;
         }
 
-        $version = $this->targets->version($address);
+        $version = $targets->version($address);
 
         if (! in_array($address->etag($version), array_map(trim(...), explode(',', $ifMatch)), true)) {
             throw new ConcurrentModification(sprintf('Setting [%s] in store [%s] changed since it was read: its ETag no longer matches If-Match.', $address->key, $address->store));
@@ -131,15 +119,15 @@ final readonly class SettingsController
         return $version;
     }
 
-    private function render(SettingAddress $address, Actor $actor): JsonResponse
+    private function render(ReadSetting $read, SettingAddress $address, Actor $actor): JsonResponse
     {
-        $view = $this->read->handle($address, $actor);
+        $view = $read->handle($address, $actor);
 
-        return new JsonResponse(['data' => SettingResource::fields($view)], 200, ['ETag' => $view->etag()]);
+        return SettingResource::make($view)->response()->header('ETag', $view->etag());
     }
 
     private function accepted(ChangeRequest $change): JsonResponse
     {
-        return new JsonResponse(['data' => new ChangeRequestResource($change)->resolve()], 202);
+        return ChangeRequestResource::make($change)->response()->setStatusCode(202);
     }
 }

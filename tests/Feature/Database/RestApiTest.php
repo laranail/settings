@@ -7,23 +7,22 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Database\Schema\Blueprint;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\NewCategory;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
+use Simtabi\Laranail\Settings\Tests\Support\ApiSchemas;
 use Simtabi\Laranail\Settings\Tests\Support\JsonSchema;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Http\OpenApi\OpenApiDocument;
 use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
  * §16.10: the REST API runs the actions the PHP API runs, answers problem details, ETags and
  * If-Match, 202 for approvals, cursor pages, idempotent retries, and every response it gives
- * conforms to the OpenAPI document it generates.
+ * matches its shape (tests/Support/ApiSchemas.php).
  */
 
 beforeEach(function (): void {
@@ -37,20 +36,18 @@ beforeEach(function (): void {
     $this->actingAs(user(1));
 });
 
-/** Call the API and check the response against the OpenAPI document. */
+/** Call the API and check the response against its shape. */
 function api(string $method, string $uri, array $data = [], array $headers = []): TestResponse
 {
     $response = test()->json($method, '/api/settings/v1/' . $uri, $data, $headers);
     $route = $response->baseRequest->route();
 
     if (is_object($route) && $response->status() !== 204) {
-        $document = OpenApiDocument::build(app(Router::class)->getRoutes()->getRoutes());
-        $operation = $document['paths']['/' . $route->uri()][strtolower($method)] ?? null;
-        $schema = $operation['responses'][(string) $response->status()]['content'] ?? null;
+        $schema = ApiSchemas::response((string) $route->getName(), $response->status());
 
-        expect($schema)->not->toBeNull(sprintf('%s %s answered %d, which the document does not describe', $method, $uri, $response->status()));
+        expect($schema)->not->toBeNull(sprintf('%s %s answered %d, which no response shape describes', $method, $uri, $response->status()));
 
-        $errors = new JsonSchema($document)->errors(json_decode((string) $response->getContent(), true), array_values($schema)[0]['schema']);
+        $errors = new JsonSchema(ApiSchemas::document())->errors(json_decode((string) $response->getContent(), true), $schema);
         expect($errors)->toBe([], sprintf('%s %s does not match its schema', $method, $uri));
     }
 
@@ -60,8 +57,7 @@ function api(string $method, string $uri, array $data = [], array $headers = [])
 it('registers no route unless the API is enabled', function (): void {
     $this->rebootWith([]);
 
-    expect(collect(app(Router::class)->getRoutes()->getRoutes())->filter(fn ($route): bool => str_starts_with((string) $route->getName(), 'laranail-settings.api.')))->toHaveCount(0)
-        ->and(Artisan::call('laranail::settings.openapi'))->toBe(1);
+    expect(collect(app(Router::class)->getRoutes()->getRoutes())->filter(fn ($route): bool => str_starts_with((string) $route->getName(), 'laranail-settings.api.')))->toHaveCount(0);
 });
 
 it('reads and writes a setting with ETags and If-Match', function (): void {
@@ -204,19 +200,17 @@ it('needs an authenticated user and switches route groups off', function (): voi
     test()->json('GET', '/api/settings/v1/stores')->assertUnauthorized()->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/problems/actor-required');
 });
 
-it('generates an OpenAPI 3.1 document of every registered route', function (): void {
-    $path = sys_get_temp_dir() . '/laranail-settings-openapi-' . bin2hex(random_bytes(4)) . '.json';
+it('has a response shape for every registered route, and none for a route that is gone', function (): void {
+    $names = collect(app(Router::class)->getRoutes()->getRoutes())
+        ->map(static fn ($route): string => (string) $route->getName())
+        ->filter(static fn (string $name): bool => str_starts_with($name, 'laranail-settings.api.'))
+        ->map(static fn (string $name): string => (string) preg_replace('/^laranail-settings\.api\.(owners\.)?/', '', $name))
+        ->unique()->sort()->values()->all();
+    $shapes = ApiSchemas::routes();
+    sort($shapes);
 
-    expect(Artisan::call('laranail::settings.openapi', ['--output' => $path]))->toBe(0);
-
-    $document = json_decode((string) file_get_contents($path), true);
-    $operations = collect($document['paths'])->flatMap(static fn (array $methods): array => array_column($methods, 'operationId'));
-
-    expect($document['openapi'])->toBe('3.1.0')
-        ->and($operations)->toHaveCount(39)
-        ->and($operations->unique())->toHaveCount(39)
-        ->and(Artisan::call('laranail::settings.openapi'))->toBe(0)
-        ->and(Artisan::output())->toContain('"openapi": "3.1.0"');
+    expect($names)->toHaveCount(30)
+        ->and($shapes)->toBe($names);
 });
 
 it('loads a Settable owner, so its parents take part in reads, and refuses one that does not exist', function (): void {

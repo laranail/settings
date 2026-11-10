@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Listeners;
 
-use Closure;
 use Throwable;
-use Carbon\CarbonImmutable;
 use Psr\Log\LoggerInterface;
 use Illuminate\Database\Eloquent\Model;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Data\AlertRule;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Illuminate\Contracts\Translation\Translator;
 use Simtabi\Laranail\Settings\Data\AlertContext;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Simtabi\Laranail\Settings\Events\AuditPruned;
@@ -34,7 +36,9 @@ use Simtabi\Laranail\Settings\Events\SettingForgotten;
 use Simtabi\Laranail\Settings\Events\DefinitionsSynced;
 use Simtabi\Laranail\Settings\Events\SettingRolledBack;
 use Simtabi\Laranail\Settings\Notifications\SettingsAlert;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Illuminate\Contracts\Notifications\Dispatcher as Notifications;
 
 /**
@@ -78,15 +82,15 @@ final readonly class SendSettingsAlert
 
     /**
      * @param list<AlertRule> $rules
-     * @param Closure(?string, ?string): bool $sensitive whether a store's key is sensitive or encrypted
-     * @param Closure(): CarbonImmutable $clock
+     * @param Definitions $definitions whether a store's key is sensitive or encrypted (code and runtime definitions only)
      */
     public function __construct(
         private Notifications $notifications,
         private array $rules,
-        private Closure $sensitive,
-        private Closure $clock,
+        private Definitions $definitions,
+        private Clock $clock,
         private LoggerInterface $logger,
+        private Translator $translator,
         private ?Cache $cache = null,
         private int $throttle = 0,
         private string $prefix = 'laranail-settings',
@@ -98,8 +102,8 @@ final readonly class SendSettingsAlert
             return;
         }
 
-        $probe = AlertContext::fromEvent($event, false, ($this->clock)());
-        $context = AlertContext::fromEvent($event, ($this->sensitive)($probe->store, $probe->key), $probe->occurredAt);
+        $probe = AlertContext::fromEvent($event, false, $this->clock->now());
+        $context = AlertContext::fromEvent($event, $this->sensitive($probe->store, $probe->key), $probe->occurredAt);
 
         foreach ($this->rules as $index => $rule) {
             if (! $rule->matches($event, $context) || $this->throttled($index, $context)) {
@@ -131,15 +135,39 @@ final readonly class SendSettingsAlert
         }
 
         if ($channels !== []) {
-            $this->deliver($anonymous, new SettingsAlert($context, $channels), $rule->queue);
+            $this->deliver($anonymous, new SettingsAlert($context, $channels, texts: $this->texts()), $rule->queue);
         }
 
         if ($rule->database !== null) {
             $notifiable = $this->notifiable($rule->database);
 
             if ($notifiable instanceof Model) {
-                $this->deliver($notifiable, new SettingsAlert($context, ['database']), $rule->queue);
+                $this->deliver($notifiable, new SettingsAlert($context, ['database'], texts: $this->texts()), $rule->queue);
             }
+        }
+    }
+
+    /**
+     * The alert's labels and footer in the current locale.
+     *
+     * @return array<string, string>
+     */
+    private function texts(): array
+    {
+        return SettingsAlert::texts($this->translator);
+    }
+
+    /** Whether the event's key is sensitive or encrypted, by its code or runtime definition. */
+    private function sensitive(?string $store, ?string $key): bool
+    {
+        if ($store === null || $key === null) {
+            return false;
+        }
+
+        try {
+            return $this->definitions->findInCode(new StoreName($store), new Key($key))?->isSensitive() ?? false;
+        } catch (SettingsException) {
+            return false;
         }
     }
 

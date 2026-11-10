@@ -44,11 +44,11 @@ final class MakeStoreCommand extends Command
         }
 
         foreach ($generated->migrations as $path) {
-            $this->info('Created ' . $path);
+            $this->info(__('laranail/settings::settings.console.store_created', ['path' => $path]));
         }
 
         $this->newLine();
-        $this->line('Add this to your configuration, then run the migrations:');
+        $this->line(__('laranail/settings::settings.console.store_next_step'));
         $this->newLine();
         $this->line($generated->config);
 

@@ -25,7 +25,7 @@ How `laranail/settings` is shaped, and why.
 | Services (`Services/`) | the database, the files, a body of rules | `Services\Database\AuditRepository`, `Services\Database\HistoryRepository`, `Services\Database\CategoryRepository`, `Services\Stores\SettingWriter`, `Services\Resolution\Resolver`, `Services\Access\AccessGuard`, `Services\Tenancy\TenantDiscriminators`, `Services\Cache\SettingsCache` |
 | Contract implementations | one per kind, beside its kind | the drivers, the audit sinks, the authorizers, the casters, the verifiers, the actor resolvers |
 | Listeners (`Listeners/`) and notifications | react to events | `SendSettingsAlert`, `LogSettingsEvent`, `Notifications\SettingsAlert` |
-| Support (`Support/`) | stateless logic shared by several classes | `AuditedTransaction`, `Translations`, `Json`, `DatabaseValues`, `ConfigValues`, `ValueEncoder`, `BagCodec` |
+| Support (`Support/`) | stateless logic shared by several classes | `AuditedTransaction`, `Translations`, `Json`, `DatabaseValues`, `ValueEncoder`, `BagCodec`, `Clock` |
 
 An action never builds a query or reads the schema itself; it asks a repository, so the table,
 the tenant filter and the row format live in one place. A change and its audit entry always go
@@ -48,11 +48,9 @@ entry points.
 Two architecture tests keep it so: nothing under `Services\` implements a plug-in contract (a
 driver, sink, authorizer, caster, verifier, resolver or discriminator stays beside its kind, where
 a reader looking for "the drivers" finds them), and no class named `*Repository` or `*Registry`
-lives anywhere else. The 19 classes that moved keep their old names through `class_alias` in
-`src/deprecated-aliases.php`, loaded by Composer, until 1.0. The aliases are declared eagerly:
-PHP does not autoload a class for a type check, so a lazily declared alias would make
-`function f(Stores\SettingWriter $w)` refuse the object it accepted before. A third test asserts the
-alias file names exactly the moved classes.
+lives anywhere else. The 19 classes that moved there in 0.1 kept no old name: the package had never
+been tagged, so the aliases were removed before the first release, and a third test asserts the old
+names no longer resolve.
 
 ## Why history and audit are separate tables
 
@@ -224,11 +222,31 @@ The package ships no views, Blade components, Livewire, Filament or assets. A se
 
 ## Why the REST API lives in the package
 
-The API is a channel, not a product: every endpoint runs an action the PHP API already runs (`Enums\Capability::actions()`), with the same authorizer, verifier, audit, locks and approvals. Shipped as a separate `settings-http` package it would have to reach into those actions from outside, keep its own copy of the capability list, and drift a release behind the engine whenever an action changed; the design moved it in (D-26) so one pull request changes a capability in every channel at once, and an architecture test fails when a route, the capability enum or a controller disagrees with the others. It costs nothing until it is used: no route is registered, no middleware or rate limiter defined, unless `http.enabled` is on, and it adds no dependency (Sanctum stays a suggestion). It returns JSON only, so the package stays headless.
+The API is a channel, not a product: every endpoint runs an action the PHP API already runs, with the same authorizer, verifier, audit, locks and approvals. Shipped as a separate `settings-http` package it would have to reach into those actions from outside and drift a release behind the engine whenever an action changed; the design moved it in (D-26) so one pull request changes a capability in every channel at once. The routes are declared by hand in `routes/api.php`, each controller method takes the action it runs as a parameter, and a test reading the live router fails when a route names no controller method, a controller method is not routed, or one does not delegate to an action. It costs nothing until it is used: no route is registered, no middleware or rate limiter defined, unless `http.enabled` is on, and it adds no dependency (Sanctum stays a suggestion). It returns JSON only, so the package stays headless.
 
 ## Why change requests are a table
 
 A write that needs approval has to outlive the request that proposed it: the approver acts later, from another request, maybe another server, and a queue or a cache entry can be evicted before anyone looks. So a proposal is a row, written in the same transaction as its `pending` audit entry, on the store's own connection (one table per connection, like the history), with the proposed value stored exactly as the values table would store it, encrypted for an encrypted definition. Keeping the base version on the row is what makes applying it safe: the approval writes through the version-checked update, so a setting that changed in the meantime is never overwritten and the request becomes `stale`. Requests are keyed by ULID, so the table never depends on `ids.type`, and the table is a schema switch (`approvals.table`) like the history.
+
+## How the container builds it
+
+Most classes are autowired. A class's lifetime is an attribute on the class (`#[Scoped]` for
+anything derived from a request, so Octane and queue workers start each request clean;
+`#[Singleton]` for stateless helpers), and a configuration value is a `#[Config]` attribute on the
+constructor parameter that needs it. The service provider binds only what configuration chooses or
+validates: the drivers, sinks, authorizers, verifiers and actor resolvers named in config, the cache
+stores, and the stores themselves. A handle (`SettingsManager`) takes every collaborator it calls,
+required, and a fluent method returns a copy with a new target, so a handle is never half-built.
+Time is read in one place, `Support\Clock`, through Laravel's `Date` seam, so `travelTo()` reaches
+every timestamp the package writes.
+
+A few collaborators stay closures on purpose, each because the alternative is worse: the
+`DriverFactory` is a singleton (a driver registered with `extend()` must last) and hands database
+drivers the scoped readiness, schema and tenant services through closures; the runtime
+configuration's change log and the database audit sink reach the logger, the auditor and the store
+registry lazily, because those read the runtime configuration themselves; the encrypter is resolved
+only when a value is encrypted, so an application without an `APP_KEY` still boots; and the session
+and request are read per call, because they change under a scoped service.
 
 ## Dependencies
 

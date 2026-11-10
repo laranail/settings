@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Services\Casting;
 
 use BackedEnum;
+use Illuminate\Container\Attributes\Singleton;
 use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Casting\EnumCaster;
 use Simtabi\Laranail\Settings\Casting\ArrayCaster;
@@ -19,6 +20,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
  * Maps type aliases (`string`, `bool`, `enum:plan`) to casters. A stored `type` is always an
  * alias resolved here, so data can never make the package instantiate an arbitrary class.
  */
+#[Singleton]
 final class CasterRegistry
 {
     /** @var array<string, Caster> */

@@ -4,21 +4,34 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Resources;
 
+use Override;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
-/** How a read resolved: the steps tried and the answer, its value left out when redacted. */
-final readonly class ExplanationResource
+/**
+ * How a read resolved: the steps tried and the answer, its value left out when redacted.
+ *
+ * @property Explanation $resource
+ */
+#[PreserveKeys]
+final class ExplanationResource extends JsonResource
 {
+    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    public static $wrap = 'data';
+
     /** @return array<string, mixed> */
-    public static function fields(Explanation $explanation): array
+    #[Override]
+    public function toArray(Request $request): array
     {
-        $lookup = $explanation->lookup;
+        $lookup = $this->resource->lookup;
         $fields = [
             'found'    => $lookup->isFound(),
             'layer'    => $lookup->layer(),
             'from'     => $lookup->scope()?->value,
             'redacted' => $lookup->isRedacted(),
-            'steps'    => $explanation->steps,
+            'steps'    => $this->resource->steps,
         ];
 
         if ($lookup->isFound() && ! $lookup->isRedacted()) {

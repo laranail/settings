@@ -9,6 +9,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Session\Session;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 
 /**
@@ -22,18 +23,18 @@ final readonly class PasswordConfirmationVerifier implements Verifier
     public const string SESSION_KEY = 'auth.password_confirmed_at';
 
     /**
-     * @param Closure(): ?Session $session the current session, or null outside HTTP
-     * @param Closure(): CarbonImmutable $clock
+     * @param Closure(): ?Session $session the current session, or null outside HTTP; a closure
+     *                                     because the request changes under this scoped service
      */
     public function __construct(
         private Closure $session,
         private int $timeout,
-        private Closure $clock,
+        private Clock $clock,
     ) {}
 
     public function isVerified(Actor $actor, Subject $subject): bool
     {
-        $now = ($this->clock)();
+        $now = $this->clock->now();
         $confirmedAt = ($this->session)()?->get(self::SESSION_KEY);
 
         if (is_int($confirmedAt) || (is_string($confirmedAt) && ctype_digit($confirmedAt))) {

@@ -9,11 +9,11 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Actions\RescopeOwners;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Actions\ReencryptSettings;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
@@ -34,7 +34,7 @@ function rotateKey(bool $keepPrevious): void
     config()->set('app.key', 'base64:' . base64_encode(random_bytes(32)));
     config()->set('app.previous_keys', $keepPrevious ? [$old] : []);
 
-    foreach (['encrypter', ValueEncrypter::class, ValuePipeline::class] as $abstract) {
+    foreach (['encrypter', LaravelValueEncrypter::class, ValuePipeline::class] as $abstract) {
         app()->forgetInstance($abstract);
     }
 
@@ -62,7 +62,7 @@ it('re-encrypts values, history and change requests under the new key', function
     // The old key can go now: everything reads under the new one alone.
     config()->set('app.previous_keys', []);
     app()->forgetInstance('encrypter');
-    app()->forgetInstance(ValueEncrypter::class);
+    app()->forgetInstance(LaravelValueEncrypter::class);
     app()->forgetInstance(ValuePipeline::class);
     app()->forgetScopedInstances();
     app(DefinitionRegistry::class)->define('mail.password')->encrypted()->register();

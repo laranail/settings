@@ -14,8 +14,12 @@ use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Actions\Categories\MoveCategory;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
-use Simtabi\Laranail\Settings\Actions\Categories\CategoryActions;
+use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
+use Simtabi\Laranail\Settings\Actions\Categories\DeleteCategory;
+use Simtabi\Laranail\Settings\Actions\Categories\RenameCategory;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
@@ -25,12 +29,23 @@ use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
  */
 final readonly class CategoryManager
 {
+    /** The store and actor are set by {@see in()}; without them, the default store as trusted code. */
     public function __construct(
-        private Store $store,
-        private ?Actor $actor,
-        private CategoryActions $actions,
+        private CreateCategory $create,
+        private RenameCategory $rename,
+        private MoveCategory $move,
+        private DeleteCategory $delete,
         private AccessGuard $access,
+        private StoreRegistry $stores,
+        private ?Store $store = null,
+        private ?Actor $actor = null,
     ) {}
+
+    /** These categories: the store's, as this actor. */
+    public function in(Store $store, ?Actor $actor = null): self
+    {
+        return new self($this->create, $this->rename, $this->move, $this->delete, $this->access, $this->stores, $store, $actor);
+    }
 
     /**
      * @throws CategoryStoreMismatch
@@ -38,12 +53,12 @@ final readonly class CategoryManager
      */
     public function create(NewCategory $category): Category
     {
-        return $this->actions->create->handle($this->store, $category, $this->actor);
+        return $this->create->handle($this->store(), $category, $this->actor);
     }
 
     public function rename(string $slug, string $title): void
     {
-        $this->actions->rename->handle($this->store, $slug, $title, $this->actor);
+        $this->rename->handle($this->store(), $slug, $title, $this->actor);
     }
 
     /**
@@ -52,12 +67,12 @@ final readonly class CategoryManager
      */
     public function move(string $slug, ?string $parent): void
     {
-        $this->actions->move->handle($this->store, $slug, $parent, $this->actor);
+        $this->move->handle($this->store(), $slug, $parent, $this->actor);
     }
 
     public function delete(string $slug): void
     {
-        $this->actions->delete->handle($this->store, $slug, $this->actor);
+        $this->delete->handle($this->store(), $slug, $this->actor);
     }
 
     /** @throws UnknownCategory */
@@ -76,8 +91,13 @@ final readonly class CategoryManager
 
     private function repository(?string $category): CategoryRepository
     {
-        $this->access->authorize($this->actor, Ability::View, new Subject($this->store->name, category: $category));
+        $this->access->authorize($this->actor, Ability::View, new Subject($this->store()->name, category: $category));
 
-        return CategoryRepository::of($this->store);
+        return CategoryRepository::of($this->store());
+    }
+
+    private function store(): Store
+    {
+        return $this->store ?? $this->stores->default();
     }
 }

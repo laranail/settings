@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Verification;
 
-use Closure;
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Illuminate\Container\Attributes\Config;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 
 /**
@@ -16,10 +17,11 @@ use Simtabi\Laranail\Settings\Contracts\Verifier;
  */
 final readonly class ActorTimestampVerifier implements Verifier
 {
-    /** @param Closure(): CarbonImmutable $clock */
+    /** @param int $ttl `verification.ttl`: seconds a verification stays fresh */
     public function __construct(
+        #[Config('laranail.settings.verification.ttl', 900)]
         private int $ttl,
-        private Closure $clock,
+        private Clock $clock,
     ) {}
 
     /** Whether a verification at `$at` is still fresh at `$now`; a timestamp in the future is not. */
@@ -34,6 +36,6 @@ final readonly class ActorTimestampVerifier implements Verifier
 
     public function isVerified(Actor $actor, Subject $subject): bool
     {
-        return self::fresh($actor->verifiedAt, ($this->clock)(), $this->ttl);
+        return self::fresh($actor->verifiedAt, $this->clock->now(), $this->ttl);
     }
 }

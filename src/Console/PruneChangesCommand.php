@@ -7,7 +7,7 @@ namespace Simtabi\Laranail\Settings\Console;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Actions\Approvals\ApprovalActions;
+use Simtabi\Laranail\Settings\Actions\Approvals\PruneChanges;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
@@ -23,17 +23,17 @@ final class PruneChangesCommand extends Command
 
     protected $description = 'Expire overdue change requests and delete old decided ones';
 
-    public function handle(ApprovalActions $approvals): int
+    public function handle(PruneChanges $prune): int
     {
         try {
-            $result = $approvals->prune->handle(Actor::system('laranail::settings.prune-changes'));
+            $result = $prune->handle(Actor::system('laranail::settings.prune-changes'));
         } catch (SettingsException $exception) {
             $this->error($exception->getMessage());
 
             return self::FAILURE;
         }
 
-        $this->info(sprintf('Expired %d change request(s); deleted %d decided one(s).', $result['expired'], $result['deleted']));
+        $this->info(__('laranail/settings::settings.console.changes_pruned', ['expired' => $result['expired'], 'deleted' => $result['deleted']]));
 
         return self::SUCCESS;
     }
