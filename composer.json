@@ -48,7 +48,6 @@
         "pestphp/pest": "^4.0",
         "pestphp/pest-plugin-arch": "^4.0",
         "pestphp/pest-plugin-laravel": "^4.0",
-        "phpbench/phpbench": "^1.4",
         "phpstan/phpstan": "^2.0",
         "rector/rector": "^2.5.8",
         "roave/security-advisories": "dev-latest"
@@ -78,7 +77,10 @@
         "test-coverage": "@test --coverage --min=90",
         "test-dirty": "@test --dirty --compact",
         "mutate": "vendor/bin/pest --mutate --everything --exclude-group=matrix --min=70",
-        "bench": "vendor/bin/phpbench run --report=settings",
+        "bench": [
+            "@composer --working-dir=tools/phpbench update --no-interaction --no-progress --quiet",
+            "tools/phpbench/vendor/bin/phpbench run --config=phpbench.json --report=settings"
+        ],
         "lint": [
             "@pint",
             "@phpstan",

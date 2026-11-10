@@ -20,7 +20,7 @@ Contributions are welcome via pull requests.
 | `composer mutate` | Pest mutation testing of the whole package, failing below a 70 % score (slow; CI runs it weekly, not on pull requests). For your change only: `vendor/bin/pest --mutate --path=src/Changed.php,src/Other.php --exclude-group=mutation-excluded --min=70` |
 | `composer lint` | Pint (shared laranail config), PHPStan at level max, Rector dry run; never changes files |
 | `composer composer-audit` | known-vulnerable dependencies |
-| `composer bench` | the phpbench read benchmark (`benchmarks/`): one request's reads uncached, cold and warm. Run it before and after a change to the read path or the cache, and quote both |
+| `composer bench` | the phpbench read benchmark (`benchmarks/`): one request's reads uncached, cold and warm. Run it before and after a change to the read path or the cache, and quote both. phpbench installs into `tools/phpbench/` on first run, apart from the package, because it depends on the abandoned `doctrine/annotations` |
 
 ## Guidelines
 

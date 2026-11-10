@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Store::isCached()`, `forgetCached()`, `forgetCachedStore()` and `warmCache()`;
   `Data\CacheTarget`; `Support\BagCodec`.
 - A phpbench benchmark of one request's reads with and without the cache (`benchmarks/`,
-  `phpbench.json`, `composer bench`).
+  `phpbench.json`, `composer bench`). phpbench installs into `tools/phpbench/`, outside the
+  package's dependencies.
 
 - Tenancy (`tenancy.mode`: `none`, `column`, `database`; recorded in the schema file). Column
   mode adds a `tenant` column to the values, categories and audit tables, leading their unique
