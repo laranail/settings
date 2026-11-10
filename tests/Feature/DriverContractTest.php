@@ -11,8 +11,8 @@ use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
-use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**

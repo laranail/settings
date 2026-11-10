@@ -11,9 +11,9 @@ use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
-use Simtabi\Laranail\Settings\Casting\CasterRegistry;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
 
 it('keeps a stored null distinct from no value', function (): void {
     $encoder = new ValueEncoder;

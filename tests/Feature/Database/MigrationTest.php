@@ -6,10 +6,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Migrations\Migration;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
-use Simtabi\Laranail\Settings\Database\SchemaInspector;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 
 /*
  * The package's one migration: every table, in dependency order, for every recorded database

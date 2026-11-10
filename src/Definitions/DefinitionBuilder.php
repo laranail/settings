@@ -8,6 +8,7 @@ use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\Precedence;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
  * A mutable builder for one definition; {@see register()} builds the immutable

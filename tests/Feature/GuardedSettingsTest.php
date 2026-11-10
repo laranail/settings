@@ -19,10 +19,10 @@ use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Verification\PasswordConfirmationVerifier;
 
 function defineSetting(): DefinitionBuilder

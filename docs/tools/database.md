@@ -10,12 +10,13 @@ The `database` driver keeps a store's values in a table, through the query build
 | `settings_categories` | categories of every store on the connection |
 | `settings_audit` | the audit trail of every store on the connection |
 | `settings_definitions` | optional (`definitions.table`): definitions synced from code and edited at runtime |
+| `settings_history` | `history.enabled`: every value by version, of every store on the connection; see [History](history.md) |
 
 `tables.prefix` goes in front of all of them. Every connection a store uses has its own
-categories and audit tables, so a store's foreign keys and transactions never cross connections.
+categories, audit and history tables, so a store's foreign keys and transactions never cross connections.
 One migration creates them all, in that order (`down()` in reverse): see
-[Installation](../installation.md). In column-mode [tenancy](tenancy.md) the values, categories
-and audit tables have a `tenant` column that leads their unique keys.
+[Installation](../installation.md). In column-mode [tenancy](tenancy.md) the values, categories,
+audit and history tables have a `tenant` column that leads their keys.
 
 The values table, in the default shape (polymorphic owners, identity mode `slug_uid`, bigint ids,
 string owner key). Every other shape is a [schema switch](schema-switches.md): `uuid` / `ulid`

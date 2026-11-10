@@ -15,7 +15,7 @@ use Simtabi\Laranail\Settings\Enums\OwnerKeyType;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Simtabi\Laranail\Settings\Enums\TranslationsMode;
-use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
+use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /*
  * laranail/settings: every table the package uses, in dependency order.
@@ -24,6 +24,7 @@ use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
  *   2. definitions   optional (definitions.table), on the default store's connection
  *   3. values        one table per database store
  *   4. audit         actions and denials, never values
+ *   5. history       every value by version (history.enabled), encrypted values still encrypted
  *
  * The shape (key type, identity mode, owner keys, dedicated stores, soft deletes, translations,
  * tenancy, table names, connections) comes from the recorded schema file
@@ -33,7 +34,7 @@ use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
  *
  * `laranail::settings.make-store` copies this file for one new store by rewriting the $only line
  * (and, with --connection, the $pinnedConnection line): the copy creates that store's values table
- * and, on a connection of its own, that connection's categories and audit tables.
+ * and, on a connection of its own, that connection's categories, audit and history tables.
  */
 return new class extends Migration
 {
@@ -71,6 +72,10 @@ return new class extends Migration
             if ($tables['shared'] && ($this->only === null || ! Schema::connection($connection)->hasTable($shape->names->audit()))) {
                 $this->createAudit($connection, $shape);
             }
+
+            if ($tables['shared'] && $shape->historyTable && ($this->only === null || ! Schema::connection($connection)->hasTable($shape->names->history()))) {
+                $this->createHistory($connection, $shape);
+            }
         }
     }
 
@@ -80,6 +85,10 @@ return new class extends Migration
 
         foreach (array_reverse($this->plan(), true) as $connection => $tables) {
             $schema = Schema::connection($connection);
+
+            if ($tables['shared'] && $shape->historyTable) {
+                $schema->dropIfExists($shape->names->history());
+            }
 
             if ($tables['shared']) {
                 $schema->dropIfExists($shape->names->audit());
@@ -200,11 +209,7 @@ return new class extends Migration
         $name = $shape->names->store($store->name, $store->table);
         $categories = $shape->names->categories();
         $index = substr($name, 0, 40);
-        $binary = match (DB::connection($connection)->getDriverName()) {
-            'mysql', 'mariadb' => 'utf8mb4_bin',
-            'pgsql'            => 'C',
-            default            => null,
-        };
+        $binary = $this->binaryCollation($connection);
 
         Schema::connection($connection)->create($name, function (Blueprint $table) use ($binary, $categories, $index, $shape, $store): void {
             $collate = static fn (ColumnDefinition $column): ColumnDefinition => $binary === null ? $column : $column->collation($binary);
@@ -319,6 +324,51 @@ return new class extends Migration
     }
 
     /**
+     * The value history (§4.3): one row per version of a setting, with the payload before and
+     * after exactly as the values table stores it (an encrypted value stays encrypted). Queried
+     * by (store, scope, key, locale), so a forget followed by a set keeps one trail; `setting_ref`
+     * is the row's uid (or id), kept as a string so the table never depends on `ids.type`.
+     * Identity columns are binary-collated like the values table's.
+     */
+    private function createHistory(string $connection, SchemaShape $shape): void
+    {
+        $name = $shape->names->history();
+        $binary = $this->binaryCollation($connection);
+
+        Schema::connection($connection)->create($name, function (Blueprint $table) use ($binary, $name, $shape): void {
+            $collate = static fn (ColumnDefinition $column): ColumnDefinition => $binary === null ? $column : $column->collation($binary);
+
+            $table->char('id', 26)->primary();
+
+            if ($shape->tenancy === TenancyMode::Column) {
+                $collate($table->string('tenant', 64)->default(''));
+            }
+
+            $table->string('store', 64);
+            $table->string('setting_ref', 36)->nullable();
+            $collate($table->string('scope', 128));
+            $collate($table->string('key', 191));
+            $collate($table->string('locale', 16)->default(''));
+            $table->string('operation', 16);
+            $table->longText('old_value')->nullable();
+            $table->longText('new_value')->nullable();
+            $table->string('old_type', 64)->nullable();
+            $table->string('new_type', 64)->nullable();
+            $table->boolean('old_encrypted')->default(false);
+            $table->boolean('new_encrypted')->default(false);
+            $table->unsignedInteger('version');
+            $table->string('causer_type', 16);
+            $table->string('causer_alias', 64)->nullable();
+            $table->string('causer_id', 64)->nullable();
+            $table->text('reason')->nullable();
+            $table->timestamp('created_at');
+
+            $table->index([...$this->tenantColumns($shape), 'store', 'scope', 'key', 'locale', 'version'], $name . '_subject_index');
+            $table->index('created_at', $name . '_created_index');
+        });
+    }
+
+    /**
      * A key column typed per `ids.type`. The primary key is an explicit command, not the fluent
      * ->primary(): Laravel appends fluent indexes after every other command, so PostgreSQL would
      * see a self-referencing foreign key before the key it references (SQLSTATE 42830).
@@ -352,6 +402,16 @@ return new class extends Migration
         if ($nullable) {
             $definition->nullable();
         }
+    }
+
+    /** The binary collation of the identity columns on this connection's driver (G-38). */
+    private function binaryCollation(string $connection): ?string
+    {
+        return match (DB::connection($connection)->getDriverName()) {
+            'mysql', 'mariadb' => 'utf8mb4_bin',
+            'pgsql'            => 'C',
+            default            => null,
+        };
     }
 
     /** The tenant column of column-mode tenancy: '' is the central (no tenant) partition. */

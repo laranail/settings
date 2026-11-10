@@ -12,8 +12,8 @@ use Simtabi\Laranail\Settings\Enums\TranslationsMode;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 
 it('stores and reads titles in both translation modes', function (): void {
     $lang = new Translations(TranslationsMode::Lang);

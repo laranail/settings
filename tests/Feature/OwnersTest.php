@@ -6,7 +6,7 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 beforeEach(function (): void {
     config()->set('laranail.settings.stores', [

@@ -25,8 +25,8 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Package\Tools\Package;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Illuminate\Contracts\Validation\Factory;
-use Simtabi\Laranail\Settings\Audit\Auditor;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\AlertRule;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\SettingsManager;
@@ -40,44 +40,45 @@ use Simtabi\Laranail\Settings\Actions\ClearCache;
 use Simtabi\Laranail\Settings\Actions\FlushScope;
 use Simtabi\Laranail\Settings\Actions\PruneAudit;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
+use Simtabi\Laranail\Settings\Actions\WriteGuard;
 use Simtabi\Laranail\Settings\Audit\LogAuditSink;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Actions\DiffHistory;
 use Simtabi\Laranail\Settings\Actions\FindOrphans;
 use Simtabi\Laranail\Settings\Audit\AutoAuditSink;
 use Simtabi\Laranail\Settings\Audit\NullAuditSink;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Events\LayerSkipped;
 use Simtabi\Laranail\Settings\Models\ModelContext;
-use Simtabi\Laranail\Settings\Resolution\Resolver;
 use Illuminate\Cache\Repository as CacheRepository;
 use Simtabi\Laranail\Settings\Actions\PromoteStore;
+use Simtabi\Laranail\Settings\Actions\PruneHistory;
 use Simtabi\Laranail\Settings\Actions\PruneOrphans;
+use Simtabi\Laranail\Settings\Actions\QueryHistory;
 use Simtabi\Laranail\Settings\Actions\StoreActions;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
-use Simtabi\Laranail\Settings\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\ConfigValues;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Simtabi\Laranail\Settings\Caching\SettingsCache;
 use Simtabi\Laranail\Settings\Console\DoctorCommand;
-use Simtabi\Laranail\Settings\Drivers\DriverFactory;
-use Simtabi\Laranail\Settings\Support\ValuePipeline;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Filesystem\Factory as Disks;
+use Simtabi\Laranail\Settings\Actions\HistoryActions;
 use Simtabi\Laranail\Settings\Actions\SettingActions;
-use Simtabi\Laranail\Settings\Casting\CasterRegistry;
+use Simtabi\Laranail\Settings\Console\HistoryCommand;
 use Simtabi\Laranail\Settings\Console\PromoteCommand;
 use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
+use Simtabi\Laranail\Settings\Actions\RollbackSetting;
 use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
 use Simtabi\Laranail\Settings\Audit\DatabaseAuditSink;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
+use Simtabi\Laranail\Settings\Services\Access\Auditor;
 use Simtabi\Laranail\Settings\Console\MakeStoreCommand;
 use Simtabi\Laranail\Settings\Console\WarmCacheCommand;
 use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
@@ -85,38 +86,49 @@ use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Contracts\ValueValidator;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
 use Simtabi\Laranail\Settings\Actions\FindForeignTables;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Console\ClearCacheCommand;
 use Simtabi\Laranail\Settings\Console\PruneAuditCommand;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Verification\NullVerifier;
+use Simtabi\Laranail\Settings\Listeners\LogSettingsEvent;
+use Simtabi\Laranail\Settings\Console\PruneHistoryCommand;
 use Simtabi\Laranail\Settings\Console\PruneOrphansCommand;
 use Simtabi\Laranail\Settings\Contracts\BootstrapEvidence;
+use Simtabi\Laranail\Settings\Listeners\SendSettingsAlert;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 use Simtabi\Laranail\Package\Tools\Commands\InstallCommand;
 use Simtabi\Laranail\Settings\Authorization\GateAuthorizer;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Tenancy\TenantDiscriminators;
+use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
+use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
 use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Database\SchemaReadinessProbe;
+use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Settings\Support\LaravelValueValidator;
 use Simtabi\Laranail\Settings\Console\SyncDefinitionsCommand;
-use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Definitions\DatabaseDefinitions;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
 use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
 use Simtabi\Laranail\Settings\Actions\Categories\CategoryActions;
-use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
 use Simtabi\Laranail\Settings\Authentication\SanctumActorResolver;
 use Simtabi\Laranail\Settings\Authorization\PermissionsAuthorizer;
 use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
 use Simtabi\Laranail\Package\Tools\Providers\PackageServiceProvider;
+use Simtabi\Laranail\Settings\Services\Tenancy\TenantDiscriminators;
+use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 use Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder;
+use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Verification\PasswordConfirmationVerifier;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+use Illuminate\Contracts\Notifications\Dispatcher as NotificationDispatcher;
 use Simtabi\Laranail\Package\Tools\Support\Definitions\AutoSeederDefinition;
 
 /**
@@ -147,7 +159,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             ->hasPackageSeeders(AutoSeederDefinition::make('laranail/settings:defaults')
                 ->seeders([DefaultCategoriesSeeder::class])
                 ->options(['disable_foreign_key_checks' => false, 'fire_events' => true]))
-            ->hasCommands([PromoteCommand::class, PruneOrphansCommand::class, PruneAuditCommand::class, MakeStoreCommand::class, DoctorCommand::class, SyncDefinitionsCommand::class, WarmCacheCommand::class, ClearCacheCommand::class])
+            ->hasCommands([PromoteCommand::class, PruneOrphansCommand::class, PruneAuditCommand::class, PruneHistoryCommand::class, HistoryCommand::class, MakeStoreCommand::class, DoctorCommand::class, SyncDefinitionsCommand::class, WarmCacheCommand::class, ClearCacheCommand::class])
             ->hasInstallCommand(static function (InstallCommand $command): void {
                 $command
                     ->startWith(static function (InstallCommand $command): void {
@@ -180,6 +192,18 @@ final class SettingsServiceProvider extends PackageServiceProvider
         // Tenant switches (db-tools has no hook of its own): the tenancy packages' events, by name.
         foreach (self::strings($app, 'laranail.settings.readiness.flush_on') as $event) {
             $events->listen($event, $flush);
+        }
+
+        // Built-in listeners (`listeners.*`): registered by class, so nothing is built until an
+        // event fires. Reading configuration here touches neither the database nor the cache.
+        $config = $app->make(Repository::class);
+
+        if ($config->get('laranail.settings.listeners.log', false) === true) {
+            $events->listen(LogSettingsEvent::EVENTS, LogSettingsEvent::class);
+        }
+
+        if ($config->get('laranail.settings.listeners.alerts', true) !== false && filter_var($config->get('laranail.settings.alerts.enabled', false), FILTER_VALIDATE_BOOL)) {
+            $events->listen(SendSettingsAlert::EVENTS, SendSettingsAlert::class);
         }
     }
 
@@ -303,6 +327,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
         $this->registerAccess();
         $this->registerCache();
+        $this->registerListeners();
 
         $this->app->scoped(SettingActions::class, static fn (Application $app): SettingActions => SettingActions::using(
             $app->make(SettingWriter::class),
@@ -350,6 +375,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(DefinitionRegistry::class),
             $app->make(ValueEncoder::class),
             $app->make(AccessGuard::class),
+            $app->make(Dispatcher::class),
         ));
 
         $this->app->scoped(QueryAudit::class, static fn (Application $app): QueryAudit => new QueryAudit(
@@ -367,11 +393,31 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(StoreActions::class)->flush,
             static fn (string $alias): ?string => Relation::getMorphedModel($alias),
             $app->make(AccessGuard::class),
+            $app->make(Dispatcher::class),
+        ));
+
+        $this->app->scoped(HistoryActions::class, static function (Application $app): HistoryActions {
+            $access = $app->make(AccessGuard::class);
+            $writer = $app->make(SettingWriter::class);
+            $pipeline = $app->make(ValuePipeline::class);
+
+            return new HistoryActions(
+                new QueryHistory($app->make(StoreRegistry::class), $access),
+                new RollbackSetting($writer, new WriteGuard($access, $writer), $pipeline, $app->make(Dispatcher::class)),
+                new DiffHistory($access, $pipeline),
+            );
+        });
+
+        $this->app->scoped(PruneHistory::class, static fn (Application $app): PruneHistory => new PruneHistory(
+            $app->make(StoreRegistry::class),
+            $app->make(AccessGuard::class),
+            $app->make(Dispatcher::class),
         ));
 
         $this->app->scoped(PruneAudit::class, static fn (Application $app): PruneAudit => new PruneAudit(
             $app->make(StoreRegistry::class),
             $app->make(AccessGuard::class),
+            $app->make(Dispatcher::class),
         ));
 
         $this->app->bind(MakeStore::class, static fn (Application $app): MakeStore => new MakeStore(
@@ -392,6 +438,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             storeActions: $app->make(StoreActions::class),
             auditQuery: $app->make(QueryAudit::class),
             databaseDefinitions: $app->make(DatabaseDefinitions::class),
+            historyActions: $app->make(HistoryActions::class),
         ));
     }
 
@@ -583,6 +630,59 @@ final class SettingsServiceProvider extends PackageServiceProvider
     }
 
     /**
+     * The built-in listeners, resolved when an event fires: the operational log, and alerts with
+     * their rules (validated then, with each rule's config path in the error), the throttle cache
+     * and the sensitive-key check that `sensitive_only` rules use.
+     */
+    private function registerListeners(): void
+    {
+        $this->app->bind(LogSettingsEvent::class, static fn (Application $app): LogSettingsEvent => new LogSettingsEvent($app->make(OperationalLogger::class)));
+
+        $this->app->bind(SendSettingsAlert::class, static function (Application $app): SendSettingsAlert {
+            $config = $app->make(Repository::class);
+            $cache = $config->get('laranail.settings.alerts.cache');
+            $throttle = self::integer($app, 'laranail.settings.alerts.throttle', 300);
+            $repository = null;
+
+            if ($throttle > 0) {
+                $store = $app->make(Caches::class)->store(is_string($cache) && $cache !== '' ? $cache : null);
+                $repository = $store instanceof CacheRepository ? $store : null;
+            }
+
+            return new SendSettingsAlert(
+                $app->make(NotificationDispatcher::class),
+                array_values(array_map(
+                    static fn (mixed $rule, int|string $index): AlertRule => is_array($rule)
+                        ? AlertRule::fromConfig($rule, $index)
+                        : throw new InvalidConfiguration(sprintf('laranail.settings.alerts.rules.%s: each rule is an array.', $index)),
+                    self::array($app, 'laranail.settings.alerts.rules'),
+                    array_keys(self::array($app, 'laranail.settings.alerts.rules')),
+                )),
+                static function (?string $store, ?string $key) use ($app): bool {
+                    if ($store === null || $key === null) {
+                        return false;
+                    }
+
+                    try {
+                        $name = new StoreName($store);
+                        $setting = new Key($key);
+                    } catch (SettingsException) {
+                        return false;
+                    }
+
+                    return ($app->make(RuntimeConfiguration::class)->findDefinition($name, $setting)
+                        ?? $app->make(DefinitionRegistry::class)->find($name, $setting))?->isSensitive() ?? false;
+                },
+                self::clock(),
+                $app->make(OperationalLogger::class),
+                $repository,
+                $throttle,
+                self::string($app, 'laranail.settings.cache.prefix', 'laranail-settings'),
+            );
+        });
+    }
+
+    /**
      * Tenancy (Amendment B): who the current tenant is, and the context the Eloquent models read
      * it from. `tenancy.discriminator`: `auto` (stancl/tenancy, then spatie/laravel-multitenancy,
      * when installed; otherwise none), `null`, `stancl`, `spatie`, or a class implementing
@@ -692,6 +792,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 $undefined === 'allow',
                 $app->make(Repository::class)->get('laranail.settings.authorization.require_actor', false) === true,
                 $app->make(RuntimeConfiguration::class),
+                $app->make(Dispatcher::class),
             );
         });
     }

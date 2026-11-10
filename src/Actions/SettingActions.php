@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Simtabi\Laranail\Settings\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 
 /**
  * The write actions a settings handle delegates to, held together so a handle is built from

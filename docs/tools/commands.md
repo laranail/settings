@@ -1,6 +1,6 @@
 # Commands
 
-Ten Artisan commands, all named `laranail::settings.<command>`.
+Eleven Artisan commands, all named `laranail::settings.<command>`.
 
 ## The commands
 
@@ -13,6 +13,8 @@ Ten Artisan commands, all named `laranail::settings.<command>`.
 | `laranail::settings.sync-definitions` | copies code and config definitions into the definitions table as system rows |
 | `laranail::settings.prune-orphans [--dry-run]` | removes the settings of owners that no longer exist |
 | `laranail::settings.prune-audit [--days=]` | removes audit rows older than `audit.keep_days` |
+| `laranail::settings.history {key} [--store=] [--owner=] [--locale=] [--diff=FROM..TO] [--rollback=] [--reveal] [--limit=20]` | lists a setting's versions, compares two, or rolls it back |
+| `laranail::settings.prune-history [--days=] [--versions=]` | removes history entries `history.keep_days` / `history.keep_versions` no longer keep |
 | `laranail::settings.warm [--store=*]` | loads each cached store's global scope into the cache |
 | `laranail::settings.clear-cache [--store=*]` | resets the cached settings of every store, or the named ones, for every tenant |
 
@@ -69,6 +71,19 @@ touches stored values or the application's other cache entries, and both do noth
 (`meta.operation` `cache.warm` or `cache.clear`); their actions, `Actions\WarmCache` and
 `Actions\ClearCache`, need `manage_stores` when called with an actor. See
 [Caching](caching.md) and [Warm the cache after a deploy](../recipes/warming-the-cache.md).
+
+## `history`
+
+```bash
+php artisan laranail::settings.history mail.from_address
+php artisan laranail::settings.history theme --owner=user:42 --diff=3..5
+php artisan laranail::settings.history mail.from_address --rollback=3
+```
+
+Without an option it lists the newest versions (operation, scope, causer, reason, time; no
+values). `--diff` prints the value at two versions; an encrypted or sensitive value prints as
+`[protected]` unless `--reveal` is given. `--rollback` writes the value of that version as a new
+version, through the same action as `rollback()`. See [History](history.md).
 
 ## Pruning and access
 

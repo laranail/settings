@@ -6,13 +6,15 @@ namespace Simtabi\Laranail\Settings\Actions;
 
 use Closure;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
+use Simtabi\Laranail\Settings\Events\OrphansPruned;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /**
  * Remove the settings of owners that no longer exist (G-7), as {@see FindOrphans} finds them.
@@ -30,6 +32,7 @@ final readonly class PruneOrphans
         private FlushScope $flush,
         private Closure $models,
         ?AccessGuard $access = null,
+        private ?Dispatcher $events = null,
     ) {
         $this->access = $access ?? AccessGuard::closed();
     }
@@ -66,6 +69,7 @@ final readonly class PruneOrphans
         }
 
         $this->access->auditor()->record(AuditAction::Prune, AuditOutcome::Allowed, $subject, $actor, meta: ['target' => 'orphans', 'owners' => $flushed, 'removed' => $removed]);
+        $this->events?->dispatch(new OrphansPruned($flushed, $removed));
 
         return $removed;
     }

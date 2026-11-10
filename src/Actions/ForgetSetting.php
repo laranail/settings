@@ -7,7 +7,7 @@ namespace Simtabi\Laranail\Settings\Actions;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
-use Simtabi\Laranail\Settings\Stores\SettingWriter;
+use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 
 /**
  * Remove a scope's own value so reads fall through again: needs `forget` (and `override_lock`
@@ -22,10 +22,10 @@ final readonly class ForgetSetting
 
     public function handle(SettingTarget $target, ?Actor $actor = null): void
     {
-        $this->guard->run(Ability::Forget, $target, $actor, respectsLocks: true, write: function (bool $override) use ($target): array {
+        $this->guard->run(Ability::Forget, $target, $actor, respectsLocks: true, write: function (bool $override) use ($target, $actor): array {
             $removed = $override
-                ? $this->writer->forgetOverridingLock($target->store, $target->key, $target->locale, $target->owner, $target->definition)
-                : $this->writer->forget($target->store, $target->key, $target->locale, $target->owner, $target->definition);
+                ? $this->writer->causedBy($actor, $target->reason)->forgetOverridingLock($target->store, $target->key, $target->locale, $target->owner, $target->definition)
+                : $this->writer->causedBy($actor, $target->reason)->forget($target->store, $target->key, $target->locale, $target->owner, $target->definition);
 
             return [$removed?->version, null];
         });

@@ -14,8 +14,8 @@ use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 beforeEach(function (): void {
     useDatabase(['stores.billing' => ['layers' => ['database']]], stores: ['billing']);

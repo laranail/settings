@@ -17,22 +17,22 @@ use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
-use Simtabi\Laranail\Settings\Resolution\Resolver;
 use Simtabi\Laranail\Settings\Actions\StoreActions;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Testing\SettingsFake;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
-use Simtabi\Laranail\Settings\Support\ValuePipeline;
 use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
  * An application convenience over the {@see SettingsContract} binding. The package's own

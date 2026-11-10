@@ -13,8 +13,8 @@ use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
-use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
 use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 it('records writes in memory and asserts on them', function (): void {
     $fake = Settings::fake();

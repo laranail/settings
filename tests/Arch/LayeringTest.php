@@ -45,6 +45,7 @@ const ACTION_EXEMPTIONS = [
     'Actions\\Categories\\CategoryGuard'   => 'run(): the guard every category action runs through',
     'Actions\\SettingActions'              => 'a bundle of the write actions for entry points (using())',
     'Actions\\StoreActions'                => 'a bundle of the store actions for entry points',
+    'Actions\\HistoryActions'              => 'a bundle of the history actions for entry points',
     'Actions\\Categories\\CategoryActions' => 'a bundle of the category actions for entry points (using())',
     'Actions\\QueryAudit'                  => 'get(), cursor(), paginate(): one authorized read in three result shapes, part of the public API',
     'Actions\\PruneOrphans'                => 'find(): deprecated in 0.1, forwards to FindOrphans, removed in 1.0',
@@ -67,7 +68,7 @@ it('gives every action handle() as its only public method', function (): void {
         }
     }
 
-    expect(count($files))->toBeGreaterThanOrEqual(23)
+    expect(count($files))->toBeGreaterThanOrEqual(30)
         ->and(array_keys(array_diff_key($offenders, ACTION_EXEMPTIONS)))->toBe([])
         // An exemption that no longer needs to be one is stale.
         ->and(array_keys(array_diff_key(ACTION_EXEMPTIONS, $offenders)))->toBe([]);
@@ -77,12 +78,12 @@ it('keeps database access out of actions', function (): void {
     $files = sourceFiles('Actions');
     $offenders = array_keys(array_filter($files, static fn (string $code): bool => preg_match('/->connection\(\)|getSchemaBuilder\(|DB::/', $code) === 1));
 
-    expect(count($files))->toBeGreaterThanOrEqual(23)
+    expect(count($files))->toBeGreaterThanOrEqual(30)
         ->and($offenders)->toBe([]);
 });
 
 it('lets only entry points depend on actions', function (): void {
-    $entryPoints = ['SettingsManager.php', 'Providers/', 'Facades/', 'Console/', 'Categories/CategoryManager.php', 'Audit/AuditQuery.php'];
+    $entryPoints = ['SettingsManager.php', 'Providers/', 'Facades/', 'Console/', 'Categories/CategoryManager.php', 'Audit/AuditQuery.php', 'History/HistoryQuery.php'];
     $files = sourceFiles('');
     $offenders = [];
 
@@ -96,7 +97,7 @@ it('lets only entry points depend on actions', function (): void {
         }
     }
 
-    expect(count($files))->toBeGreaterThanOrEqual(200)
+    expect(count($files))->toBeGreaterThanOrEqual(240)
         ->and($offenders)->toBe([]);
 });
 
@@ -113,7 +114,7 @@ it('keeps support classes free of mutable state', function (): void {
         }
     }
 
-    expect(count($files))->toBeGreaterThanOrEqual(10)
+    expect(count($files))->toBeGreaterThanOrEqual(11)
         ->and(array_values(array_diff($mutable, array_keys($exempt))))->toBe([])
         ->and(array_values(array_diff(array_keys($exempt), $mutable)))->toBe([]);
 });

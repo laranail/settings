@@ -63,7 +63,10 @@
             "Simtabi\\Laranail\\Settings\\": "src/",
             "Simtabi\\Laranail\\Settings\\Database\\Factories\\": "database/factories/",
             "Simtabi\\Laranail\\Settings\\Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files": [
+            "src/deprecated-aliases.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

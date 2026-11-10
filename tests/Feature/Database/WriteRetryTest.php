@@ -9,9 +9,9 @@ use Simtabi\Laranail\Settings\Data\Locale;
 use Illuminate\Database\Events\QueryExecuted;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
-use Simtabi\Laranail\Settings\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Actions\SettingActions;
+use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 
 /**

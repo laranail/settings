@@ -8,8 +8,8 @@ use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /**
  * Find the settings of owners that no longer exist (G-7): rows left by bulk deletes, which fire

@@ -83,7 +83,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Drivers and layers](docs/tools/drivers.md) — the built-in drivers and custom ones.
 - [Database](docs/tools/database.md) — the tables, version-checked writes, eager loading and `HasSettings`.
 - [Categories](docs/tools/categories.md) — nested, per-store categories and the rules that guard them.
-- [Commands](docs/tools/commands.md) — install, make-store, promote, doctor, warm, clear-cache and the prune commands.
+- [Commands](docs/tools/commands.md) — install, make-store, promote, doctor, warm, clear-cache, history and the prune commands.
 - [Owners and inheritance](docs/tools/owners.md) — owner references, store routing and the cascade.
 - [Access control](docs/tools/access-control.md) — actors, abilities, authorizers, guarded locks, sensitive reads and step-up verification.
 - [Audit and logging](docs/tools/audit-and-logging.md) — the audit trail, its sinks and the operational log.
@@ -93,6 +93,9 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Tenancy](docs/tools/tenancy.md) — tenant column or database per tenant, the discriminator, and the stancl and spatie adapters.
 - [Models and factories](docs/tools/models-and-factories.md) — Eloquent models and factories for tests, seeding and admin screens.
 - [Caching](docs/tools/caching.md) — per-scope bags, tenant-safe keys, generation tokens and stale-while-revalidate.
+- [History](docs/tools/history.md) — every value by version, rollback and diffs, and retention.
+- [Events](docs/tools/events.md) — every event, when it is dispatched, and the built-in listeners.
+- [Alerts](docs/tools/alerts.md) — notifications on changes and refusals, by rule, throttled, never with a value.
 
 ### Recipes
 
@@ -102,6 +105,8 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Move from files to the database](docs/recipes/moving-from-files-to-the-database.md) — bootstrap mode during install, then promotion.
 - [Seed the default categories](docs/recipes/seeding-default-categories.md) — the shipped set, your own set, and per tenant.
 - [Warm the cache after a deploy](docs/recipes/warming-the-cache.md) — warm, and reset after changing rows by hand.
+- [Roll back a setting](docs/recipes/rolling-back-a-setting.md) — find a version, compare it, return to it.
+- [Listen to settings events](docs/recipes/listening-to-settings-events.md) — your own listeners, and reading the new value.
 
 ## Contributing & security
 

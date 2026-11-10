@@ -64,12 +64,22 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `cache.prefix` | `laranail-settings` | the start of every cache key |
 | `cache.ttl` | `3600` | seconds a cached bag is fresh (at least 1) |
 | `cache.stale` | `300` | seconds after `ttl` a stale bag is still answered while it is refreshed (`Cache::flexible()`); `0` for none |
+| `tables.history` | `settings_history` | the history table's name (after `tables.prefix`) |
+| `history.enabled` | `true` (`LARANAIL_SETTINGS_HISTORY`) | schema switch: create the history table and record every change in it |
+| `history.keep_days` | `365` | how long `prune-history` keeps history entries; null for no age limit |
+| `history.keep_versions` | `null` | how many versions of each setting `prune-history` keeps; null for all |
+| `listeners.alerts` | `true` | register the alert listener (alerts still need `alerts.enabled`) |
+| `listeners.log` | `false` | write every settings event to the logging channel |
+| `alerts.enabled` | `false` (`LARANAIL_SETTINGS_ALERTS`) | send alerts |
+| `alerts.cache` | `null` | the cache store holding the alert throttle; null for the default |
+| `alerts.throttle` | `300` | seconds a rule stays quiet about one key after alerting; `0` for never |
+| `alerts.rules` | `[]` | which events alert whom; see [Alerts](tools/alerts.md) |
 
 Store names, keys, locales and owner aliases are validated, and a misconfiguration (an unknown driver, sink, verifier, resolver, level or ability included) raises `InvalidConfiguration` naming the config path on first use. The `password_confirmation` verifier also reads Laravel's own `auth.password_timeout`.
 
 Migration-time switches (`tenancy.mode` among them) are read by `install` and `make-store` and recorded in the schema file; after that the package reads the file, and `doctor` reports configuration that differs from it. See [Schema switches](tools/schema-switches.md).
 
-The cache is described in [Caching](tools/caching.md). Access, audit and logging are described in [Access control](tools/access-control.md) and [Audit and logging](tools/audit-and-logging.md); per-request changes in [Runtime configuration](tools/runtime-configuration.md).
+History is described in [History](tools/history.md), events and the built-in listeners in [Events](tools/events.md), alerts in [Alerts](tools/alerts.md). The cache is described in [Caching](tools/caching.md). Access, audit and logging are described in [Access control](tools/access-control.md) and [Audit and logging](tools/audit-and-logging.md); per-request changes in [Runtime configuration](tools/runtime-configuration.md).
 
 ## Publishing
 

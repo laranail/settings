@@ -11,7 +11,7 @@ use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 beforeEach(function (): void {
     useDatabase();

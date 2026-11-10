@@ -74,7 +74,7 @@ it('ships no views directory and registers no views or assets', function (): voi
     }
 
     // A scan that inspects nothing has broken, not found a clean tree.
-    expect($inspected)->toBeGreaterThanOrEqual(110)
+    expect($inspected)->toBeGreaterThanOrEqual(240)
         ->and($offending)->toBe([])
         ->and(is_dir($root . '/resources/views'))->toBeFalse();
 });

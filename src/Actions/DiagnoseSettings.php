@@ -9,13 +9,13 @@ use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Diagnostics\Finding;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Database\SchemaInspector;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
+use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
+use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /**
  * What `laranail::settings.doctor` reports, per store with a database layer: readiness (the

@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Value history (design §4.3, Phase 4): a `settings_history` table, one per connection like the
+  audit table, created by the one migration when the new schema switch `history.enabled` is on
+  (the default; recorded in the schema file as `history_table`, and read as off from a file
+  recorded before it existed). Every set, forget, lock, unlock and rollback on a database layer
+  appends the payload before and after exactly as stored (encrypted values stay encrypted), the
+  operation, the version, the causer (the actor; `system` without one), the reason and the row's
+  `uid` (or id) as `setting_ref`, in the same transaction as the change, so a failed history
+  insert rolls the change back. A forget writes a tombstone, and a key set again continues its
+  version from the history. Column-mode tenancy adds a `tenant` column. New config
+  `tables.history`, `history.enabled`, `history.keep_days` (365) and `history.keep_versions`
+  (null).
+- `$settings->history()` (`History\HistoryQuery`: `key()`, `for()`, `global()`, `store()`,
+  `locale()`, `since()`, `until()`, `versions()`, then `get()`, `cursor()` or `paginate()`),
+  gated by `view_history`; payloads of encrypted or sensitive settings are removed for an actor
+  without `view_sensitive`. `$settings->rollback($key, $toVersion)` writes an earlier value as a
+  new version through the normal write pipeline (gated by `rollback`, step-up verification per
+  `verification.abilities`, audited as `rollback`) and returns the new version.
+  `$settings->historyDiff($key, $from, $to)` returns a `Data\HistoryDiff`, decrypting only for an
+  actor holding `view_sensitive` (or a trusted call). Actions `QueryHistory`, `RollbackSetting`,
+  `DiffHistory`, `PruneHistory` and the bundle `HistoryActions`; `Services\Database\HistoryRepository`;
+  `Data\HistoryEntry`, `HistoryFilter`, `HistoryPage`, `HistoryDiff`; `Enums\HistoryOperation`;
+  `Exceptions\HistoryUnavailable`; `DatabaseDriver::reference()`; `SettingWriter::causedBy()` and
+  `rollback()`.
+- `laranail::settings.history {key}` (`--store`, `--owner=alias:id`, `--locale`,
+  `--diff=FROM..TO`, `--rollback=`, `--reveal`, `--limit`) and `laranail::settings.prune-history`
+  (`--days`, `--versions`; gated by `prune`, audited).
+- Events: `SettingLocked`, `SettingUnlocked`, `SettingRolledBack`, `CategoryMoved`,
+  `CategoryRenamed`, `DefinitionsSynced`, `AuditPruned`, `HistoryPruned`, `OrphansPruned` (all
+  after commit), and `AccessWasDenied` and `VerificationWasRequired`, dispatched at once by the
+  access guard when it refuses (the refusal throws, so its transaction rolls back). None carries
+  a value.
+- Built-in listeners, switchable under `listeners.*`: `Listeners\SendSettingsAlert` (on, but
+  needs `alerts.enabled`) and `Listeners\LogSettingsEvent` (off; every event to the operational
+  log, refusals at `warning`).
+- Alerts (`alerts.enabled`, default `false`): Laravel notifications (`Notifications\SettingsAlert`)
+  sent when an event matches a rule in `alerts.rules` (events, key globs, stores,
+  `sensitive_only`, outcomes; `notify.mail`, `notify.slack` when
+  laravel/slack-notification-channel is installed, `notify.database`; `queue`), throttled per
+  rule and key for `alerts.throttle` seconds in `alerts.cache`. An alert carries identifiers only
+  (`Data\AlertContext`), never a value; a test renders every channel of alerts about a seeded
+  secret and fails if it appears. An alert that cannot be sent is logged, never thrown.
+  `Data\AlertRule`, `Support\EventSummary`.
+- `CategoryGuard::run()` takes an optional list of further events to dispatch after commit.
 - The settings cache (design phase 3, §7.5): `Drivers\CachingDriver` puts each database layer
   behind `Caching\SettingsCache`, which caches every scope's raw rows (a "bag", every locale,
   misses as empty bags) keyed by a hashed, length-prefixed tuple of connection, database, tenant,
@@ -82,6 +125,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Every service now lives under `Services\` (Phase 4 plan §1), moved verbatim:
+  `Services\Database\{AuditRepository, CategoryRepository, DefinitionsRepository, SchemaInspector,
+  SchemaShapeRepository}`, `Services\Stores\{SettingWriter, StoreRegistry}`,
+  `Services\Resolution\{Resolver, PreloadedRecords}`, `Services\Access\{AccessGuard, Auditor}`,
+  `Services\Configuration\RuntimeConfiguration`,
+  `Services\Definitions\{DefinitionRegistry, DatabaseDefinitions}`,
+  `Services\Tenancy\TenantDiscriminators`, `Services\Casting\CasterRegistry`,
+  `Services\Values\ValuePipeline`, `Services\Drivers\DriverFactory` and
+  `Services\Cache\SettingsCache`. The package's own code uses the new names. Architecture tests
+  keep contract implementations out of `Services\` and every `*Repository` / `*Registry` in it.
+- The `Settings` contract gains `history()`, `rollback()` and `historyDiff()`. A third-party
+  implementation must add them (pre-1.0; `SettingsManager` and the fake implement them).
+- With history on, a key set again after a forget continues its version (previously it started
+  again at 1), so "version N" names one value.
+- The access guard dispatches `AccessWasDenied` / `VerificationWasRequired` when given a
+  dispatcher (the container's guard is); `PruneAudit`, `PruneOrphans` and `SyncDefinitions`
+  take an optional dispatcher for their new events.
+- The schema-switch matrix covers `history.enabled`: 11 pairwise shapes for 217 pairs per pull
+  request, 2,304 shapes in the weekly full product.
 - The code is layered entry points → actions → services → support, held by architecture
   tests. Database work moved out of actions into `Database\AuditRepository` (the audit sink,
   query and prune), `Database\DefinitionsRepository` (definitions sync and reads) and
@@ -101,6 +163,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
+- The old names of the 19 classes moved into `Services\` (listed under Changed):
+  `Database\AuditRepository`, `Database\CategoryRepository`, `Database\DefinitionsRepository`,
+  `Database\SchemaInspector`, `Database\SchemaShapeRepository`, `Stores\SettingWriter`,
+  `Stores\StoreRegistry`, `Resolution\Resolver`, `Resolution\PreloadedRecords`,
+  `Authorization\AccessGuard`, `Audit\Auditor`, `Configuration\RuntimeConfiguration`,
+  `Definitions\DefinitionRegistry`, `Definitions\DatabaseDefinitions`,
+  `Tenancy\TenantDiscriminators`, `Casting\CasterRegistry`, `Support\ValuePipeline`,
+  `Drivers\DriverFactory` and `Caching\SettingsCache`. Each still resolves to the moved class
+  through `class_alias` in `src/deprecated-aliases.php` (Composer `autoload.files`), so imports,
+  type declarations, container bindings and `instanceof` keep working; removed in 1.0.
 - `PruneOrphans::find()`: use `FindOrphans::handle()`. It forwards; removed in 1.0.
 - `DatabaseDefinitions::localised()`: use `Support\Translations::nullableText()`. It forwards;
   removed in 1.0.

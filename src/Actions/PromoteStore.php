@@ -23,12 +23,12 @@ use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Events\StorePromoted;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Events\StorePromoting;
-use Simtabi\Laranail\Settings\Support\ValuePipeline;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
 use Simtabi\Laranail\Settings\Support\AuditedTransaction;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 
 /**
  * Promote a store's runtime file into its database layer (design §7.4): needs `promote`.

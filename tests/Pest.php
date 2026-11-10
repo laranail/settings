@@ -8,10 +8,10 @@ use Illuminate\Support\Facades\Artisan;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Tests\TestCase;
 use Simtabi\Laranail\Settings\Contracts\Settings;
-use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 
 // Feature tests boot the application; Unit and Arch tests deliberately do not, so a unit
 // that quietly relies on the container fails instead of passing.

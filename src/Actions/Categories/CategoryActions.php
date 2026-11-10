@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions\Categories;
 
 use Illuminate\Contracts\Events\Dispatcher;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 
 /**
  * The category actions, held together so a handle is built from one collaborator.

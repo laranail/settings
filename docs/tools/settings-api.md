@@ -59,8 +59,11 @@ A stored `null` is an answer: `has()` is true and `get()` returns `null`, not th
 | `promote(?PromotionRequest)` | moves runtime-file values into the database; returns a `PromotionReport` |
 | `clearCache()` | resets the cached values of the handle's owner, or of its whole store; see [Caching](caching.md) |
 | `warmCache()` | loads the handle's scope (owner or global) into the cache now; returns the record count |
+| `history()` | the value history of the handle's store, owner and locale (needs `view_history`); see [History](history.md) |
+| `rollback($key, $toVersion)` | writes the value of an earlier version as a new version (needs `rollback`); returns the new version |
+| `historyDiff($key, $from, $to)` | the value at two versions, decrypted only for an actor holding `view_sensitive` |
 
-Writes raise `UnknownSetting` (strict store, no definition), `OwnerNotAllowed`, `LockedSetting`, `InvalidSettingValue`, `EncryptionUnavailable` or `StoreNotWritable`. A handle with an actor can also raise `AccessDenied` or `VerificationRequired`, any handle `ActorRequired` (when an actor is required) and `ApprovalUnavailable`. Every exception extends `SettingsException`.
+Writes raise `UnknownSetting` (strict store, no definition), `OwnerNotAllowed`, `LockedSetting`, `InvalidSettingValue`, `EncryptionUnavailable` or `StoreNotWritable`. A handle with an actor can also raise `AccessDenied` or `VerificationRequired`, any handle `ActorRequired` (when an actor is required) and `ApprovalUnavailable`. `history()`, `rollback()` and `historyDiff()` raise `HistoryUnavailable` for a store that keeps no history or a version it does not hold. Every exception extends `SettingsException`.
 
 Each write is one action in `Simtabi\Laranail\Settings\Actions` (`SetSetting`, `ForgetSetting`, `LockSetting`, `UnlockSetting`), taking a DTO and the actor. The handle delegates to them, and later channels (console, REST) will too, so behaviour cannot differ between them.
 

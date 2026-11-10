@@ -85,6 +85,7 @@ return [
         'categories'  => 'settings_categories',
         'audit'       => 'settings_audit',
         'definitions' => 'settings_definitions',
+        'history'     => 'settings_history',
     ],
 
     /*
@@ -352,6 +353,69 @@ return [
     'logging' => [
         'channel' => null,
         'level'   => env('LARANAIL_SETTINGS_LOG_LEVEL', 'info'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | History (§4.3)
+    |--------------------------------------------------------------------------
+    |
+    | `enabled` is a schema switch: it decides whether the migration creates
+    | the settings_history table (one per connection, like the audit table),
+    | and is recorded in the schema file with the others. With it, every set,
+    | forget, lock, unlock and rollback appends the value before and after, as
+    | stored (encrypted values stay encrypted), in the same transaction as the
+    | change. `keep_days` / `keep_versions` are the retention prune-history
+    | applies; null switches that rule off.
+    */
+    'history' => [
+        'enabled'       => env('LARANAIL_SETTINGS_HISTORY', true),
+        'keep_days'     => 365,
+        'keep_versions' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Built-in listeners
+    |--------------------------------------------------------------------------
+    |
+    | `alerts`: send the alerts below (they still need alerts.enabled).
+    | `log`: write every settings event to the logging channel above. Off by
+    | default, because the audit trail already records the actions.
+    */
+    'listeners' => [
+        'alerts' => true,
+        'log'    => false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Alerts: notifications on changes
+    |--------------------------------------------------------------------------
+    |
+    | Laravel notifications sent when an event matches a rule. Alerts carry
+    | the store, key, scope, actor, outcome and time, never a value. Each rule:
+    |
+    |   'events'         => ['SettingSaved', 'AccessWasDenied'], // short names or classes
+    |   'keys'           => ['mail.*'],          // globs; null for any
+    |   'stores'         => ['settings'],        // null for any
+    |   'sensitive_only' => false,               // only sensitive or encrypted keys
+    |   'outcomes'       => ['allowed'],         // allowed, denied; null for any
+    |   'notify'         => [
+    |       'mail'     => ['ops@example.com'],
+    |       'slack'    => env('SETTINGS_ALERTS_SLACK_WEBHOOK'), // needs laravel/slack-notification-channel
+    |       'database' => ['type' => App\Models\User::class, 'id' => 1],
+    |   ],
+    |   'queue'          => null,                // a queue name, or null to send at once
+    |
+    | `throttle`: seconds a rule stays quiet about one key after alerting
+    | about it (0 for never), kept in `cache` (null for the default store).
+    */
+    'alerts' => [
+        'enabled'  => env('LARANAIL_SETTINGS_ALERTS', false),
+        'cache'    => null,
+        'throttle' => 300,
+        'rules'    => [],
     ],
 
 ];

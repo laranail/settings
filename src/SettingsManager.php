@@ -19,30 +19,35 @@ use Simtabi\Laranail\Settings\Data\StoreName;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Actions\WarmCache;
+use Simtabi\Laranail\Settings\Data\HistoryEntry;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
 use Simtabi\Laranail\Settings\Actions\ClearCache;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\HistoryFilter;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
-use Simtabi\Laranail\Settings\Resolution\Resolver;
 use Simtabi\Laranail\Settings\Actions\StoreActions;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
+use Simtabi\Laranail\Settings\Actions\HistoryActions;
 use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Definitions\DatabaseDefinitions;
-use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
  * The {@see Settings} implementation: an immutable handle over the store, owner, locale and
@@ -78,6 +83,7 @@ final readonly class SettingsManager implements Settings
         private ?StoreActions $storeActions = null,
         private ?QueryAudit $auditQuery = null,
         private ?DatabaseDefinitions $databaseDefinitions = null,
+        private ?HistoryActions $historyActions = null,
     ) {
         $this->access = $access ?? AccessGuard::closed();
         $this->actions = $actions ?? SettingActions::using($writer, $this->access);
@@ -320,6 +326,48 @@ final readonly class SettingsManager implements Settings
         return $this->storeName instanceof StoreName ? $query->store($this->storeName->value) : $query;
     }
 
+    public function history(): HistoryQuery
+    {
+        $store = $this->targetStore();
+        $filter = new HistoryFilter($store->name, $this->owner instanceof OwnerRef ? $this->scope() : null, locale: $this->selectedLocale);
+        $actor = $this->actingAs;
+
+        return new HistoryQuery(
+            $this->historyActions()->query,
+            $actor,
+            $filter,
+            $actor instanceof Actor ? function (HistoryEntry $entry) use ($actor): bool {
+                $store = $this->stores->get(new StoreName($entry->store));
+                $key = new Key($entry->key);
+                $definition = $this->definition($store, $key);
+                $subject = Subject::of($store->name, $key, new Locale($entry->locale), Scope::fromString($entry->scope)?->owner(), $definition);
+
+                return ! ($subject->sensitive || $entry->oldEncrypted || $entry->newEncrypted) || $this->access->allows($actor, Ability::ViewSensitive, $subject);
+            } : null,
+        );
+    }
+
+    public function rollback(string $key, int $toVersion): int
+    {
+        $target = $this->writeTarget($key);
+
+        try {
+            return $this->historyActions()->rollback->handle($target, $toVersion, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
+    }
+
+    public function historyDiff(string $key, int $from, int $to): HistoryDiff
+    {
+        return $this->historyActions()->diff->handle($this->writeTarget($key), $from, $to, $this->actingAs);
+    }
+
+    private function historyActions(): HistoryActions
+    {
+        return $this->historyActions ?? throw new LogicException('This settings handle was built without the history actions; resolve Settings from the container.');
+    }
+
     private function storeActions(): StoreActions
     {
         return $this->storeActions ?? throw new LogicException('This settings handle was built without store actions; resolve Settings from the container.');
@@ -451,6 +499,7 @@ final readonly class SettingsManager implements Settings
             $this->storeActions,
             $this->auditQuery,
             $this->databaseDefinitions,
+            $this->historyActions,
         );
     }
 }

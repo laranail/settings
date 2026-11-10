@@ -12,7 +12,6 @@ use Simtabi\Laranail\Settings\Events\LayerSkipped;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Events\StorePromoted;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
-use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
@@ -20,7 +19,8 @@ use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /** A store in bootstrap mode whose database layer points at a database that does not exist yet. */
 function bootstrapWithoutDatabase(bool $evidence): void

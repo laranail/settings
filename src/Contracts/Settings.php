@@ -10,7 +10,9 @@ use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
+use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
@@ -22,10 +24,11 @@ use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
-use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
  * Read and write settings. `store()`, `for()`, `locale()`, `as()`, `asSystem()` and `because()`
@@ -192,4 +195,34 @@ interface Settings
      * Needs `view_audit` when the handle carries an actor. Entries never hold values.
      */
     public function audit(): AuditQuery;
+
+    /**
+     * Query the value history (§4.3) of this handle's store (and owner and locale, when set):
+     * `->key()`, `->for($owner)`, `->global()`, `->since()`, `->until()`, `->versions()`, then
+     * `->get()`, `->cursor()` or `->paginate()`. Needs `view_history` when the handle carries an
+     * actor. Payloads stay as stored (encrypted values encrypted), and are removed for an actor
+     * who may not view the setting's sensitive values.
+     */
+    public function history(): HistoryQuery;
+
+    /**
+     * Return a setting to the value it held at `$toVersion`, written as a new version through
+     * the normal write pipeline; returns that new version. Needs `rollback` (and step-up
+     * verification when `verification.abilities` lists it, as it does by default).
+     *
+     * @throws HistoryUnavailable when the store keeps no history or has no value at that version
+     * @throws AccessDenied
+     * @throws VerificationRequired
+     * @throws LockedSetting
+     */
+    public function rollback(string $key, int $toVersion): int;
+
+    /**
+     * The value at two versions of a setting. Needs `view_history`; an encrypted or sensitive
+     * value is decrypted only for an actor holding `view_sensitive` (or a trusted call), and is
+     * otherwise redacted to "changed or not".
+     *
+     * @throws HistoryUnavailable when the store keeps no history or lacks either version
+     */
+    public function historyDiff(string $key, int $from, int $to): HistoryDiff;
 }

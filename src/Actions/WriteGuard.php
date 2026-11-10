@@ -10,9 +10,9 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Support\AuditedTransaction;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 
 /**

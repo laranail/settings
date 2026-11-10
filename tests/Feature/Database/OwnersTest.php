@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Simtabi\Laranail\Settings\Data\Actor;
@@ -11,6 +12,7 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Actions\PruneAudit;
 use Simtabi\Laranail\Settings\Actions\FindOrphans;
 use Simtabi\Laranail\Settings\Actions\PruneOrphans;
+use Simtabi\Laranail\Settings\Events\OrphansPruned;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
@@ -127,6 +129,7 @@ it('finds and prunes the settings of owners deleted in bulk', function (): void 
 });
 
 it('needs prune (and forget) to prune orphans with an actor, and audits the run', function (): void {
+    Event::fake([OrphansPruned::class]);
     $gone = SettingsOwner::query()->create();
     $gone->settings()->set('ui.theme', 'dark');
     SettingsOwner::query()->whereKey($gone->id)->delete();
@@ -141,6 +144,9 @@ it('needs prune (and forget) to prune orphans with an actor, and audits the run'
     expect($prune->handle($actor))->toBe(1)
         ->and(json_decode((string) DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'allowed')->value('meta'), true))->toMatchArray(['owners' => 1])
         ->and(DB::table('settings_audit')->where('action', 'prune')->where('outcome', 'denied')->count())->toBe(1);
+
+    Event::assertDispatchedTimes(OrphansPruned::class, 1);
+    Event::assertDispatched(OrphansPruned::class, static fn (OrphansPruned $event): bool => $event->owners === 1 && $event->rows === 1);
 });
 
 it('finds orphans with FindOrphans, and through the deprecated PruneOrphans::find()', function (): void {

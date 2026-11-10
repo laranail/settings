@@ -7,7 +7,7 @@ A definition says what a key is: its type, default, rules, flags and who may ove
 In code, from a service provider's `boot()`:
 
 ```php
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 app(DefinitionRegistry::class)->define('mail.from.address')
     ->ofType('string')

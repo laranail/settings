@@ -291,6 +291,20 @@ final readonly class DatabaseDriver implements DatabaseBacked
         });
     }
 
+    /**
+     * The stable reference of one identity's row (live or trashed) for the history table: its
+     * `uid` when the identity mode has one, else its primary key, as a string. Null when there is
+     * no row.
+     */
+    public function reference(StoreName $store, Scope $scope, Key $key, Locale $locale): ?string
+    {
+        $column = $this->shape()->identity->hasUid() ? 'uid' : 'id';
+
+        $reference = $this->attempt($store, fn (): mixed => $this->identity($this->table($store), $scope, $key, $locale)->value($column));
+
+        return is_int($reference) || is_string($reference) ? (string) $reference : null;
+    }
+
     public function forget(StoreName $store, Scope $scope, Key $key, Locale $locale): void
     {
         $this->assertWritable($store);

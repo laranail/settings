@@ -9,7 +9,7 @@ use Psr\Log\LogLevel;
 use Psr\Log\LoggerTrait;
 use Psr\Log\LoggerInterface;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
  * The package's operational log: denials, verification failures and configuration changes,

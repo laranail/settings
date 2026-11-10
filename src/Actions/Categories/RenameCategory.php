@@ -9,7 +9,8 @@ use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Events\CategorySaved;
 use Simtabi\Laranail\Settings\Events\CategorySaving;
-use Simtabi\Laranail\Settings\Database\CategoryRepository;
+use Simtabi\Laranail\Settings\Events\CategoryRenamed;
+use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * Give a category a new title (its slug, the identifier, stays): needs `manage_categories`.
@@ -28,6 +29,6 @@ final readonly class RenameCategory
 
         $this->guard->run($store, $input->slug, $actor, 'rename', $events[0], $events[1], static function (CategoryRepository $categories) use ($input): void {
             $categories->rename($input->slug, $input->title);
-        });
+        }, [new CategoryRenamed($store->name->value, $slug)]);
     }
 }
