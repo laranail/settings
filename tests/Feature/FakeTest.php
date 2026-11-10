@@ -110,3 +110,13 @@ it('has no database audit trail to query', function (): void {
 
     expect(fn (): array => $fake->audit()->get())->toThrow(DriverUnavailable::class);
 });
+
+it('forwards the cache calls, which have nothing to cache over in-memory layers', function (): void {
+    $fake = Settings::fake();
+    Settings::set('site.name', 'Acme');
+
+    $fake->clearCache();
+
+    expect($fake->warmCache())->toBe(0)
+        ->and(Settings::get('site.name'))->toBe('Acme');
+});

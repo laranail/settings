@@ -14,8 +14,8 @@ use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
+use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Drivers\DriverFactory;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
@@ -64,8 +64,10 @@ it('keeps a skipped database layer out of reads and writes', function (): void {
     app()->forgetInstance(DriverFactory::class);
     app()->forgetScopedInstances();
 
-    $layer = app(StoreRegistry::class)->default()->layers[0]->driver;
-    assert($layer instanceof DatabaseDriver);
+    // With caching on the layer is the cache in front of the database driver.
+    $cached = app(StoreRegistry::class)->default()->layers[0]->driver;
+    assert($cached instanceof CachingDriver);
+    $layer = $cached->database();
     $gate = new BootstrapGatedDriver($layer, new StoreName('settings'), new InstallationEvidence(true));
     $store = new StoreName('settings');
 

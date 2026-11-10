@@ -4,8 +4,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-  # The whole-package mutation run (every src file) is weekly; pull requests mutate only
-  # the files they change, so they finish in minutes.
+    inputs:
+      paths:
+        description: Comma-separated src/ files to mutate (empty = everything)
+        required: false
+        default: ''
+  # The whole-package mutation run (every src file) is weekly; pull requests skip it.
   schedule:
     - cron: '23 6 * * 1'
 
@@ -67,10 +71,12 @@ jobs:
 
   mutation:
     name: Mutation testing (Pest)
+    # Weekly and on dispatch only (owner decision, 2026-11-10): pull requests skip it to keep CI
+    # spend down. The scheduled run mutates the whole package and fails below 70 %. A dispatch
+    # with `paths` set mutates only those files.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # A pull request mutates only the src/ files it changes; the weekly and dispatched runs
-    # mutate everything with a longer limit.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 15 || 60 }}
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -103,16 +109,10 @@ jobs:
       - name: Choose what to mutate
         id: scope
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          INPUT_PATHS: ${{ github.event.inputs.paths }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            files=$(git diff --name-only --diff-filter=AMR "$BASE_SHA"...HEAD -- 'src/*.php' | paste -sd, -)
-            echo "paths=$files" >> "$GITHUB_OUTPUT"
-            echo "Mutating: ${files:-nothing (no src/ changes)}"
-          else
-            echo "paths=" >> "$GITHUB_OUTPUT"
-            echo "Mutating: everything"
-          fi
+          echo "paths=${INPUT_PATHS}" >> "$GITHUB_OUTPUT"
+          echo "Mutating: ${INPUT_PATHS:-everything}"
 
       - name: Mutation testing (minimum score 70)
         # Pest's own mutator, not Infection: Infection has no Pest adapter, reads Pest's
@@ -123,7 +123,6 @@ jobs:
         # group `mutation-excluded`, which is what is excluded: under --parallel Pest honours
         # only the first --exclude-group, and a comma-separated list excludes nothing, so
         # `--exclude-group=matrix,shared-app` ran every test and raced on the shared config file.
-        if: github.event_name != 'pull_request' || steps.scope.outputs.paths != ''
         env:
           MUTATE_PATHS: ${{ steps.scope.outputs.paths }}
         run: |

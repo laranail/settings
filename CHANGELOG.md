@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The settings cache (design phase 3, §7.5): `Drivers\CachingDriver` puts each database layer
+  behind `Caching\SettingsCache`, which caches every scope's raw rows (a "bag", every locale,
+  misses as empty bags) keyed by a hashed, length-prefixed tuple of connection, database, tenant,
+  store, table and scope. Invalidation replaces ULID generation tokens (per scope, per store, and
+  a global epoch) on every write path: set, forget, lock, unlock, flush, owner deletion and
+  promotion, after the write's transaction commits. Past `cache.ttl` a bag is still answered for
+  `cache.stale` seconds through `Cache::flexible()` while it is refreshed; a refresh can never
+  restore an invalidated value. Reads inside an open transaction and while bootstrap mode skips
+  the layer go straight to the database. A failing cache store falls back to the database and is
+  logged. New keys `cache.enabled` (default `true`), `cache.store`, `cache.prefix`, `cache.ttl`
+  and `cache.stale`.
+- `laranail::settings.warm` and `laranail::settings.clear-cache` (`--store=*`), and
+  `clearCache()` / `warmCache()` on a settings handle, through the new `Actions\WarmCache` and
+  `Actions\ClearCache`: gated by `manage_stores` when an actor is present and audited as a
+  `manage_stores` entry (`meta.operation` `cache.warm` / `cache.clear`).
+- `Store::isCached()`, `forgetCached()`, `forgetCachedStore()` and `warmCache()`;
+  `Data\CacheTarget`; `Support\BagCodec`.
+- A phpbench benchmark of one request's reads with and without the cache (`benchmarks/`,
+  `phpbench.json`, `composer bench`). phpbench installs into `tools/phpbench/`, outside the
+  package's dependencies.
+
 - Tenancy (`tenancy.mode`: `none`, `column`, `database`; recorded in the schema file). Column
   mode adds a `tenant` column to the values, categories and audit tables, leading their unique
   keys; every row is stamped with the current tenant and every query, the audit trail and the
@@ -72,6 +93,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Store::requireDatabase()`, `CategoryRepository::of()`. Behaviour, messages and audit entries
   are unchanged.
 - `FindOrphans` finds orphaned owners' settings; `PruneOrphans` removes them.
+- With caching on (the default), a store's database layer is a `CachingDriver` in front of the
+  `DatabaseDriver`; `->database()` still returns the `DatabaseDriver`. Rows changed past the API
+  (raw queries, `Models\Setting` saves) are not seen until `clear-cache` runs or the bag expires.
+- `Contracts\Settings` gains `clearCache()` and `warmCache()`; `Actions\StoreActions` gains the
+  optional `warmCache` and `clearCache` actions.
 
 ### Deprecated
 

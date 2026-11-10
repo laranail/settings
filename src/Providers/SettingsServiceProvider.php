@@ -6,10 +6,12 @@ namespace Simtabi\Laranail\Settings\Providers;
 
 use Closure;
 use Override;
+use Throwable;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
 use Illuminate\Log\LogManager;
 use Illuminate\Filesystem\Filesystem;
 use Simtabi\Laranail\Settings\Data\Key;
@@ -31,8 +33,10 @@ use Simtabi\Laranail\Settings\SettingsManager;
 use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Contracts\Foundation\Application;
 use Simtabi\Laranail\Settings\Actions\MakeStore;
+use Simtabi\Laranail\Settings\Actions\WarmCache;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Illuminate\Contracts\Cache\Factory as Caches;
+use Simtabi\Laranail\Settings\Actions\ClearCache;
 use Simtabi\Laranail\Settings\Actions\FlushScope;
 use Simtabi\Laranail\Settings\Actions\PruneAudit;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
@@ -47,6 +51,7 @@ use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Events\LayerSkipped;
 use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Resolution\Resolver;
+use Illuminate\Cache\Repository as CacheRepository;
 use Simtabi\Laranail\Settings\Actions\PromoteStore;
 use Simtabi\Laranail\Settings\Actions\PruneOrphans;
 use Simtabi\Laranail\Settings\Actions\StoreActions;
@@ -60,6 +65,7 @@ use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Simtabi\Laranail\Settings\Caching\SettingsCache;
 use Simtabi\Laranail\Settings\Console\DoctorCommand;
 use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Support\ValuePipeline;
@@ -73,12 +79,14 @@ use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
 use Simtabi\Laranail\Settings\Audit\DatabaseAuditSink;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Console\MakeStoreCommand;
+use Simtabi\Laranail\Settings\Console\WarmCacheCommand;
 use Simtabi\Laranail\Settings\Contracts\ReadinessProbe;
 use Simtabi\Laranail\Settings\Contracts\ValueEncrypter;
 use Simtabi\Laranail\Settings\Contracts\ValueValidator;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
 use Simtabi\Laranail\Settings\Actions\FindForeignTables;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
+use Simtabi\Laranail\Settings\Console\ClearCacheCommand;
 use Simtabi\Laranail\Settings\Console\PruneAuditCommand;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Verification\NullVerifier;
@@ -139,7 +147,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             ->hasPackageSeeders(AutoSeederDefinition::make('laranail/settings:defaults')
                 ->seeders([DefaultCategoriesSeeder::class])
                 ->options(['disable_foreign_key_checks' => false, 'fire_events' => true]))
-            ->hasCommands([PromoteCommand::class, PruneOrphansCommand::class, PruneAuditCommand::class, MakeStoreCommand::class, DoctorCommand::class, SyncDefinitionsCommand::class])
+            ->hasCommands([PromoteCommand::class, PruneOrphansCommand::class, PruneAuditCommand::class, MakeStoreCommand::class, DoctorCommand::class, SyncDefinitionsCommand::class, WarmCacheCommand::class, ClearCacheCommand::class])
             ->hasInstallCommand(static function (InstallCommand $command): void {
                 $command
                     ->startWith(static function (InstallCommand $command): void {
@@ -267,6 +275,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             onLayerSkipped: static function (string $store, string $layer, string $reason) use ($app): void {
                 $app->make(Dispatcher::class)->dispatch(new LayerSkipped($store, $layer, $reason));
             },
+            cache: self::cacheEnabled($app) ? $app->make(SettingsCache::class) : null,
         ));
 
         $this->app->singleton(ValuePipeline::class);
@@ -293,6 +302,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
         ));
 
         $this->registerAccess();
+        $this->registerCache();
 
         $this->app->scoped(SettingActions::class, static fn (Application $app): SettingActions => SettingActions::using(
             $app->make(SettingWriter::class),
@@ -316,8 +326,17 @@ final class SettingsServiceProvider extends PackageServiceProvider
                         ?? $app->make(DatabaseDefinitions::class)->find($store, $key),
                 ),
                 $flush,
+                new WarmCache($access),
+                new ClearCache(
+                    $access,
+                    self::cacheEnabled($app) ? $app->make(SettingsCache::class) : null,
+                    new StoreName(self::string($app, 'laranail.settings.default', 'settings')),
+                ),
             );
         });
+
+        $this->app->scoped(WarmCache::class, static fn (Application $app): WarmCache => $app->make(StoreActions::class)->warmCache ?? new WarmCache($app->make(AccessGuard::class)));
+        $this->app->scoped(ClearCache::class, static fn (Application $app): ClearCache => $app->make(StoreActions::class)->clearCache ?? new ClearCache($app->make(AccessGuard::class), null));
 
         $this->app->scoped(DatabaseDefinitions::class, static fn (Application $app): DatabaseDefinitions => new DatabaseDefinitions(
             $app->make(CasterRegistry::class),
@@ -374,6 +393,12 @@ final class SettingsServiceProvider extends PackageServiceProvider
             auditQuery: $app->make(QueryAudit::class),
             databaseDefinitions: $app->make(DatabaseDefinitions::class),
         ));
+    }
+
+    /** `cache.enabled`: on unless set to a false value. */
+    private static function cacheEnabled(Application $app): bool
+    {
+        return filter_var($app->make(Repository::class)->get('laranail.settings.cache.enabled', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true;
     }
 
     /**
@@ -515,6 +540,46 @@ final class SettingsServiceProvider extends PackageServiceProvider
     private static function config(Application $app): ConfigValues
     {
         return new ConfigValues($app->make(Repository::class));
+    }
+
+    /**
+     * The settings cache (§7.5), built on first use, never at boot: the configured cache store
+     * (null for the application's default), keyed per tenant, reporting cache failures to the
+     * operational log. Scoped, so the bags it holds in memory last one request or job.
+     */
+    private function registerCache(): void
+    {
+        $this->app->scoped(SettingsCache::class, static function (Application $app): SettingsCache {
+            $name = $app->make(Repository::class)->get('laranail.settings.cache.store');
+
+            if ($name !== null && (! is_string($name) || $name === '')) {
+                throw new InvalidConfiguration('laranail.settings.cache.store: a cache store name, or null for the default store.');
+            }
+
+            try {
+                $cache = $app->make(Caches::class)->store($name);
+            } catch (InvalidArgumentException $exception) {
+                throw new InvalidConfiguration(sprintf('laranail.settings.cache.store: %s', $exception->getMessage()), $exception->getCode(), previous: $exception);
+            }
+
+            if (! $cache instanceof CacheRepository) {
+                throw new InvalidConfiguration(sprintf('laranail.settings.cache.store: [%s] is not a Laravel cache repository.', get_debug_type($cache)));
+            }
+
+            return new SettingsCache(
+                $cache,
+                self::string($app, 'laranail.settings.cache.prefix', 'laranail-settings'),
+                self::integer($app, 'laranail.settings.cache.ttl', 3600),
+                self::integer($app, 'laranail.settings.cache.stale', 300),
+                static fn (): ?string => $app->make(TenantDiscriminator::class)->current(),
+                static function (string $operation, Throwable $exception) use ($app): void {
+                    $app->make(OperationalLogger::class)->warning(sprintf('laranail/settings: the settings cache failed (%s): %s. Reads fall back to the database; a failed invalidation leaves bags stale until they expire or clear-cache runs.', $operation, $exception->getMessage()), [
+                        'operation' => $operation,
+                        'exception' => $exception::class,
+                    ]);
+                },
+            );
+        });
     }
 
     /**

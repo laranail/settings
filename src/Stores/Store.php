@@ -9,6 +9,7 @@ use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Enums\StoreMode;
+use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
@@ -108,6 +109,50 @@ final readonly class Store
         throw new StoreNotWritable(sprintf('Store [%s] has no writable layer.', $this->name));
     }
 
+    /** Whether any layer of this store is read through the settings cache. */
+    public function isCached(): bool
+    {
+        return array_any($this->layers, fn (Layer $layer): bool => $layer->driver instanceof CachingDriver);
+    }
+
+    /**
+     * Forget one scope's cached bag in every cached layer (after the surrounding transaction
+     * commits), for writes that reach the database without passing through the cache.
+     */
+    public function forgetCached(Scope $scope): void
+    {
+        foreach ($this->cachedLayers() as $driver) {
+            $driver->forgetScope($this->name, $scope);
+        }
+    }
+
+    /** Forget every cached bag of this store, for every tenant. */
+    public function forgetCachedStore(): void
+    {
+        foreach ($this->cachedLayers() as $driver) {
+            $driver->forgetStore($this->name);
+        }
+    }
+
+    /**
+     * Load these scopes into the cache of every active cached layer (one read per layer on a
+     * miss, none on a hit); returns how many records the cached layers hold for them.
+     *
+     * @param list<Scope> $scopes
+     */
+    public function warmCache(array $scopes): int
+    {
+        $records = 0;
+
+        foreach ($this->cachedLayers() as $driver) {
+            if ($driver->isActive()) {
+                $records += $driver->load($this->name, $scopes)->count();
+            }
+        }
+
+        return $records;
+    }
+
     /**
      * Every layer's records for these scopes, in layer order: one read per layer.
      *
@@ -124,5 +169,11 @@ final readonly class Store
         }
 
         return $loaded;
+    }
+
+    /** @return list<CachingDriver> */
+    private function cachedLayers(): array
+    {
+        return array_values(array_filter(array_map(static fn (Layer $layer): ?CachingDriver => $layer->driver instanceof CachingDriver ? $layer->driver : null, $this->layers)));
     }
 }

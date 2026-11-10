@@ -83,7 +83,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Drivers and layers](docs/tools/drivers.md) — the built-in drivers and custom ones.
 - [Database](docs/tools/database.md) — the tables, version-checked writes, eager loading and `HasSettings`.
 - [Categories](docs/tools/categories.md) — nested, per-store categories and the rules that guard them.
-- [Commands](docs/tools/commands.md) — install, make-store, promote, doctor and the prune commands.
+- [Commands](docs/tools/commands.md) — install, make-store, promote, doctor, warm, clear-cache and the prune commands.
 - [Owners and inheritance](docs/tools/owners.md) — owner references, store routing and the cascade.
 - [Access control](docs/tools/access-control.md) — actors, abilities, authorizers, guarded locks, sensitive reads and step-up verification.
 - [Audit and logging](docs/tools/audit-and-logging.md) — the audit trail, its sinks and the operational log.
@@ -92,6 +92,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Audit queries](docs/tools/audit-queries.md) — reading the audit trail from PHP, gated by `view_audit`.
 - [Tenancy](docs/tools/tenancy.md) — tenant column or database per tenant, the discriminator, and the stancl and spatie adapters.
 - [Models and factories](docs/tools/models-and-factories.md) — Eloquent models and factories for tests, seeding and admin screens.
+- [Caching](docs/tools/caching.md) — per-scope bags, tenant-safe keys, generation tokens and stale-while-revalidate.
 
 ### Recipes
 
@@ -100,6 +101,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Act as a user](docs/recipes/acting-as-a-user.md) — authorize and audit changes made on a user's behalf.
 - [Move from files to the database](docs/recipes/moving-from-files-to-the-database.md) — bootstrap mode during install, then promotion.
 - [Seed the default categories](docs/recipes/seeding-default-categories.md) — the shipped set, your own set, and per tenant.
+- [Warm the cache after a deploy](docs/recipes/warming-the-cache.md) — warm, and reset after changing rows by hand.
 
 ## Contributing & security
 

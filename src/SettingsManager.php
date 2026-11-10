@@ -19,7 +19,9 @@ use Simtabi\Laranail\Settings\Data\StoreName;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Actions\WarmCache;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
+use Simtabi\Laranail\Settings\Actions\ClearCache;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
@@ -263,6 +265,16 @@ final readonly class SettingsManager implements Settings
         }
     }
 
+    public function clearCache(): void
+    {
+        $this->clearCacheAction()->handle($this->targetStore(), $this->owner, $this->actingAs);
+    }
+
+    public function warmCache(): int
+    {
+        return $this->warmCacheAction()->handle($this->targetStore(), $this->owner, $this->actingAs);
+    }
+
     public function preload(iterable $owners): void
     {
         $groups = [];
@@ -311,6 +323,16 @@ final readonly class SettingsManager implements Settings
     private function storeActions(): StoreActions
     {
         return $this->storeActions ?? throw new LogicException('This settings handle was built without store actions; resolve Settings from the container.');
+    }
+
+    private function clearCacheAction(): ClearCache
+    {
+        return $this->storeActions()->clearCache ?? throw new LogicException('This settings handle was built without the cache actions; resolve Settings from the container.');
+    }
+
+    private function warmCacheAction(): WarmCache
+    {
+        return $this->storeActions()->warmCache ?? throw new LogicException('This settings handle was built without the cache actions; resolve Settings from the container.');
     }
 
     private function scope(): Scope

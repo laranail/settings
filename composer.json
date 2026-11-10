@@ -67,7 +67,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Simtabi\\Laranail\\Settings\\Tests\\": "tests/"
+            "Simtabi\\Laranail\\Settings\\Tests\\": "tests/",
+            "Simtabi\\Laranail\\Settings\\Benchmarks\\": "benchmarks/"
         }
     },
     "scripts": {
@@ -76,6 +77,10 @@
         "test-coverage": "@test --coverage --min=90",
         "test-dirty": "@test --dirty --compact",
         "mutate": "vendor/bin/pest --mutate --everything --exclude-group=matrix --min=70",
+        "bench": [
+            "@composer --working-dir=tools/phpbench update --no-interaction --no-progress --quiet",
+            "tools/phpbench/vendor/bin/phpbench run --config=phpbench.json --report=settings"
+        ],
         "lint": [
             "@pint",
             "@phpstan",

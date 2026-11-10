@@ -162,6 +162,16 @@ final readonly class SettingsFake implements Settings
         $this->inner->flush();
     }
 
+    public function clearCache(): void
+    {
+        $this->inner->clearCache();
+    }
+
+    public function warmCache(): int
+    {
+        return $this->inner->warmCache();
+    }
+
     public function preload(iterable $owners): void
     {
         $this->inner->preload($owners);

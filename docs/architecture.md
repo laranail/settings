@@ -22,8 +22,8 @@ How `laranail/settings` is shaped, and why.
 |---|---|---|
 | Entry points | resolve inputs and delegate; no work of their own | `SettingsManager`, `CategoryManager`, `AuditQuery`, the console commands, the facade |
 | Actions (`Actions/`) | one intent each, `handle()` only, final and readonly | `SetSetting`, `PromoteStore`, `SyncDefinitions`, `FindOrphans` |
-| Services | the database, the files, a body of rules | `Database\AuditRepository`, `Database\DefinitionsRepository`, `Database\SchemaInspector`, `Database\CategoryRepository`, the drivers, `Stores\SettingWriter`, `Resolution\Resolver`, `Authorization\AccessGuard`, `Tenancy\TenantDiscriminators` |
-| Support (`Support/`) | stateless logic shared by several classes | `AuditedTransaction`, `Translations`, `Json`, `DatabaseValues`, `ConfigValues`, `ValueEncoder` |
+| Services | the database, the files, a body of rules | `Database\AuditRepository`, `Database\DefinitionsRepository`, `Database\SchemaInspector`, `Database\CategoryRepository`, the drivers, `Stores\SettingWriter`, `Resolution\Resolver`, `Authorization\AccessGuard`, `Tenancy\TenantDiscriminators`, `Caching\SettingsCache` |
+| Support (`Support/`) | stateless logic shared by several classes | `AuditedTransaction`, `Translations`, `Json`, `DatabaseValues`, `ConfigValues`, `ValueEncoder`, `BagCodec` |
 
 An action never builds a query or reads the schema itself; it asks a repository, so the table,
 the tenant filter and the row format live in one place. A change and its audit entry always go
@@ -144,6 +144,42 @@ hook of its own, so the defaults name the tenancy packages' own events (stancl/t
 `TenancyInitialized` / `TenancyEnded`, spatie/laravel-multitenancy's `MadeTenantCurrentEvent` /
 `ForgotCurrentTenantEvent`) as strings: no dependency is added, and an event that never fires
 costs nothing. Another tenancy package adds its event to the list.
+
+## Why cache raw bags?
+
+The cache holds each scope's raw rows (a "bag"), never resolved values. A resolved value depends
+on every scope the cascade walked (owner, team, tenant, global), so caching it would make a write
+to `team:7` stale in every user's entry that inherited from it, with no cheap way to find them
+(G-32). A bag depends on one scope only: the write invalidates exactly one entry and every
+inheriting user resolves the new value on the next read, in memory, from bags that are still
+valid. Resolution stays a pure function of the bags, so `explain()` and the cascade behave the
+same cached or not.
+
+Invalidation replaces a random generation token instead of deleting the entry, so a
+stale-while-revalidate refresh started before a write can only land under a generation no reader
+uses any more (R-23), and an evicted token cannot revive an old entry the way a restarted counter
+could (R-41). The key hashes connection, database, tenant, store, table and scope as a
+length-prefixed tuple, so neither a shared cache store nor a `:` inside a scope can make two
+tenants or databases meet (G-37, R-63). While a transaction is open on a layer's connection the
+layer bypasses the cache, so nothing uncommitted is ever cached.
+
+Measured with `composer bench` (phpbench 1.7, PHP 8.5.7, SQLite file database, 200 revolutions x
+5 iterations per subject; one revolution is one request reading ten settings through
+owner → team → global):
+
+| Subject | Mode time per request | vs. uncached |
+|---|---|---|
+| uncached (`cache.enabled` off) | 3.81 ms, 10 queries | — |
+| cold (every bag invalidated first) | 2.22 ms, 1 query | 1.7x faster |
+| warm, `array` store | 2.08 ms, 0 queries | 1.8x faster |
+| warm, `file` store | 2.48 ms, 0 queries | 1.5x faster |
+
+Measured 2026-11-10 on a developer Mac. About 2 ms of every request is rebuilding the scoped
+services, which all four pay alike. Without the cache each `get()` loads its scopes again (ten
+queries for ten reads); with it, one request costs one query cold and none warm, so the gain is
+the queries saved. On a local SQLite file a query is cheap, so against a database across a network
+each saved query is a round trip and the gain is larger. A shared cache store (Redis) costs two
+round trips per store on the first read of a request and none after it.
 
 ## Why headless?
 
