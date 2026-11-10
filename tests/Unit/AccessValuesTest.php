@@ -32,7 +32,7 @@ function subjectFor(string $key = 'site.name'): Subject
 it('names each ability\'s gate and token ability, and knows the read abilities', function (): void {
     expect(Ability::Update->gateName())->toBe('laranail-settings.update')
         ->and(Ability::OverrideLock->tokenAbility())->toBe('settings:override_lock')
-        ->and(Ability::cases())->toHaveCount(17)
+        ->and(Ability::cases())->toHaveCount(18)
         ->and(array_values(array_map(static fn (Ability $ability): string => $ability->value, array_filter(Ability::cases(), static fn (Ability $ability): bool => $ability->isRead()))))
         ->toBe(['view', 'view_sensitive', 'view_history', 'view_audit']);
 });
@@ -42,7 +42,7 @@ it('has an audit action for every ability plus configure', function (): void {
         expect(AuditAction::fromAbility($ability)->value)->toBe($ability->value);
     }
 
-    expect(AuditAction::cases())->toHaveCount(18)
+    expect(AuditAction::cases())->toHaveCount(19)
         ->and(AuditAction::Configure->value)->toBe('configure');
 });
 

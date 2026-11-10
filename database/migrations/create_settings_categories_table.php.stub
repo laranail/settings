@@ -5,11 +5,18 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
+use Simtabi\Laranail\Settings\Enums\IdType;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Enums\TranslationsMode;
+use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 
 /*
  * laranail/settings: categories (nested by parent_id), shared by every store on this connection.
  * `store` is the logical store name; `unique(id, store)` lets a store's values table point at a
  * category of its own store only, through a composite foreign key.
+ *
+ * The shape comes from the recorded schema file (or configuration): the key type (D-5), JSON
+ * titles (D-8) and soft deletes (D-9, `categories.soft_deletes`).
  *
  * Runs on the connection of the default store's database layer. `laranail::settings.make-store`
  * pins another connection by rewriting the $pinnedConnection line below.
@@ -24,35 +31,61 @@ return new class extends Migration
             return $this->pinnedConnection;
         }
 
-        $store = config('laranail.settings.default', 'settings');
+        $default = config('laranail.settings.default', 'settings');
 
-        foreach ((array) config("laranail.settings.stores.{$store}.layers", []) as $layer) {
-            if (is_string($layer) && config("laranail.settings.layers.{$layer}.driver") === 'database') {
-                $connection = config("laranail.settings.layers.{$layer}.connection");
-
-                return is_string($connection) ? $connection : null;
-            }
-        }
-
-        return null;
+        return $this->shape()->store(new StoreName(is_string($default) ? $default : 'settings'))->connection;
     }
 
     public function up(): void
     {
-        $name = $this->table();
+        $shape = $this->shape();
+        $name = $shape->names->categories();
 
-        Schema::create($name, static function (Blueprint $table) use ($name): void {
-            $table->bigIncrements('id');
+        Schema::connection($this->getConnection())->create($name, static function (Blueprint $table) use ($name, $shape): void {
+            match ($shape->ids) {
+                IdType::Bigint => $table->bigIncrements('id'),
+                IdType::Uuid   => $table->char('id', 36),
+                IdType::Ulid   => $table->char('id', 26),
+            };
+
+            // An explicit command, not the fluent ->primary(): Laravel appends fluent indexes after
+            // every other command, so PostgreSQL would see the parent_id foreign key below before
+            // the key it references and refuse it (SQLSTATE 42830).
+            if ($shape->ids !== IdType::Bigint) {
+                $table->primary('id');
+            }
+
             $table->string('store', 64);
-            $table->unsignedBigInteger('parent_id')->nullable();
-            $table->string('title');
+
+            match ($shape->ids) {
+                IdType::Bigint => $table->unsignedBigInteger('parent_id')->nullable(),
+                IdType::Uuid   => $table->char('parent_id', 36)->nullable(),
+                IdType::Ulid   => $table->char('parent_id', 26)->nullable(),
+            };
+
+            if ($shape->translations === TranslationsMode::Json) {
+                $table->json('title');
+            } else {
+                $table->string('title');
+            }
+
             $table->string('slug', 128);
-            $table->text('description')->nullable();
+
+            if ($shape->translations === TranslationsMode::Json) {
+                $table->json('description')->nullable();
+            } else {
+                $table->text('description')->nullable();
+            }
+
             $table->string('icon')->nullable();
             $table->unsignedInteger('sort_order')->default(0);
             $table->boolean('is_system')->default(false);
             $table->json('meta')->nullable();
             $table->timestamps();
+
+            if ($shape->categoriesSoftDeletes) {
+                $table->timestamp('deleted_at')->nullable();
+            }
 
             $table->unique(['store', 'slug'], $name . '_store_slug_unique');
             $table->unique(['id', 'store'], $name . '_id_store_unique');
@@ -63,13 +96,11 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists($this->table());
+        Schema::connection($this->getConnection())->dropIfExists($this->shape()->names->categories());
     }
 
-    private function table(): string
+    private function shape(): Simtabi\Laranail\Settings\Database\SchemaShape
     {
-        $table = config('laranail.settings.tables.categories', 'settings_categories');
-
-        return config('laranail.settings.tables.prefix', '') . (is_string($table) ? $table : 'settings_categories');
+        return app(SchemaShapeRepository::class)->current();
     }
 };

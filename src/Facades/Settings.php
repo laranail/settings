@@ -13,6 +13,8 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\SettingsManager;
 use Simtabi\Laranail\Settings\Testing\FakeLog;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
 use Simtabi\Laranail\Settings\Resolution\Resolver;
@@ -63,6 +65,7 @@ use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
  * @method static void preload(iterable<Settable|OwnerRef> $owners)
  * @method static CategoryManager categories()
  * @method static PromotionReport promote(?PromotionRequest $request = null)
+ * @method static AuditQuery audit()
  *
  * @see SettingsContract
  */
@@ -95,6 +98,7 @@ final class Settings extends Facade
             access: $access,
             runtime: $app->make(RuntimeConfiguration::class),
             storeActions: $app->make(StoreActions::class),
+            auditQuery: new QueryAudit($stores, $access),
         ), $log);
 
         self::swap($fake);

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Stores;
 
 use Closure;
+use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
@@ -75,6 +77,12 @@ final class StoreRegistry
     public function get(StoreName $name): Store
     {
         return $this->all()[$name->value] ?? throw new UnknownStore(sprintf('Store [%s] is not configured in laranail.settings.stores.', $name));
+    }
+
+    /** Where a store's global values live: the store itself, or a dedicated store's fallback. */
+    public function globalOf(Store $store): Store
+    {
+        return $store->fallback instanceof StoreName ? $this->get($store->fallback) : $store;
     }
 
     /** The one store whose owners include this alias. */
@@ -148,6 +156,7 @@ final class StoreRegistry
             }
 
             $bootstrap = ($config['bootstrap'] ?? false) === true;
+            $schema = StoreSchema::fromConfig($storeName, $config, null, IdType::Bigint, new StoreName($this->default));
 
             $built[$storeName->value] = new Store(
                 name: $storeName,
@@ -158,11 +167,19 @@ final class StoreRegistry
                 locksOverridable: $this->locksOverridable($config['locks'] ?? [], $path . '.locks'),
                 bootstrap: $bootstrap,
                 table: $table,
+                mode: $schema->mode,
+                fallback: $schema->fallback,
             );
         }
 
         if (! isset($built[$this->default])) {
             throw new InvalidConfiguration(sprintf('laranail.settings.default: store [%s] is not configured.', $this->default));
+        }
+
+        foreach ($built as $store) {
+            if ($store->fallback instanceof StoreName && ($built[$store->fallback->value] ?? null)?->isDedicated() !== false) {
+                throw new InvalidConfiguration(sprintf('laranail.settings.stores.%s.fallback: [%s] must be a configured polymorphic store.', $store->name, $store->fallback));
+            }
         }
 
         return $built;

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\File;
 
+// Writes into the testbench application shared by every process (config/, database/), so it
+// cannot run beside itself in parallel; the parallel mutation run leaves this group out.
+pest()->group('shared-app');
+
 beforeEach(function (): void {
     File::delete(config_path('laranail/settings.php'));
 });

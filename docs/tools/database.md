@@ -9,12 +9,16 @@ The `database` driver keeps a store's values in a table, through the query build
 | `settings` (each store's own, `stores.<name>.table`) | one row per (scope, key, locale) |
 | `settings_categories` | categories of every store on the connection |
 | `settings_audit` | the audit trail of every store on the connection |
+| `settings_definitions` | optional (`definitions.table`): definitions synced from code and edited at runtime |
 
 `tables.prefix` goes in front of all of them. Every connection a store uses has its own
 categories and audit tables, so a store's foreign keys and transactions never cross connections.
 
 The values table, in the default shape (polymorphic owners, identity mode `slug_uid`, bigint ids,
-string owner key):
+string owner key). Every other shape is a [schema switch](schema-switches.md): `uuid` / `ulid`
+keys, `slug_per_row` or `uid_only` identity, typed owner keys, dedicated stores with an `owner_id`
+foreign key, soft deletes, JSON labels, and the optional `settings_definitions` table. The
+package reads the shape recorded in `database/settings-schema.php`, not live configuration.
 
 | Column | Notes |
 |---|---|
@@ -48,9 +52,14 @@ Each store is then read once for the whole list, and reading each owner afterwar
 ## Writes and concurrency
 
 A write updates the row at the version it read. If no row is at that version, it inserts; a row
-at another version makes the insert hit the unique index, and the write fails with
-`ConcurrentModification`. Re-read and try again. The write, its events and its audit row share
-one transaction on the store's connection.
+at another version makes the insert hit the unique index, which is a concurrent change. A plain
+`set()` then re-reads the row under a row lock and retries once (`writes.retry_on_conflict`,
+on by default; the retry is logged); a second conflict, or any conflict on a write that names the
+version it expects (`SettingWrite::$expectedVersion`), raises `ConcurrentModification`. The write,
+its events and its audit row share one transaction on the store's connection.
+
+With soft deletes a write to a trashed key restores the row through the same version check; see
+[Schema switches](schema-switches.md#soft-deletes).
 
 ## Failures
 

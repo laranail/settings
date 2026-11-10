@@ -9,7 +9,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
  * The package's table names: `tables.prefix` (D-4) prepended to `tables.categories`,
- * `tables.audit` and each store's values table (`stores.<name>.table`, default the store name).
+ * `tables.audit`, `tables.definitions` and each store's values table (`stores.<name>.table`, default the store name).
  * Every name is validated, because it is interpolated into SQL identifiers.
  */
 final readonly class SchemaNames
@@ -18,6 +18,7 @@ final readonly class SchemaNames
         public string $prefix = '',
         private string $categories = 'settings_categories',
         private string $audit = 'settings_audit',
+        private string $definitions = 'settings_definitions',
     ) {
         if (preg_match('/^[a-z0-9_]{0,32}$/', $prefix) !== 1) {
             throw new InvalidConfiguration(sprintf('laranail.settings.tables.prefix: [%s] must be [a-z0-9_], at most 32 characters.', $prefix));
@@ -25,6 +26,7 @@ final readonly class SchemaNames
 
         self::assertTable($categories, 'laranail.settings.tables.categories');
         self::assertTable($audit, 'laranail.settings.tables.audit');
+        self::assertTable($definitions, 'laranail.settings.tables.definitions');
     }
 
     /** @param array<array-key, mixed> $tables `laranail.settings.tables` */
@@ -34,6 +36,7 @@ final readonly class SchemaNames
             self::string($tables, 'prefix', ''),
             self::string($tables, 'categories', 'settings_categories'),
             self::string($tables, 'audit', 'settings_audit'),
+            self::string($tables, 'definitions', 'settings_definitions'),
         );
     }
 
@@ -52,6 +55,18 @@ final readonly class SchemaNames
     public function audit(): string
     {
         return $this->prefix . $this->audit;
+    }
+
+    /** The optional definitions table (D-6). */
+    public function definitions(): string
+    {
+        return $this->prefix . $this->definitions;
+    }
+
+    /** @return array{prefix: string, categories: string, audit: string, definitions: string} the unprefixed names */
+    public function toArray(): array
+    {
+        return ['prefix' => $this->prefix, 'categories' => $this->categories, 'audit' => $this->audit, 'definitions' => $this->definitions];
     }
 
     /** A store's values table: its configured table, or its name, after the prefix. */

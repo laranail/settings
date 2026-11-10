@@ -66,6 +66,9 @@ enum AuditAction: string implements Enumerator
     #[Label('Manage stores')]
     case ManageStores = 'manage_stores';
 
+    #[Label('Prune orphans and old audit entries')]
+    case Prune = 'prune';
+
     #[Label('Configure')]
     case Configure = 'configure';
 

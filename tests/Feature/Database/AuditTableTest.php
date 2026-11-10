@@ -105,5 +105,7 @@ it('prunes audit rows older than the retention period', function (): void {
     $this->artisan('laranail::settings.prune-audit', ['--days' => '0'])->assertFailed();
     $this->artisan('laranail::settings.prune-audit', ['--days' => 'soon'])->assertFailed();
 
-    expect(DB::table('settings_audit')->count())->toBe(1);
+    // The kept row, plus the prune's own entry: the trail records who shortened it.
+    expect(DB::table('settings_audit')->count())->toBe(2)
+        ->and(DB::table('settings_audit')->where('action', 'prune')->value('actor_type'))->toBe('system');
 });

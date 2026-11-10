@@ -8,6 +8,7 @@ use Closure;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Enums\StoreMode;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
@@ -17,7 +18,8 @@ use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
  * `locksOverridable` (`locks.overridable`) lets an actor holding `override_lock` write a locked
  * setting; it is off by default, so a lock binds everyone. `bootstrap` lets the database layer be
  * skipped while the application is being installed (§7.4); `table` is the configured values
- * table (`stores.<name>.table`), null for the store name.
+ * table (`stores.<name>.table`), null for the store name. A `dedicated` store (D-3) holds owner
+ * rows only; its global values are read from `fallback`.
  */
 final readonly class Store
 {
@@ -34,7 +36,14 @@ final readonly class Store
         public bool $locksOverridable = false,
         public bool $bootstrap = false,
         public ?string $table = null,
+        public StoreMode $mode = StoreMode::Polymorphic,
+        public ?StoreName $fallback = null,
     ) {}
+
+    public function isDedicated(): bool
+    {
+        return $this->mode === StoreMode::Dedicated;
+    }
 
     /** Whether any layer of this store is a database layer, whether or not it is active. */
     public function hasDatabaseLayer(): bool

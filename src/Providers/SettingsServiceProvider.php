@@ -14,6 +14,8 @@ use Illuminate\Log\LogManager;
 use Illuminate\Filesystem\Filesystem;
 use Simtabi\Laranail\Settings\Data\Key;
 use Illuminate\Contracts\Session\Session;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Contracts\Config\Repository;
@@ -32,6 +34,8 @@ use Simtabi\Laranail\Settings\Actions\MakeStore;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Illuminate\Contracts\Cache\Factory as Caches;
 use Simtabi\Laranail\Settings\Actions\FlushScope;
+use Simtabi\Laranail\Settings\Actions\PruneAudit;
+use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Audit\LogAuditSink;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
@@ -46,6 +50,7 @@ use Simtabi\Laranail\Settings\Actions\PruneOrphans;
 use Simtabi\Laranail\Settings\Actions\StoreActions;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
@@ -61,6 +66,7 @@ use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Casting\CasterRegistry;
 use Simtabi\Laranail\Settings\Console\PromoteCommand;
 use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
+use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
 use Simtabi\Laranail\Settings\Audit\DatabaseAuditSink;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Console\MakeStoreCommand;
@@ -78,11 +84,15 @@ use Simtabi\Laranail\Settings\Contracts\BootstrapEvidence;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 use Simtabi\Laranail\Package\Tools\Commands\InstallCommand;
 use Simtabi\Laranail\Settings\Authorization\GateAuthorizer;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
 use Simtabi\Laranail\Settings\Database\SchemaReadinessProbe;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Settings\Support\LaravelValueValidator;
+use Simtabi\Laranail\Settings\Console\SyncDefinitionsCommand;
+use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
 use Simtabi\Laranail\Settings\Actions\Categories\CategoryActions;
@@ -115,15 +125,19 @@ final class SettingsServiceProvider extends PackageServiceProvider
             ->name('laranail/settings')
             ->setPublishTagId('settings')
             ->hasConfigFile('settings')
-            ->hasMigrations(['create_settings_categories_table', 'create_settings_table', 'create_settings_audit_table'])
-            ->hasCommands([PromoteCommand::class, PruneOrphansCommand::class, PruneAuditCommand::class, MakeStoreCommand::class, DoctorCommand::class])
+            ->hasMigrations(['create_settings_categories_table', 'create_settings_table', 'create_settings_audit_table', 'create_settings_definitions_table'])
+            ->hasCommands([PromoteCommand::class, PruneOrphansCommand::class, PruneAuditCommand::class, MakeStoreCommand::class, DoctorCommand::class, SyncDefinitionsCommand::class])
             ->hasInstallCommand(static function (InstallCommand $command): void {
                 $command
                     ->startWith(static function (InstallCommand $command): void {
                         self::refuseForeignTables($command);
+                        self::recordSchema($command);
                     })
                     ->publishConfigFile()
-                    ->publishMigrations();
+                    ->publishMigrations()
+                    ->endWith(static function (InstallCommand $command): void {
+                        self::syncDefinitions($command);
+                    });
             });
     }
 
@@ -141,6 +155,11 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $events->listen(MigrationsEnded::class, $flush);
         $events->listen(JobProcessing::class, $flush);
         $events->listen('Laravel\\Octane\\Events\\RequestReceived', $flush);
+
+        // Tenant switches (db-tools has no hook of its own): the tenancy packages' events, by name.
+        foreach (self::strings($app, 'laranail.settings.readiness.flush_on') as $event) {
+            $events->listen($event, $flush);
+        }
     }
 
     #[Override]
@@ -159,7 +178,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $this->app->singleton(DefinitionRegistry::class, static fn (Application $app): DefinitionRegistry => new DefinitionRegistry(
             new StoreName(self::string($app, 'laranail.settings.default', 'settings')),
             $app->make(CasterRegistry::class),
-            self::array($app, 'laranail.settings.definitions'),
+            in_array('config', self::definitionSources($app), true) ? self::array($app, 'laranail.settings.definitions') : [],
         ));
 
         $this->app->singleton(ReadinessProbe::class, static fn (Application $app): ReadinessProbe => new SchemaReadinessProbe(
@@ -175,7 +194,22 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(ConnectionResolverInterface::class),
             SchemaNames::fromConfig(self::array($app, 'laranail.settings.tables')),
             static fn (): ReadinessProbe => $app->make(ReadinessProbe::class),
+            static fn (): SchemaShape => $app->make(SchemaShapeRepository::class)->current(),
         ));
+
+        // The recorded schema shape (§4.0). Scoped: read once per request or job, never at boot.
+        $this->app->scoped(SchemaShapeRepository::class, static function (Application $app): SchemaShapeRepository {
+            $path = $app->make(Repository::class)->get('laranail.settings.schema.path');
+
+            return new SchemaShapeRepository(
+                $app->make(Filesystem::class),
+                is_string($path) && $path !== '' ? $path : $app->databasePath('settings-schema.php'),
+                static fn (): SchemaShape => SchemaShape::fromConfig(
+                    self::array($app, 'laranail.settings'),
+                    $app->make(Repository::class)->get('laranail.db-tools.id_type'),
+                ),
+            );
+        });
 
         // Evidence that the application is being installed: the operator's flag, or
         // laranail/installer-headless (suggested, so class_exists-guarded) reporting an install
@@ -231,6 +265,14 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(ValuePipeline::class),
             $app->make(Dispatcher::class),
             self::clock(),
+            $app->make(Repository::class)->get('laranail.settings.writes.retry_on_conflict', true) !== false,
+            static function (Store $store, Key $key, Scope $scope) use ($app): void {
+                $app->make(OperationalLogger::class)->info(sprintf('laranail/settings retried a write of [%s] in store [%s] for scope [%s] after a concurrent change.', $key, $store->name, $scope), [
+                    'store' => $store->name->value,
+                    'key'   => $key->value,
+                    'scope' => $scope->value,
+                ]);
+            },
         ));
 
         $this->registerAccess();
@@ -253,22 +295,49 @@ final class SettingsServiceProvider extends PackageServiceProvider
                     $events,
                     $app->make(Caches::class),
                     static fn (Store $store, Key $key): ?Definition => $app->make(RuntimeConfiguration::class)->findDefinition($store->name, $key)
-                        ?? $app->make(DefinitionRegistry::class)->find($store->name, $key),
+                        ?? $app->make(DefinitionRegistry::class)->find($store->name, $key)
+                        ?? $app->make(DatabaseDefinitions::class)->find($store, $key),
                 ),
                 $flush,
             );
         });
 
+        $this->app->scoped(DatabaseDefinitions::class, static fn (Application $app): DatabaseDefinitions => new DatabaseDefinitions(
+            $app->make(CasterRegistry::class),
+            $app->make(ValueEncoder::class),
+            self::strings($app, 'laranail.settings.definitions.allowed_rules'),
+            in_array('database', self::definitionSources($app), true),
+        ));
+
+        $this->app->scoped(SyncDefinitions::class, static fn (Application $app): SyncDefinitions => new SyncDefinitions(
+            $app->make(StoreRegistry::class),
+            $app->make(DefinitionRegistry::class),
+            $app->make(ValueEncoder::class),
+            $app->make(AccessGuard::class),
+        ));
+
+        $this->app->scoped(QueryAudit::class, static fn (Application $app): QueryAudit => new QueryAudit(
+            $app->make(StoreRegistry::class),
+            $app->make(AccessGuard::class),
+        ));
+
         $this->app->scoped(PruneOrphans::class, static fn (Application $app): PruneOrphans => new PruneOrphans(
             $app->make(StoreRegistry::class),
             $app->make(StoreActions::class)->flush,
             static fn (string $alias): ?string => Relation::getMorphedModel($alias),
+            $app->make(AccessGuard::class),
+        ));
+
+        $this->app->scoped(PruneAudit::class, static fn (Application $app): PruneAudit => new PruneAudit(
+            $app->make(StoreRegistry::class),
+            $app->make(AccessGuard::class),
         ));
 
         $this->app->bind(MakeStore::class, static fn (Application $app): MakeStore => new MakeStore(
             $app->make(Filesystem::class),
             dirname(__DIR__, 2) . '/database/migrations',
             $app->databasePath('migrations'),
+            $app->make(SchemaShapeRepository::class),
         ));
 
         $this->app->scoped(Settings::class, static fn (Application $app): Settings => new SettingsManager(
@@ -280,6 +349,8 @@ final class SettingsServiceProvider extends PackageServiceProvider
             access: $app->make(AccessGuard::class),
             runtime: $app->make(RuntimeConfiguration::class),
             storeActions: $app->make(StoreActions::class),
+            auditQuery: $app->make(QueryAudit::class),
+            databaseDefinitions: $app->make(DatabaseDefinitions::class),
         ));
     }
 
@@ -296,6 +367,53 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 'These tables already exist and are not laranail/settings tables: %s. Set laranail.settings.tables.prefix (or stores.<name>.table, tables.categories, tables.audit) and install again.',
                 implode(', ', $foreign),
             ));
+        }
+    }
+
+    /**
+     * `definitions.sources` (D-6): which of `code`, `config` and `database` are read. Code
+     * definitions are registered by packages and the application in code and are always read.
+     *
+     * @return list<string>
+     */
+    private static function definitionSources(Application $app): array
+    {
+        $sources = $app->make(Repository::class)->get('laranail.settings.definitions.sources', ['code', 'config', 'database']);
+
+        $names = is_array($sources) ? array_values(array_filter($sources, is_string(...))) : null;
+
+        if ($names === null || count($names) !== count($sources) || array_diff($names, ['code', 'config', 'database']) !== []) {
+            throw new InvalidConfiguration('laranail.settings.definitions.sources: a list of code, config and database.');
+        }
+
+        return $names;
+    }
+
+    /**
+     * Record the schema the published migrations will produce (§4.0), so the runtime reads that
+     * record rather than live configuration. An existing record is kept and only new stores are
+     * added to it.
+     */
+    private static function recordSchema(InstallCommand $command): void
+    {
+        $shapes = $command->getLaravel()->make(SchemaShapeRepository::class);
+        $shapes->record();
+        $command->info('Recorded the settings schema in ' . $shapes->path());
+    }
+
+    /** Copy code and config definitions into the definitions table, when it exists already. */
+    private static function syncDefinitions(InstallCommand $command): void
+    {
+        try {
+            $report = $command->getLaravel()->make(SyncDefinitions::class)->handle(Actor::system('laranail::settings.install'));
+        } catch (SettingsException) {
+            $command->comment('Definitions were not synced (run the migrations, then laranail::settings.sync-definitions).');
+
+            return;
+        }
+
+        if ($report['synced'] > 0) {
+            $command->info(sprintf('Synced %d definition(s) into the definitions table.', $report['synced']));
         }
     }
 

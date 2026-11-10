@@ -18,7 +18,9 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
+use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
@@ -37,6 +39,7 @@ use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
 
 /**
@@ -71,6 +74,8 @@ final readonly class SettingsManager implements Settings
         private ?Actor $actingAs = null,
         private ?string $reason = null,
         private ?StoreActions $storeActions = null,
+        private ?QueryAudit $auditQuery = null,
+        private ?DatabaseDefinitions $databaseDefinitions = null,
     ) {
         $this->access = $access ?? AccessGuard::closed();
         $this->actions = $actions ?? SettingActions::using($writer, $this->access);
@@ -293,6 +298,16 @@ final readonly class SettingsManager implements Settings
         return $this->storeActions()->promote->handle($this->targetStore(), $request ?? new PromotionRequest, $this->actingAs);
     }
 
+    public function audit(): AuditQuery
+    {
+        $query = new AuditQuery(
+            $this->auditQuery ?? throw new LogicException('This settings handle was built without the audit query; resolve Settings from the container.'),
+            $this->actingAs,
+        );
+
+        return $this->storeName instanceof StoreName ? $query->store($this->storeName->value) : $query;
+    }
+
     private function storeActions(): StoreActions
     {
         return $this->storeActions ?? throw new LogicException('This settings handle was built without store actions; resolve Settings from the container.');
@@ -365,10 +380,15 @@ final readonly class SettingsManager implements Settings
         return $this->selectedLocale ?? Locale::none();
     }
 
-    /** A definition registered at runtime for this request wins over the shared registry. */
+    /**
+     * A definition registered at runtime for this request wins over the shared registry (code and
+     * config); the definitions table answers only for keys neither covers (D-6).
+     */
     private function definition(Store $store, Key $key): ?Definition
     {
-        return $this->runtime?->findDefinition($store->name, $key) ?? $this->definitions->find($store->name, $key);
+        return $this->runtime?->findDefinition($store->name, $key)
+            ?? $this->definitions->find($store->name, $key)
+            ?? $this->databaseDefinitions?->find($store, $key);
     }
 
     private function required(string $key): mixed
@@ -407,6 +427,8 @@ final readonly class SettingsManager implements Settings
             $actor ?? $this->actingAs,
             $reason ?? $this->reason,
             $this->storeActions,
+            $this->auditQuery,
+            $this->databaseDefinitions,
         );
     }
 }

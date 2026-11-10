@@ -10,7 +10,12 @@ use Illuminate\Database\Schema\Blueprint;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Actions\MakeStore;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+
+// Writes into the testbench application shared by every process (config/, database/), so it
+// cannot run beside itself in parallel; the parallel mutation run leaves this group out.
+pest()->group('shared-app');
 
 /** @return list<string> */
 function settingsMigrations(): array
@@ -28,7 +33,7 @@ afterEach(function (): void {
     File::delete(config_path('laranail/settings.php'));
 });
 
-it('publishes the config and the three migrations on install', function (): void {
+it('publishes the config and the four migrations on install, and records the schema', function (): void {
     config()->set('laranail.settings.stores.settings.layers', ['database', 'runtime', 'shipped']);
 
     $this->artisan('laranail::settings.install')->assertSuccessful();
@@ -36,7 +41,8 @@ it('publishes the config and the three migrations on install', function (): void
     $names = array_map(static fn (string $path): string => preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path)) ?? '', settingsMigrations());
     sort($names);
 
-    expect($names)->toBe(['create_settings_audit_table.php', 'create_settings_categories_table.php', 'create_settings_table.php']);
+    expect($names)->toBe(['create_settings_audit_table.php', 'create_settings_categories_table.php', 'create_settings_definitions_table.php', 'create_settings_table.php'])
+        ->and(app(SchemaShapeRepository::class)->recorded()?->hasStore(new StoreName('settings')))->toBeTrue();
 });
 
 it('refuses to install over a table of the same name that is not its own (D-4)', function (): void {

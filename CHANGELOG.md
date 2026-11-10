@@ -9,6 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Schema switches (design phase 2b, §4.0): `identity.mode` (`slug_uid`, `slug_per_row`,
+  `uid_only`), `ids.type` (`bigint`, `uuid`, `ulid`; follows `laranail.db-tools.id_type` unless
+  set) with matching category keys, `ids.owner_key` (`string`, `typed`), `stores.<name>.mode`
+  (`polymorphic`, `dedicated` with an `owner_id` foreign key, `owner.*` and a polymorphic
+  `fallback` store for global values), `stores.<name>.soft_deletes` (forget trashes; the next
+  write restores through the version check, never as a conflict) and `categories.soft_deletes`,
+  `translations.mode` (`lang`, `json`; `NewCategory` `translations`, `Category::$titles` and
+  `titleIn()`), and `tables.definitions`. New enums `IdentityMode`, `IdType`, `OwnerKeyType`,
+  `StoreMode`, `TranslationsMode`.
+- The schema-shape file (`database/settings-schema.php`, `schema.path`): `install` records the
+  shape its migrations produce and `make-store` adds its store; the migrations and the runtime
+  read the record, not live configuration (`SchemaShape`, `StoreSchema`,
+  `SchemaShapeRepository`).
+- `doctor` drift detection: configuration against the schema file, the file's shape version
+  against this release, unrecorded database stores, and the live tables against the recorded
+  shape (missing or unexpected columns, wrong `id` type). `doctor --fix` syncs definitions.
+- The optional `settings_definitions` table (D-6, `definitions.table`) with its migration,
+  `laranail::settings.sync-definitions` (code and config definitions as `is_system` rows; stale
+  ones removed; runtime rows never touched; gated by `manage_definitions`, audited), and the
+  `database` definition source for keys no code covers, with rules filtered through
+  `definitions.allowed_rules`. `definitions.sources` selects `code`, `config` and `database`.
+- `$settings->audit()`: an immutable audit query (`for()`, `global()`, `store()`, `key()`,
+  `action()`, `outcome()`, `since()`, `until()`, then `get()`, `cursor()` or `paginate()` returning
+  an `AuditPage`), gated by `view_audit`; `Actions\QueryAudit`, `Data\AuditFilter`.
+- A plain `set()` retries once after a concurrent change, re-reading the row under a row lock
+  (`writes.retry_on_conflict`, default on; logged). `SettingWrite::$expectedVersion` makes a
+  write conditional on a version and is never retried (`SettingWriter::setExpecting()`).
+- The `prune` ability (and audit action): `Actions\PruneOrphans` and `Actions\PruneAudit` need it
+  when called with an actor, and both prunes are audited.
+- `readiness.flush_on`: schema readiness is forgotten on tenancy events (stancl/tenancy and
+  spatie/laravel-multitenancy by default), since db-tools has no tenant hook of its own.
+- The §13 switch matrix: a pairwise set of 10 shapes covering all 141 value pairs (both
+  asserted) on SQLite, MySQL and PostgreSQL, and the full 576-shape product weekly
+  (`LARANAIL_SETTINGS_MATRIX=full`, CI job `matrix-full`).
+
+### Changed
+
+- The migration stubs read the recorded schema shape (or configuration, when nothing is
+  recorded) instead of individual config keys, and run on the store's recorded connection.
+- `laranail::settings.install` publishes a fourth migration (`create_settings_definitions_table`,
+  a no-op while the table is off), records the schema file and syncs definitions.
+- `laranail::settings.prune-audit` now writes an audit entry for the prune itself.
+- The `Settings` contract gains `audit()`. A third-party implementation of the contract must add
+  it (pre-1.0; `SettingsManager` and the fake implement it).
+
 - The database layer (design phase 2, default schema): the `database` driver
   (`DriverType::Database`) over the query builder, with version-checked writes that raise
   `ConcurrentModification`, inserts in a savepoint, and database errors surfaced as

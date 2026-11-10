@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
+use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Config\Repository;
 use Simtabi\Laranail\Settings\Actions\PruneAudit;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
@@ -32,7 +33,7 @@ final class PruneAuditCommand extends Command
         }
 
         try {
-            $removed = $prune->handle((int) $days);
+            $removed = $prune->handle((int) $days, Actor::system('laranail::settings.prune-audit'));
         } catch (SettingsException $exception) {
             $this->error($exception->getMessage());
 

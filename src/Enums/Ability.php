@@ -68,6 +68,9 @@ enum Ability: string implements Enumerator
     #[Label('Manage stores')]
     case ManageStores = 'manage_stores';
 
+    #[Label('Prune orphans and old audit entries')]
+    case Prune = 'prune';
+
     /** The gate the gate authorizer asks for this ability. */
     public function gateName(): string
     {

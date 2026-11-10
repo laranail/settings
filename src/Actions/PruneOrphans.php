@@ -7,10 +7,15 @@ namespace Simtabi\Laranail\Settings\Actions;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 
 /**
  * Find, and remove, the settings of owners that no longer exist (G-7): rows left by bulk
@@ -18,15 +23,23 @@ use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
  * in the database layer and asks the aliased model which ids still exist, soft-deleted ones
  * included (a soft-deleted owner keeps its settings for a restore). An alias with no model in
  * the morph map is reported, never guessed at.
+ *
+ * Removing needs `prune` when an actor is present (and, per owner, the `forget` that flushing
+ * needs); the run is audited as one `prune` entry besides the per-owner `forget` entries.
  */
 final readonly class PruneOrphans
 {
+    private AccessGuard $access;
+
     /** @param Closure(string): ?string $models the model class of a morph alias (the morph map) */
     public function __construct(
         private StoreRegistry $stores,
         private FlushScope $flush,
         private Closure $models,
-    ) {}
+        ?AccessGuard $access = null,
+    ) {
+        $this->access = $access ?? AccessGuard::closed();
+    }
 
     /**
      * The orphaned owners per store, and the aliases no model answers for.
@@ -70,15 +83,21 @@ final readonly class PruneOrphans
      */
     public function handle(?Actor $actor = null): int
     {
+        $subject = new Subject($this->stores->default()->name);
+        $this->access->authorize($actor, Ability::Prune, $subject);
         $removed = 0;
+        $flushed = 0;
 
         foreach ($this->find()['orphans'] as $name => $owners) {
             $store = $this->stores->all()[$name];
 
             foreach ($owners as $owner) {
                 $removed += $this->flush->handle($store, $owner, $actor);
+                $flushed++;
             }
         }
+
+        $this->access->auditor()->record(AuditAction::Prune, AuditOutcome::Allowed, $subject, $actor, meta: ['target' => 'orphans', 'owners' => $flushed, 'removed' => $removed]);
 
         return $removed;
     }

@@ -1,15 +1,16 @@
 # Commands
 
-Seven Artisan commands, all named `laranail::settings.<command>`.
+Eight Artisan commands, all named `laranail::settings.<command>`.
 
 ## The commands
 
 | Command | Does |
 |---|---|
-| `laranail::settings.install` | publishes the config and the migrations; refuses to run over a foreign table of the same name |
-| `laranail::settings.make-store {store} [--owner=*] [--connection=]` | writes a new store's migration and prints its configuration entry |
+| `laranail::settings.install` | publishes the config and the migrations, records the schema file, syncs definitions once the table exists; refuses to run over a foreign table of the same name |
+| `laranail::settings.make-store {store} [--owner=*] [--connection=]` | writes a new store's migration, records it in the schema file and prints its configuration entry |
 | `laranail::settings.promote [store] [--force] [--from=]` | copies values written before install from the runtime file into the database |
-| `laranail::settings.doctor [--json]` | checks readiness, schema drift and rows the database cannot guard |
+| `laranail::settings.doctor [--json] [--fix]` | checks readiness, schema drift against the schema file and rows the database cannot guard; `--fix` syncs definitions first |
+| `laranail::settings.sync-definitions` | copies code and config definitions into the definitions table as system rows |
 | `laranail::settings.prune-orphans [--dry-run]` | removes the settings of owners that no longer exist |
 | `laranail::settings.prune-audit [--days=]` | removes audit rows older than `audit.keep_days` |
 
@@ -33,8 +34,9 @@ For every store with a database layer:
 
 | Check | Fails when |
 |---|---|
+| schema file | the file is older than this release's shape version, or a database store has no entry (warns when there is no file, or when configuration differs from it) |
 | readiness | the connection does not answer or the table is missing (a warning in bootstrap mode) |
-| schema | a column this release uses is missing: publish and run the latest migrations |
+| schema | a column the recorded shape uses is missing, or `id` has the wrong type (warns on a column the shape does not have) |
 | scopes | a scope names a class instead of a morph alias (fails) or an alias the store does not list (warns) |
 | categories | a row points at a category of another store |
 
@@ -46,6 +48,12 @@ report.
 Lists, per store and alias, the owner scopes whose model no longer exists (soft-deleted models
 count as existing) and removes their rows. An alias with no model in the morph map is reported and
 left alone. Schedule it if you delete owners in bulk.
+
+## Pruning and access
+
+Both prune commands run as the system actor and are audited (a `prune` entry recording what was
+removed). Their actions, `Actions\PruneOrphans` and `Actions\PruneAudit`, need the `prune`
+ability when called with an actor; pruning orphans also needs `forget` for each owner it flushes.
 
 ---
 

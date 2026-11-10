@@ -11,7 +11,8 @@ use Simtabi\Laranail\Settings\Stores\SettingWriter;
 
 /**
  * Store a value: needs `update` (and `override_lock` over a locked row the store lets be
- * overridden). Shared by the PHP API and, later, the console and REST channels.
+ * overridden). Shared by the PHP API and, later, the console and REST channels. A write naming
+ * the version it expects is checked against it and never retried.
  */
 final readonly class SetSetting
 {
@@ -25,9 +26,11 @@ final readonly class SetSetting
         $target = $write->target;
 
         $this->guard->run(Ability::Update, $target, $actor, respectsLocks: true, write: function (bool $override) use ($target, $write): array {
-            $after = $override
-                ? $this->writer->setOverridingLock($target->store, $target->key, $target->locale, $target->owner, $target->definition, $write->value)
-                : $this->writer->set($target->store, $target->key, $target->locale, $target->owner, $target->definition, $write->value);
+            $after = match (true) {
+                $write->expectedVersion !== null => $this->writer->setExpecting($target->store, $target->key, $target->locale, $target->owner, $target->definition, $write->value, $write->expectedVersion, $override),
+                $override                        => $this->writer->setOverridingLock($target->store, $target->key, $target->locale, $target->owner, $target->definition, $write->value),
+                default                          => $this->writer->set($target->store, $target->key, $target->locale, $target->owner, $target->definition, $write->value),
+            };
 
             return [$after->version > 1 ? $after->version - 1 : null, $after->version];
         });

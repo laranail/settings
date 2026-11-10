@@ -8,7 +8,7 @@ uses(AssertsNoLiteralCredentials::class);
 
 // The floor is the number of PHP files under tests/ today. Raise it as the suite grows; a
 // scan that suddenly inspects fewer files has broken rather than found a clean tree.
-const SETTINGS_TEST_FILE_FLOOR = 34;
+const SETTINGS_TEST_FILE_FLOOR = 45;
 
 it('keeps literal credentials out of the tests', function (): void {
     $this->assertNoLiteralCredentialsIn([dirname(__DIR__)], minFiles: SETTINGS_TEST_FILE_FLOOR);

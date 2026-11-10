@@ -71,7 +71,7 @@
         "test": "vendor/bin/pest --colors=always",
         "test-coverage": "@test --coverage --min=90",
         "test-dirty": "@test --dirty --compact",
-        "mutate": "vendor/bin/pest --mutate --everything --min=70",
+        "mutate": "vendor/bin/pest --mutate --everything --exclude-group=matrix --min=70",
         "lint": [
             "@pint",
             "@phpstan",
