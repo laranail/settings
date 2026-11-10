@@ -14,7 +14,7 @@ use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 /**
  * Converts records to and from the plain arrays file layers store.
  */
-final class RecordSerializer
+final readonly class RecordSerializer
 {
     /** @return array<string, mixed> */
     public function toArray(Record $record): array
