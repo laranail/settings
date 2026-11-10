@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Audit;
 
 use Closure;
-use JsonException;
+use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
@@ -77,10 +77,6 @@ final readonly class DatabaseAuditSink implements AuditSink
             return null;
         }
 
-        try {
-            return json_encode($entry->meta, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        } catch (JsonException $exception) {
-            throw new DriverFailure('An audit entry\'s meta could not be encoded.', 0, $exception);
-        }
+        return Json::encode($entry->meta, 'An audit entry\'s meta');
     }
 }

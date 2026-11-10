@@ -4,20 +4,19 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use JsonException;
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Enums\TranslationsMode;
-use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 
@@ -87,7 +86,7 @@ final readonly class SyncDefinitions
     {
         $table = static fn () => $database->connection()->table($database->names()->definitions())->where('store', $store->name->value);
         $now = CarbonImmutable::now();
-        $json = $database->shape()->translations === TranslationsMode::Json;
+        $translations = new Translations($database->shape()->translations);
         $synced = 0;
         $conflicts = [];
         $keys = [];
@@ -102,7 +101,7 @@ final readonly class SyncDefinitions
                 continue;
             }
 
-            $columns = $this->columns($database, $store, $definition, $json) + ['updated_at' => $now];
+            $columns = $this->columns($database, $store, $definition, $translations) + ['updated_at' => $now];
 
             if ($row === null) {
                 $table()->insert($columns + DatabaseDriver::newId($database->shape()->ids) + [
@@ -124,7 +123,7 @@ final readonly class SyncDefinitions
     }
 
     /** @return array<string, mixed> */
-    private function columns(DatabaseDriver $database, Store $store, Definition $definition, bool $json): array
+    private function columns(DatabaseDriver $database, Store $store, Definition $definition, Translations $translations): array
     {
         $category = null;
 
@@ -146,29 +145,14 @@ final readonly class SyncDefinitions
             'type'        => $definition->type,
             // An encrypted setting's default stays in code: the table must not hold a readable copy.
             'default'        => $definition->hasDefault && ! $definition->encrypted ? $this->encoder->encode($definition->key, $definition->default) : null,
-            'label'          => $this->text($definition->label, $json),
-            'description'    => $this->text($definition->description, $json),
-            'rules'          => $this->encode($definition->rules),
+            'label'          => $translations->storeNullable($definition->label),
+            'description'    => $translations->storeNullable($definition->description),
+            'rules'          => Json::encode($definition->rules, 'A definition'),
             'is_encrypted'   => $definition->encrypted,
             'is_public'      => $definition->public,
             'is_locked'      => $definition->locked,
             'inherits'       => $definition->inherits,
-            'overridable_by' => $this->encode($definition->overridableBy),
+            'overridable_by' => Json::encode($definition->overridableBy, 'A definition'),
         ];
-    }
-
-    private function text(?string $text, bool $json): ?string
-    {
-        return $text === null || ! $json ? $text : $this->encode(['' => $text]);
-    }
-
-    /** @param array<array-key, mixed> $value */
-    private function encode(array $value): string
-    {
-        try {
-            return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        } catch (JsonException $exception) {
-            throw new DriverFailure('A definition could not be encoded for the definitions table.', 0, $exception);
-        }
     }
 }

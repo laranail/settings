@@ -7,7 +7,7 @@ namespace Simtabi\Laranail\Settings\Database\Factories;
 use Illuminate\Support\Str;
 use Simtabi\Laranail\Settings\Models\ModelContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Simtabi\Laranail\Settings\Enums\TranslationsMode;
+use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
 
 /**
@@ -27,11 +27,7 @@ final class SettingCategoryFactory extends Factory
     /** Text as `translations.mode` stores it: as is, or `{"": text}` (the text for any locale), as the engine writes it. */
     public static function text(string $text): string
     {
-        if (ModelContext::shape()->translations !== TranslationsMode::Json) {
-            return $text;
-        }
-
-        return json_encode(['' => $text], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return new Translations(ModelContext::shape()->translations)->store($text);
     }
 
     /** @return array<string, mixed> */

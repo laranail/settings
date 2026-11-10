@@ -6,7 +6,9 @@ namespace Simtabi\Laranail\Settings\Definitions;
 
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Casting\CasterRegistry;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
@@ -40,22 +42,14 @@ final class DatabaseDefinitions
         private readonly bool $enabled = true,
     ) {}
 
-    /** A label as text: itself, or (json mode) the entry for any locale, else the first one. */
+    /**
+     * A label as text: itself, or (json mode) the entry for any locale, else the first one.
+     *
+     * @deprecated 0.1 Use {@see Translations::nullableText()}; this forwards to it and is removed in 1.0.
+     */
     public static function localised(?string $stored, bool $json): ?string
     {
-        if ($stored === null || ! $json) {
-            return $stored;
-        }
-
-        $decoded = json_decode($stored, true);
-
-        if (! is_array($decoded)) {
-            return $stored;
-        }
-
-        $text = $decoded[''] ?? reset($decoded);
-
-        return is_string($text) ? $text : null;
+        return new Translations($json ? TranslationsMode::Json : TranslationsMode::Lang)->nullableText($stored);
     }
 
     public function find(Store $store, Key $key): ?Definition
@@ -85,11 +79,11 @@ final class DatabaseDefinitions
             ->get(['d.*', 'c.slug as category_slug'])
             ->map(static fn (object $row): array => (array) $row)
             ->all());
-        $json = $database->shape()->translations === TranslationsMode::Json;
+        $translations = new Translations($database->shape()->translations);
         $definitions = [];
 
         foreach ($rows as $row) {
-            $definition = $this->definition($store, $row, $json);
+            $definition = $this->definition($store, $row, $translations);
             $definitions[$definition->key->value] = $definition;
         }
 
@@ -97,7 +91,7 @@ final class DatabaseDefinitions
     }
 
     /** @param array<array-key, mixed> $row */
-    private function definition(Store $store, array $row, bool $json): Definition
+    private function definition(Store $store, array $row, Translations $translations): Definition
     {
         $text = static fn (string $column): ?string => is_string($row[$column] ?? null) && $row[$column] !== '' ? $row[$column] : null;
         $flag = static fn (string $column): bool => in_array($row[$column] ?? false, [true, 1, '1'], true);
@@ -122,9 +116,9 @@ final class DatabaseDefinitions
             public: $flag('is_public'),
             locked: $flag('is_locked'),
             inherits: $inherits === null ? null : in_array($inherits, [true, 1, '1'], true),
-            overridableBy: $this->strings($text('overridable_by')),
-            label: self::localised($text('label'), $json),
-            description: self::localised($text('description'), $json),
+            overridableBy: Json::strings($text('overridable_by')),
+            label: $translations->nullableText($text('label')),
+            description: $translations->nullableText($text('description')),
             category: $text('category_slug'),
             group: $text('group'),
         );
@@ -134,16 +128,8 @@ final class DatabaseDefinitions
     private function rules(?string $json): array
     {
         return array_values(array_filter(
-            $this->strings($json),
+            Json::strings($json),
             fn (string $rule): bool => in_array(explode(':', $rule, 2)[0], $this->allowedRules, true),
         ));
-    }
-
-    /** @return list<string> */
-    private function strings(?string $json): array
-    {
-        $decoded = $json === null ? null : json_decode($json, true);
-
-        return is_array($decoded) ? array_values(array_filter($decoded, is_string(...))) : [];
     }
 }

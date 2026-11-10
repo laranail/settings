@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Database;
 
-use JsonException;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Simtabi\Laranail\Settings\Data\Category;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
+use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Enums\TranslationsMode;
 use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
@@ -67,13 +66,13 @@ final readonly class CategoryRepository
             id: $this->id($row['id'] ?? null),
             store: $this->store,
             slug: new CategorySlug($this->string($row['slug'] ?? null)),
-            title: $this->text($this->string($row['title'] ?? null)),
+            title: $this->translations()->text($this->string($row['title'] ?? null)),
             parent: isset($row['parent_id'], $slugs[$this->id($row['parent_id'])]) ? new CategorySlug($slugs[$this->id($row['parent_id'])]) : null,
-            description: is_string($row['description'] ?? null) ? $this->text($row['description']) : null,
+            description: is_string($row['description'] ?? null) ? $this->translations()->text($row['description']) : null,
             icon: is_string($row['icon'] ?? null) ? $row['icon'] : null,
             sortOrder: is_numeric($row['sort_order'] ?? null) ? (int) $row['sort_order'] : 0,
             system: in_array($row['is_system'] ?? false, [true, 1, '1'], true),
-            titles: $this->texts($this->string($row['title'] ?? null)),
+            titles: $this->translations()->texts($this->string($row['title'] ?? null)),
         ), $rows));
     }
 
@@ -87,8 +86,8 @@ final readonly class CategoryRepository
         $now = CarbonImmutable::now();
         $columns = [
             'parent_id'   => $parent,
-            'title'       => $this->encode($category->title, $category->translations),
-            'description' => $category->description === null ? null : $this->encode($category->description),
+            'title'       => $this->translations()->store($category->title, $category->translations),
+            'description' => $this->translations()->storeNullable($category->description),
             'icon'        => $category->icon,
             'sort_order'  => $category->sortOrder,
             'is_system'   => $category->system,
@@ -116,7 +115,7 @@ final readonly class CategoryRepository
     /** @throws UnknownCategory */
     public function rename(CategorySlug $slug, string $title): void
     {
-        $this->update($slug, ['title' => $this->encode($title, $this->get($slug)->titles)]);
+        $this->update($slug, ['title' => $this->translations()->store($title, $this->get($slug)->titles)]);
     }
 
     /**
@@ -243,60 +242,10 @@ final readonly class CategoryRepository
         return $this->database->shape()->categoriesSoftDeletes;
     }
 
-    private function json(): bool
+    /** Titles and descriptions as `translations.mode` stores them (D-8). */
+    private function translations(): Translations
     {
-        return $this->database->shape()->translations === TranslationsMode::Json;
-    }
-
-    /**
-     * A title or description as the column holds it: the text itself, or (json mode) a JSON map
-     * of locale to text with `''` for the text that applies to any locale.
-     *
-     * @param array<string, string> $translations
-     */
-    private function encode(string $text, array $translations = []): string
-    {
-        if (! $this->json()) {
-            return $text;
-        }
-
-        try {
-            return json_encode(['' => $text] + $translations, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        } catch (JsonException $exception) {
-            throw new DriverFailure('A category title could not be encoded.', 0, $exception);
-        }
-    }
-
-    /** The text for any locale. */
-    private function text(string $stored): string
-    {
-        $texts = $this->texts($stored);
-
-        return $texts[''] ?? (string) reset($texts);
-    }
-
-    /** @return array<string, string> locale => text */
-    private function texts(string $stored): array
-    {
-        if (! $this->json()) {
-            return ['' => $stored];
-        }
-
-        $decoded = json_decode($stored, true);
-
-        if (! is_array($decoded) || $decoded === []) {
-            return ['' => $stored];
-        }
-
-        $texts = [];
-
-        foreach ($decoded as $locale => $text) {
-            if (is_string($text)) {
-                $texts[(string) $locale] = $text;
-            }
-        }
-
-        return $texts === [] ? ['' => $stored] : $texts;
+        return new Translations($this->database->shape()->translations);
     }
 
     /** The categories table, limited to the current tenant (column-mode tenancy). */
