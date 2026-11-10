@@ -64,6 +64,17 @@ final readonly class Store
     }
 
     /**
+     * The first active database layer's driver, or StoreNotWritable: "Store [x] has no active
+     * database layer" followed by `$why` (`; categories are kept in the database`).
+     *
+     * @throws StoreNotWritable
+     */
+    public function requireDatabase(string $why): DatabaseDriver
+    {
+        return $this->database() ?? throw new StoreNotWritable(sprintf('Store [%s] has no active database layer%s', $this->name, $why));
+    }
+
+    /**
      * Run a write and everything that must commit with it (the audit row) in one transaction on
      * the store's database connection. A store without an active database layer just runs it.
      *

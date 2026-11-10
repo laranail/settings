@@ -6,6 +6,7 @@ namespace Simtabi\Laranail\Settings\Database;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
+use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\Category;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\NewCategory;
@@ -16,6 +17,7 @@ use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
+use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 
 /**
@@ -34,6 +36,16 @@ final readonly class CategoryRepository
         private DatabaseDriver $database,
         private StoreName $store,
     ) {}
+
+    /**
+     * The categories of a store, on its active database layer.
+     *
+     * @throws StoreNotWritable when the store has none: categories are kept in the database
+     */
+    public static function of(Store $store): self
+    {
+        return new self($store->requireDatabase('; categories are kept in the database.'), $store->name);
+    }
 
     /** @throws UnknownCategory */
     public function get(CategorySlug $slug): Category

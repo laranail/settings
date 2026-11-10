@@ -46,8 +46,7 @@ final readonly class CategoryGuard
 
         $this->access->authorize($actor, Ability::ManageCategories, $subject);
 
-        $database = $store->database()
-            ?? throw new StoreNotWritable(sprintf('Store [%s] has no active database layer; categories are kept in the database.', $store->name));
+        $database = $store->requireDatabase('; categories are kept in the database.');
 
         try {
             return $store->transaction(function () use ($store, $database, $work, $before, $after, $subject, $actor, $meta): mixed {

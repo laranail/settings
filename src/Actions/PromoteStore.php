@@ -65,8 +65,7 @@ final readonly class PromoteStore
 
         $this->access->authorize($actor, Ability::Promote, $subject);
 
-        $database = $store->database()
-            ?? throw new StoreNotWritable(sprintf('Store [%s] has no active database layer to promote into.', $store->name));
+        $database = $store->requireDatabase(' to promote into.');
         $runtime = $this->runtime($store);
 
         if (! $runtime instanceof JsonDriver) {
