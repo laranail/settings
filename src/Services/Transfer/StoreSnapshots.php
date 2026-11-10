@@ -8,15 +8,16 @@ use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Data\Category;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
-use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * Exports a store's current-tenant rows to an {@see ExportDocument} and compares a store with one.
@@ -56,7 +57,7 @@ final readonly class StoreSnapshots
 
         return new ExportDocument(
             $store->name->value,
-            array_map(ExportedCategory::of(...), CategoryRepository::of($store)->all()),
+            array_map(ExportedCategory::of(...), $this->categories($store)),
             $settings,
             $mode,
             CarbonImmutable::now()->toIso8601String(),
@@ -122,5 +123,17 @@ final readonly class StoreSnapshots
             ExportMode::Ciphertext => $make(ciphertext: $record->payload),
             ExportMode::Plaintext  => $make($this->encoder->decode($record->key, $this->encrypter->decrypt($record->payload))),
         };
+    }
+
+    /**
+     * The store's categories, from its database layer.
+     *
+     * @return list<Category>
+     */
+    private function categories(Store $store): array
+    {
+        $database = $store->requireDatabase('; categories are kept in the database.');
+
+        return $database->attempt($store->name, static fn (): array => SettingCategory::listFor($database->connectionName(), $store->name));
     }
 }

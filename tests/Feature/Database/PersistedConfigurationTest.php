@@ -24,15 +24,15 @@ use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
  */
 
 beforeEach(function (): void {
-    useDatabase(['configuration.persisted' => true, 'definitions.table' => true]);
+    useDatabase(['configuration.persisted' => true, 'definitions.sources' => ['code', 'config', 'database']]);
 });
 
-it('creates the persisted configuration table only when the switch is on', function (): void {
+it('always creates the persisted configuration table, and saves to it only when the switch is on', function (): void {
     expect(Schema::hasTable('settings_stores'))->toBeTrue();
 
     useDatabase(['configuration.persisted' => false]);
 
-    expect(Schema::hasTable('settings_stores'))->toBeFalse()
+    expect(Schema::hasTable('settings_stores'))->toBeTrue()
         ->and(fn () => settings()->persistedConfiguration()->saveStore('extra', ['layers' => ['runtime']]))->toThrow(InvalidConfiguration::class, 'persisted configuration is off');
 });
 

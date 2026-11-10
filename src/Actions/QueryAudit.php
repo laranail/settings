@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Illuminate\Pagination\Cursor;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Support\LazyCollection;
+use Illuminate\Database\Eloquent\Builder;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
@@ -14,10 +14,10 @@ use Simtabi\Laranail\Settings\Data\AuditPage;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Data\AuditFilter;
+use Simtabi\Laranail\Settings\Models\SettingAuditEntry;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Services\Database\AuditRepository;
 
 /** Read the audit trail of the filtered store, or the default store, newest first. */
 final readonly class QueryAudit
@@ -36,13 +36,13 @@ final readonly class QueryAudit
             $query->limit(max(1, $limit));
         }
 
-        return array_values(array_map(fn (object $row): AuditEntry => $this->entry((array) $row), $query->get()->all()));
+        return array_values(array_map(static fn (SettingAuditEntry $row): AuditEntry => $row->toEntry(), $query->get()->all()));
     }
 
     /** @return LazyCollection<int, AuditEntry> streamed in chunks, for large trails */
     public function cursor(AuditFilter $filter, ?Actor $actor = null): LazyCollection
     {
-        return $this->query($filter, $actor)->cursor()->map(fn (object $row): AuditEntry => $this->entry((array) $row));
+        return $this->query($filter, $actor)->cursor()->map(static fn (SettingAuditEntry $row): AuditEntry => $row->toEntry());
     }
 
     /** One page; pass its `nextCursor` back for the next. */
@@ -51,13 +51,14 @@ final readonly class QueryAudit
         $page = $this->query($filter, $actor)->cursorPaginate(max(1, $perPage), ['*'], 'cursor', $cursor === null ? null : Cursor::fromEncoded($cursor));
 
         return new AuditPage(
-            array_values(array_map(fn (mixed $row): AuditEntry => $this->entry(is_object($row) ? (array) $row : []), $page->items())),
+            array_values(array_map(static fn (SettingAuditEntry $row): AuditEntry => $row->toEntry(), $page->items())),
             max(1, $perPage),
             $page->nextCursor()?->encode(),
             $page->previousCursor()?->encode(),
         );
     }
 
+    /** @return Builder<SettingAuditEntry> */
     private function query(AuditFilter $filter, ?Actor $actor): Builder
     {
         $store = $filter->store instanceof StoreName ? $this->stores->get($filter->store) : $this->stores->default();
@@ -68,15 +69,9 @@ final readonly class QueryAudit
             owner: $filter->scope?->owner(),
         ));
 
-        $audit = AuditRepository::locate($this->stores, $store->name)
+        $database = $this->stores->auditDatabase($store->name)
             ?? throw new DriverUnavailable(sprintf('Store [%s] has no active database layer, so its audit trail went to the log and cannot be queried.', $store->name));
 
-        return $audit->query($filter);
-    }
-
-    /** @param array<array-key, mixed> $row */
-    private function entry(array $row): AuditEntry
-    {
-        return AuditRepository::entry($row);
+        return SettingAuditEntry::on($database->connectionName())->matching($filter);
     }
 }

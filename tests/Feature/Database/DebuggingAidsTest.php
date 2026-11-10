@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use Psr\Log\AbstractLogger;
 use Illuminate\Support\Facades\DB;
 use Simtabi\Laranail\Settings\Data\Actor;
@@ -91,7 +92,7 @@ it('warns, without failing, about a value whose key is outside its category', fu
     settings()->categories()->create(new NewCategory('mail', 'Mail'));
     $mail = DB::table('settings_categories')->where('slug', 'mail')->value('id');
     $now = now();
-    $row = static fn (string $key, string $uid): array => ['scope' => 'global', 'key' => $key, 'locale' => '', 'group' => 'x', 'uid' => $uid, 'value' => '1', 'version' => 1, 'category_id' => $mail, 'category_store' => 'settings', 'created_at' => $now, 'updated_at' => $now];
+    $row = static fn (string $key, string $uid): array => ['id' => (string) Str::ulid(), 'scope' => 'global', 'key' => $key, 'locale' => '', 'group' => 'x', 'uid' => $uid, 'value' => '1', 'version' => 1, 'category_id' => $mail, 'category_store' => 'settings', 'created_at' => $now, 'updated_at' => $now];
 
     DB::table('settings')->insert($row('mail.host', str_repeat('A', 26)));
 

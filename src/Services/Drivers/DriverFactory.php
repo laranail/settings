@@ -6,14 +6,15 @@ namespace Simtabi\Laranail\Settings\Services\Drivers;
 
 use Closure;
 use Illuminate\Contracts\Config\Repository;
+use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Drivers\PhpDriver;
+use Simtabi\Laranail\Settings\Enums\TenancyMode;
 use Simtabi\Laranail\Settings\Drivers\JsonDriver;
 use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
-use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Drivers\ConfigDriver;
 use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Contracts\Filesystem\Factory as Disks;
@@ -38,9 +39,7 @@ final class DriverFactory
         private readonly RecordSerializer $serializer,
         private readonly string $basePath,
         private readonly ?ConnectionResolverInterface $db = null,
-        private readonly SchemaNames $names = new SchemaNames,
         private readonly ?Closure $probe = null,
-        private readonly ?Closure $shape = null,
         private readonly ?Closure $tenant = null,
     ) {}
 
@@ -116,13 +115,31 @@ final class DriverFactory
         /** @var Closure(): SchemaReadinessInterface $probe */
         $probe = $this->probe;
 
-        /** @var (Closure(): SchemaShape)|null $shape */
-        $shape = $this->shape;
-
         /** @var (Closure(): ?string)|null $tenant */
         $tenant = $this->tenant;
+        $owner = $layer->option('owner');
 
-        return new DatabaseDriver($this->db, $connection, $this->names, $table, $layer->writable, $probe, $shape, $tenant);
+        return new DatabaseDriver(
+            db: $this->db,
+            connection: $connection,
+            table: $table,
+            writable: $layer->writable,
+            probe: $probe,
+            tenantColumn: TenancyMode::fromConfig($this->config->get('laranail.settings.tenancy.mode'))->hasColumn(),
+            tenant: $tenant,
+            softDeletes: $layer->option('soft_deletes') === true,
+            ownerAlias: is_array($owner) && is_string($owner['alias'] ?? null) ? $owner['alias'] : null,
+            ownerKeyType: is_array($owner) ? $this->ownerKeyType($owner['type'] ?? null) : IdType::Bigint,
+            fallback: is_array($owner) && is_string($owner['fallback'] ?? null) ? $owner['fallback'] : null,
+        );
+    }
+
+    /** A dedicated store's owner key type; unset, it follows `laranail.db-tools.id_type`. */
+    private function ownerKeyType(mixed $type): IdType
+    {
+        $type ??= $this->config->get('laranail.db-tools.id_type');
+
+        return (is_string($type) ? IdType::parse($type) : null) ?? IdType::Bigint;
     }
 
     private function json(LayerConfig $layer): JsonDriver

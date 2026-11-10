@@ -6,8 +6,6 @@ namespace Simtabi\Laranail\Settings\Database\Factories;
 
 use Illuminate\Support\Str;
 use Simtabi\Laranail\Settings\Models\Setting;
-use Simtabi\Laranail\Settings\Enums\IdentityMode;
-use Simtabi\Laranail\Settings\Models\ModelContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
 
@@ -31,7 +29,7 @@ final class SettingFactory extends Factory
     {
         $key = 'test.' . Str::lower(Str::random(12));
 
-        return $this->identity($key) + [
+        return [
             'scope'   => 'global',
             'key'     => $key,
             'group'   => 'test',
@@ -51,7 +49,7 @@ final class SettingFactory extends Factory
 
     public function key(string $key): static
     {
-        return $this->state(fn (): array => ['key' => $key, 'group' => explode('.', $key, 2)[0]] + $this->identity($key));
+        return $this->state(['key' => $key, 'group' => explode('.', $key, 2)[0]]);
     }
 
     /** The value, encoded as the pipeline encodes an unencrypted value. */
@@ -79,22 +77,5 @@ final class SettingFactory extends Factory
     public function inCategory(SettingCategory $category): static
     {
         return $this->state(['category_id' => $category->getKey(), 'category_store' => $category->store]);
-    }
-
-    /** @return array<string, string> the slug and uid columns the identity mode has */
-    private function identity(string $key): array
-    {
-        $mode = ModelContext::shape()->identity;
-        $columns = [];
-
-        if ($mode->hasSlug()) {
-            $columns['slug'] = $mode === IdentityMode::SlugPerRow ? sha1('global|' . $key . '|') : str_replace('.', '-', $key);
-        }
-
-        if ($mode->hasUid()) {
-            $columns['uid'] = (string) Str::ulid();
-        }
-
-        return $columns;
     }
 }

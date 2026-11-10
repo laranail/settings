@@ -21,13 +21,9 @@ const PLUGIN_CONTRACTS = [
     TenantDiscriminator::class, Importer::class,
 ];
 
-/** The 19 classes moved into Services\ in 0.1, whose old names were removed: old name => new name. */
+/** The 15 classes moved into Services\ in 0.1 that still exist, whose old names were removed: old name => new name. */
 const MOVED_SERVICES = [
-    'Database\\AuditRepository'           => 'Services\\Database\\AuditRepository',
-    'Database\\CategoryRepository'        => 'Services\\Database\\CategoryRepository',
-    'Database\\DefinitionsRepository'     => 'Services\\Database\\DefinitionsRepository',
     'Database\\SchemaInspector'           => 'Services\\Database\\SchemaInspector',
-    'Database\\SchemaShapeRepository'     => 'Services\\Database\\SchemaShapeRepository',
     'Stores\\SettingWriter'               => 'Services\\Stores\\SettingWriter',
     'Stores\\StoreRegistry'               => 'Services\\Stores\\StoreRegistry',
     'Resolution\\Resolver'                => 'Services\\Resolution\\Resolver',
@@ -75,11 +71,11 @@ it('keeps contract implementations out of Services', function (): void {
         }
     }
 
-    expect(count($services))->toBeGreaterThanOrEqual(25)
+    expect(count($services))->toBeGreaterThanOrEqual(21)
         ->and($offenders)->toBe([]);
 });
 
-it('files every repository and registry under Services', function (): void {
+it('files every registry under Services', function (): void {
     $files = servicesSources();
     $offenders = array_keys(array_filter(
         $files,
@@ -93,8 +89,8 @@ it('files every repository and registry under Services', function (): void {
     ));
 
     // The positive control: the scan does find the repositories and registries that exist.
-    expect(count($files))->toBeGreaterThanOrEqual(355)
-        ->and(count($found))->toBeGreaterThanOrEqual(9)
+    expect(count($files))->toBeGreaterThanOrEqual(354)
+        ->and(count($found))->toBeGreaterThanOrEqual(3)
         ->and($offenders)->toBe([]);
 });
 
@@ -102,7 +98,7 @@ it('leaves no old name for a moved class, and every new name loads', function ()
     $base = 'Simtabi\\Laranail\\Settings\\';
     $root = dirname(__DIR__, 2);
 
-    expect(count(MOVED_SERVICES))->toBe(19)
+    expect(count(MOVED_SERVICES))->toBe(15)
         ->and(is_file($root . '/src/deprecated-aliases.php'))->toBeFalse()
         ->and(array_keys(array_filter(MOVED_SERVICES, static fn (string $new, string $old): bool => class_exists($base . $old), ARRAY_FILTER_USE_BOTH)))->toBe([])
         ->and(array_values(array_filter(MOVED_SERVICES, static fn (string $new): bool => ! class_exists($base . $new))))->toBe([]);

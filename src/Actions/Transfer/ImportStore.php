@@ -21,6 +21,7 @@ use Simtabi\Laranail\Settings\Data\SettingTarget;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Actions\LockSetting;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
@@ -31,7 +32,6 @@ use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Transfer\StoreSnapshots;
 use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
-use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * Import an export or importer document in one transaction, as a dry run unless the request
@@ -58,7 +58,7 @@ final readonly class ImportStore
         $this->access->authorize($actor, Ability::Import, $subject);
 
         $current = $this->snapshots->export($store, ExportMode::Ciphertext)->settingsByIdentity();
-        $existingCategories = array_map(static fn (Category $category): string => $category->slug->value, CategoryRepository::of($store)->all());
+        $existingCategories = array_map(static fn (Category $category): string => $category->slug->value, $this->categories($store));
         $plan = $this->plan($request, $current);
         $categories = $this->categoriesToCreate($request->document->categories, $existingCategories);
 
@@ -190,5 +190,17 @@ final readonly class ImportStore
         }
 
         return new SettingTarget($store, $setting->key, $setting->locale, $setting->scope->owner(), $definition, $reason);
+    }
+
+    /**
+     * The store's categories, from its database layer.
+     *
+     * @return list<Category>
+     */
+    private function categories(Store $store): array
+    {
+        $database = $store->requireDatabase('; categories are kept in the database.');
+
+        return $database->attempt($store->name, static fn (): array => SettingCategory::listFor($database->connectionName(), $store->name));
     }
 }

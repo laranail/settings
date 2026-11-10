@@ -49,8 +49,6 @@ use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Typed\TypedSettings;
 use Illuminate\Cache\Repository as CacheRepository;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
-use Simtabi\Laranail\Settings\Database\SchemaNames;
-use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Database\ConnectionResolverInterface;
@@ -108,7 +106,6 @@ use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
 use Illuminate\Contracts\Notifications\Dispatcher as Notifications;
 use Simtabi\Laranail\Package\Tools\Providers\PackageServiceProvider;
 use Simtabi\Laranail\Settings\Services\Tenancy\TenantDiscriminators;
-use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 use Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder;
@@ -172,7 +169,6 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 $command
                     ->startWith(static function (InstallCommand $command): void {
                         self::refuseForeignTables($command);
-                        self::recordSchema($command);
                     })
                     ->publishConfigFile()
                     ->publishMigrations()
@@ -228,14 +224,6 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 implode(', ', $foreign),
             ));
         }
-    }
-
-    /** Record the schema the published migrations will produce; an existing record only gains new stores. */
-    private static function recordSchema(InstallCommand $command): void
-    {
-        $shapes = $command->getLaravel()->make(SchemaShapeRepository::class);
-        $shapes->record();
-        $command->info('Recorded the settings schema in ' . $shapes->path());
     }
 
     /** Copy code and config definitions into the definitions table, when it exists already. */
@@ -302,7 +290,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
      */
     private static function definitionSources(Repository $config): array
     {
-        $sources = $config->get('laranail.settings.definitions.sources', ['code', 'config', 'database']);
+        $sources = $config->get('laranail.settings.definitions.sources', ['code', 'config']);
         $names = is_array($sources) ? array_values(array_filter($sources, is_string(...))) : null;
 
         if ($names === null || count($names) !== count($sources) || array_diff($names, ['code', 'config', 'database']) !== []) {
@@ -376,13 +364,12 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
         $app = $this->app;
         ModelContext::use(
-            static fn (): SchemaShape => $app->make(SchemaShapeRepository::class)->current(),
+            static fn (): Repository => $app->make(Repository::class),
             static fn (): ?string => $app->make(TenantDiscriminator::class)->current(),
-            static fn (): string => $app->make(Repository::class)->string('laranail.settings.default', 'settings'),
         );
     }
 
-    /** The driver factory, the recorded schema, installation evidence and the value encrypter. */
+    /** The driver factory, installation evidence and the value encrypter. */
     private function registerDrivers(): void
     {
         // A singleton, so a driver registered with extend() lasts; the scoped services it hands
@@ -394,17 +381,9 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(RecordSerializer::class),
             $app->basePath(),
             $app->make(ConnectionResolverInterface::class),
-            SchemaNames::fromConfig($app->make(Repository::class)->array('laranail.settings.tables', [])),
             static fn (): SchemaReadinessInterface => $app->make(SchemaReadinessInterface::class),
-            static fn (): SchemaShape => $app->make(SchemaShapeRepository::class)->current(),
             static fn (): ?string => $app->make(TenantDiscriminator::class)->current(),
         ));
-
-        $this->app->scoped(SchemaShapeRepository::class, static function (Application $app): SchemaShapeRepository {
-            $path = $app->make(Repository::class)->get('laranail.settings.schema.path');
-
-            return new SchemaShapeRepository($app->make(Filesystem::class), is_string($path) && $path !== '' ? $path : $app->databasePath('settings-schema.php'), $app->make(Repository::class));
-        });
 
         // The operator's flag, or laranail/installer-headless (suggested) reporting an install.
         $this->app->scoped(InstallationEvidence::class, static function (Application $app): InstallationEvidence {
@@ -460,7 +439,6 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(Filesystem::class),
             dirname(__DIR__, 2) . '/database/migrations/' . MakeStore::MIGRATION . '.php',
             $app->databasePath('migrations'),
-            $app->make(SchemaShapeRepository::class),
         ));
     }
 

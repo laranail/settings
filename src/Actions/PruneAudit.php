@@ -13,10 +13,10 @@ use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Events\AuditPruned;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Models\SettingAuditEntry;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Services\Database\AuditRepository;
 
 /** Delete audit rows older than `audit.keep_days` on every connection; returns the number removed. */
 final readonly class PruneAudit
@@ -49,7 +49,11 @@ final readonly class PruneAudit
 
             $seen[$database->connectionName()] = true;
 
-            $removed += new AuditRepository($database)->prune($cutoff, $store->name);
+            // Every tenant's rows.
+            $removed += $database->attempt($store->name, static fn (): int => SettingAuditEntry::on($database->connectionName())
+                ->allTenants()
+                ->where('occurred_at', '<', $cutoff)
+                ->toBase()->delete());
         }
 
         $this->access->auditor()->record(AuditAction::Prune, AuditOutcome::Allowed, $subject, $actor, meta: ['target' => 'audit', 'keep_days' => $keepDays, 'removed' => $removed]);

@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions\Approvals;
 
+use Illuminate\Database\Eloquent\Builder;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\ChangeFilter;
 use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
  * List a store's change requests, newest first. An actor without `approve` sees only their own.
@@ -33,7 +34,16 @@ final readonly class QueryChanges
             $this->access->assertActorNotRequired(Ability::Approve, $subject);
         }
 
-        $requests = ChangeRequestRepository::of($store)->list($filter, $limit, $after);
+        $database = $store->changeRequestsDatabase();
+        $requests = $database->attempt($store->name, static fn (): array => SettingChangeRequest::on($database->connectionName())
+            ->matching($filter)
+            ->when($after !== null, static fn (Builder $query): Builder => $query->where('id', '<', $after))
+            ->limit($limit)
+            ->get()
+            ->map(static fn (SettingChangeRequest $request): ChangeRequest => $request->toRequest())
+            ->values()
+            ->all());
+        $requests = array_values($requests);
 
         if (! $actor instanceof Actor || $actor->isSystem() || $this->access->allows($actor, Ability::Approve, $subject)) {
             return $requests;

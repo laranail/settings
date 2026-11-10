@@ -11,11 +11,10 @@ use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Models\SettingDefinition;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Services\Database\DefinitionsRepository;
 use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 
 /** Delete a definition saved through the API; returns whether one existed. */
@@ -23,7 +22,6 @@ final readonly class DeleteDefinition
 {
     public function __construct(
         private DatabaseDefinitions $definitions,
-        private ValueEncoder $encoder,
         private AccessGuard $access,
     ) {}
 
@@ -35,11 +33,15 @@ final readonly class DeleteDefinition
 
         $database = $store->database();
 
-        if (! $database instanceof DatabaseDriver || ! $database->shape()->definitionsTable) {
-            throw new InvalidConfiguration(sprintf('Store [%s] has no definitions table.', $store->name));
+        if (! $database instanceof DatabaseDriver) {
+            throw new InvalidConfiguration(sprintf('Store [%s] has no database layer, so it has no definitions table.', $store->name));
         }
 
-        $deleted = new DefinitionsRepository($database, $this->encoder)->delete($store->name, $settingKey);
+        $deleted = $database->attempt($store->name, static fn (): int => SettingDefinition::on($database->connectionName())
+            ->forStore($store->name)
+            ->runtime()
+            ->where('key', $settingKey->value)
+            ->toBase()->delete()) > 0;
         $this->definitions->forget($store);
         $this->access->auditor()->record(AuditAction::ManageDefinitions, AuditOutcome::Allowed, $subject, $actor, meta: ['operation' => 'delete', 'existed' => $deleted]);
 

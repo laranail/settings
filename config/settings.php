@@ -37,7 +37,7 @@ return [
     | bootstrap:     skip the database layer while the application installs.
     | table:         the values table name (default: the store name).
     | mode:          `polymorphic` or `dedicated` (one owner alias, with a
-    |                foreign key to `owner.table`). Recorded at migration time.
+    |                foreign key to `owner.table`; read when migrating).
     | soft_deletes:  keep forgotten rows trashed and restore them on write.
     |
     |     'user_settings' => [
@@ -84,49 +84,10 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Schema switches
-    |--------------------------------------------------------------------------
-    |
-    | Read by `install` and `make-store`, which record the resulting shape in
-    | the schema file (`schema.path`, default database/settings-schema.php).
-    | The package reads that file at runtime, so changing a switch after
-    | migrating has no effect until a migration applies it; `doctor` reports
-    | the drift.
-    |
-    | identity.mode:           `slug_uid`, `slug_per_row` or `uid_only`.
-    | ids.type:                `bigint`, `uuid`, `ulid`, or null to follow
-    |                          laranail.db-tools.id_type.
-    | ids.owner_key:           `string` (settable_id as string(36)) or `typed`.
-    | translations.mode:       `lang` (plain text) or `json` (per-locale maps).
-    | categories.soft_deletes: trash categories and restore them on re-create.
-    */
-    'schema' => [
-        'path' => env('LARANAIL_SETTINGS_SCHEMA_PATH'),
-    ],
-
-    'identity' => [
-        'mode' => 'slug_uid',
-    ],
-
-    'ids' => [
-        'type'      => null,
-        'owner_key' => 'string',
-    ],
-
-    'translations' => [
-        'mode' => 'lang',
-    ],
-
-    'categories' => [
-        'soft_deletes' => false,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Tenancy
     |--------------------------------------------------------------------------
     |
-    | mode (recorded at migration time):
+    | mode (read when migrating, and on every query):
     |   `none`      one set of settings for the application.
     |   `column`    a `tenant` column on every table, filled and filtered with
     |               the current tenant ('' is the central partition).
@@ -227,13 +188,13 @@ return [
     | Setting definitions are registered in code with DefinitionRegistry::define()
     | or kept in the definitions table.
     |
-    | table:         create the settings_definitions table (migration time).
     | sources:       where definitions come from, merged in order, later wins.
+    |                Add `database` to read rows edited at runtime from the
+    |                definitions table (one query per store per request).
     | allowed_rules: the validation rules a database definition may use.
     */
     'definitions' => [
-        'table'         => false,
-        'sources'       => ['code', 'config', 'database'],
+        'sources'       => ['code', 'config'],
         'allowed_rules' => ['required', 'nullable', 'string', 'integer', 'numeric', 'boolean', 'array', 'email', 'url', 'in', 'not_in', 'min', 'max', 'between', 'size', 'regex', 'date', 'alpha', 'alpha_dash', 'alpha_num'],
     ],
 
@@ -327,13 +288,12 @@ return [
     | History
     |--------------------------------------------------------------------------
     |
-    | enabled:       create the settings_history table (migration time) and
-    |                record every value change in it.
+    | Every value change is recorded in the history table.
+    |
     | keep_days:     retention applied by prune-history; null to disable.
     | keep_versions: versions kept per setting; null to disable.
     */
     'history' => [
-        'enabled'       => env('LARANAIL_SETTINGS_HISTORY', true),
         'keep_days'     => 365,
         'keep_versions' => null,
     ],
@@ -389,14 +349,12 @@ return [
     | Writes to definitions marked requiresApproval(), or to keys matched by
     | `stores.<name>.approvals.keys`, become change requests.
     |
-    | table:         create settings_change_requests (migration time).
     | min_approvals: approvals needed to apply a change.
     | allow_self:    let the requester approve their own request.
     | expire_after:  days before an open request expires.
     | keep_days:     days decided requests are kept by prune-changes.
     */
     'approvals' => [
-        'table'         => true,
         'min_approvals' => 1,
         'allow_self'    => false,
         'expire_after'  => 7,
@@ -408,8 +366,8 @@ return [
     | Persisted configuration
     |--------------------------------------------------------------------------
     |
-    | persisted: create settings_stores (migration time) to hold stores and
-    |            layers saved through the API.
+    | persisted: read and write the stores and layers saved through the API
+    |            (the settings_stores table).
     | sources:   merge order, later wins: `config`, `database`, `runtime`.
     */
     'configuration' => [

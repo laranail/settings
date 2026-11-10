@@ -113,7 +113,6 @@ final class ReadBench
         $config->set('database.default', 'bench');
         $config->set('database.connections.bench', ['driver' => 'sqlite', 'database' => $directory . '/database.sqlite', 'prefix' => '', 'foreign_key_constraints' => true]);
         $config->set('cache.stores.file.path', $directory . '/cache');
-        $config->set('laranail.settings.schema.path', $directory . '/settings-schema.php');
         $config->set('laranail.settings.layers.shipped.path', $directory . '/none.php');
         $config->set('laranail.settings.stores.settings.layers', ['database']);
         $config->set('laranail.settings.stores.settings.owners', ['owner', 'team']);

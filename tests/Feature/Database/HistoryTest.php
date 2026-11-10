@@ -274,17 +274,13 @@ it('filters by owner, locale, time and version, and pages with a cursor', functi
         ->and(settings()->history()->store('settings')->global()->key('site.name')->cursor()->count())->toBe(5);
 });
 
-it('keeps no history when the schema was recorded without the table', function (): void {
-    useDatabase(['history.enabled' => false]);
+it('keeps no history for a store without a database layer', function (): void {
+    config()->set('laranail.settings.stores.settings.layers', ['runtime', 'shipped']);
+    app()->forgetScopedInstances();
 
     settings()->set('site.name', 'Acme');
-    settings()->set('site.name', 'Acme Ltd');
-    settings()->forget('site.name');
-    settings()->set('site.name', 'Again');
 
-    expect(Schema::hasTable('settings_history'))->toBeFalse()
-        ->and((int) DB::table('settings')->where('key', 'site.name')->value('version'))->toBe(1)
-        ->and(fn (): array => settings()->history()->get())->toThrow(HistoryUnavailable::class, 'keeps no history')
+    expect(fn (): array => settings()->history()->get())->toThrow(HistoryUnavailable::class, 'keeps no history')
         ->and(fn (): int => settings()->rollback('site.name', 1))->toThrow(HistoryUnavailable::class, 'cannot be rolled back')
         ->and(fn (): HistoryDiff => settings()->historyDiff('site.name', 1, 1))->toThrow(HistoryUnavailable::class, 'keeps no history');
 });

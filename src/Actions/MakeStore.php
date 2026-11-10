@@ -9,14 +9,12 @@ use Illuminate\Filesystem\Filesystem;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\GeneratedStore;
-use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /**
  * Generate the migration for a new database store: a copy of the package migration with its
- * `$only` (and optionally `$pinnedConnection`) line rewritten, and record the store's shape.
- * Returns the file written and the configuration entry to add.
+ * `$only` (and optionally `$pinnedConnection`) line rewritten. Returns the file written and the
+ * configuration entry to add.
  */
 final readonly class MakeStore
 {
@@ -35,7 +33,6 @@ final readonly class MakeStore
         private Filesystem $files,
         private string $migration,
         private string $migrations,
-        private ?SchemaShapeRepository $shapes = null,
     ) {}
 
     /**
@@ -63,10 +60,6 @@ final readonly class MakeStore
             self::ONLY_LINE       => sprintf("private ?string \$only = '%s';", $store->value),
             self::CONNECTION_LINE => $connection === null ? self::CONNECTION_LINE : sprintf("private ?string \$pinnedConnection = '%s';", $connection),
         ])];
-
-        if ($this->shapes instanceof SchemaShapeRepository) {
-            $this->shapes->recordStore($this->shapes->configured()->stores[$store->value] ?? new StoreSchema($store, connection: $connection));
-        }
 
         return new GeneratedStore($store, $written, $this->config($store, $connection, $owners));
     }

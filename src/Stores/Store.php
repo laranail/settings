@@ -14,6 +14,7 @@ use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 
 /**
  * A configured store: its layers in read order, the owner aliases it accepts, and its policies.
@@ -37,6 +38,7 @@ final readonly class Store
         public StoreMode $mode = StoreMode::Polymorphic,
         public ?StoreName $fallback = null,
         public array $approvalKeys = [],
+        public bool $softDeletes = false,
     ) {}
 
     /** Whether a write of this key becomes a change request. */
@@ -45,10 +47,20 @@ final readonly class Store
         return array_any($this->approvalKeys, static fn (string $glob): bool => fnmatch($glob, $key->value, FNM_NOESCAPE));
     }
 
-    /** Whether this store has an active database layer with a change requests table. */
+    /** Whether this store has an active database layer, which holds its change requests. */
     public function acceptsChangeRequests(): bool
     {
-        return $this->database()?->shape()->changeRequestsTable ?? false;
+        return $this->database() instanceof DatabaseDriver;
+    }
+
+    /**
+     * The database layer that holds this store's change requests.
+     *
+     * @throws ApprovalUnavailable when the store has no active database layer
+     */
+    public function changeRequestsDatabase(): DatabaseDriver
+    {
+        return $this->database() ?? throw new ApprovalUnavailable(sprintf('Store [%s] cannot hold change requests: it needs an active database layer.', $this->name));
     }
 
     public function isDedicated(): bool

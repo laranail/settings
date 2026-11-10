@@ -7,6 +7,7 @@ namespace Simtabi\Laranail\Settings\Enums;
 use Simtabi\Laranail\Enumerator\Attributes\Label;
 use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Attributes\Description;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
 /** How settings are kept apart per tenant (`tenancy.mode`). */
@@ -25,6 +26,17 @@ enum TenancyMode: string implements Enumerator
     #[Label('Database per tenant')]
     #[Description('The tenancy package switches the database connection; the tables have no tenant column.')]
     case Database = 'database';
+
+    /** Read `tenancy.mode`; unset is `none`. */
+    public static function fromConfig(mixed $value): self
+    {
+        if ($value === null) {
+            return self::None;
+        }
+
+        return (is_string($value) ? self::tryFrom($value) : null)
+            ?? throw new InvalidConfiguration('laranail.settings.tenancy.mode: use none, column or database.');
+    }
 
     /** Whether rows and queries carry a tenant column. */
     public function hasColumn(): bool

@@ -8,14 +8,16 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Events\DefinitionsSynced;
+use Simtabi\Laranail\Settings\Models\SettingDefinition;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Services\Database\DefinitionsRepository;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
@@ -51,14 +53,13 @@ final readonly class SyncDefinitions
         foreach ($this->stores->all() as $name => $store) {
             $database = $store->database();
 
-            if (! $database instanceof DatabaseDriver || ! $database->shape()->definitionsTable) {
+            if (! $database instanceof DatabaseDriver) {
                 $report['skipped'][] = $name;
 
                 continue;
             }
 
-            $repository = new DefinitionsRepository($database, $this->encoder);
-            $result = $database->attempt($store->name, fn (): array => $database->transaction(fn (): array => $repository->sync($store->name, $byStore[$name] ?? []), $store->name));
+            $result = $database->attempt($store->name, fn (): array => $database->transaction(fn (): array => $this->sync($database, $store->name, $byStore[$name] ?? []), $store->name));
             $report['synced'] += $result['synced'];
             $report['removed'] += $result['removed'];
             $report['conflicts'] = [...$report['conflicts'], ...$result['conflicts']];
@@ -73,5 +74,44 @@ final readonly class SyncDefinitions
         $this->events->dispatch(new DefinitionsSynced($report['synced'], $report['removed'], count($report['conflicts']), count($report['skipped'])));
 
         return $report;
+    }
+
+    /**
+     * Sync a store's code and config definitions as system rows, leaving runtime rows alone.
+     *
+     * @param list<Definition> $definitions
+     *
+     * @return array{synced: int, removed: int, conflicts: list<string>}
+     */
+    private function sync(DatabaseDriver $database, StoreName $store, array $definitions): array
+    {
+        $connection = $database->connectionName();
+        $synced = 0;
+        $conflicts = [];
+        $keys = [];
+
+        foreach ($definitions as $definition) {
+            $keys[] = $definition->key->value;
+            $row = SettingDefinition::on($connection)->forStore($store)->where('key', $definition->key->value)->first();
+
+            if ($row !== null && ! $row->is_system) {
+                $conflicts[] = $store->value . '.' . $definition->key->value;
+
+                continue;
+            }
+
+            $row ??= SettingDefinition::on($connection)->make(['store' => $store->value, 'key' => $definition->key->value, 'is_system' => true]);
+            $row->fillFromDefinition($definition, $this->encodedDefault($definition))->save();
+            $synced++;
+        }
+
+        $removed = SettingDefinition::on($connection)->forStore($store)->where('is_system', true)->whereNotIn('key', $keys === [] ? [''] : $keys)->toBase()->delete();
+
+        return ['synced' => $synced, 'removed' => $removed, 'conflicts' => $conflicts];
+    }
+
+    private function encodedDefault(Definition $definition): ?string
+    {
+        return $definition->hasDefault ? $this->encoder->encode($definition->key, $definition->default) : null;
     }
 }

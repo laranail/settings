@@ -14,6 +14,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Data\ChangeRequest;
@@ -25,14 +26,15 @@ use Simtabi\Laranail\Settings\Data\ChangeDecision;
 use Simtabi\Laranail\Settings\Events\ChangeApplied;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Events\ChangeApproved;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
-use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
  * Approve a change request; needs `approve` on its setting. With enough approvals the change is
@@ -57,15 +59,15 @@ final readonly class ApproveChange
     public function handle(ChangeDecision $decision, ?Actor $actor = null): ChangeRequest
     {
         $store = $decision->store;
-        $repository = ChangeRequestRepository::of($store);
-        $request = $repository->get($store->name, $decision->id);
+        $database = $store->changeRequestsDatabase();
+        $request = $database->attempt($store->name, static fn (): ChangeRequest => SettingChangeRequest::get($database->connectionName(), $store->name, $decision->id));
         $key = new Key($request->key);
         $definition = $this->definitions->find($store, $key);
         $subject = Subject::of($store->name, $key, new Locale($request->locale), $request->owner(), $definition);
         $now = CarbonImmutable::now();
 
         $this->access->authorize($actor, Ability::Approve, $subject);
-        $this->assertOpen($repository, $request, $now);
+        $this->assertOpen($database, $request, $now);
 
         if ($actor instanceof Actor && ! $this->policy->allowSelf && $request->isRequestedBy($actor)) {
             $this->access->auditor()->record(AuditAction::Approve, AuditOutcome::Denied, $subject, $actor, $decision->reason, meta: ['change_request' => $request->id, 'refusal' => 'self_approval']);
@@ -77,12 +79,12 @@ final readonly class ApproveChange
         $remaining = max(0, $this->policy->minApprovals - count($approvals));
 
         if ($remaining > 0) {
-            return $this->record($repository, $request, $subject, $actor, $decision->reason, $approvals, $remaining, $now);
+            return $this->record($database, $request, $subject, $actor, $decision->reason, $approvals, $remaining, $now);
         }
 
         try {
-            $version = $store->transaction(function () use ($repository, $request, $store, $key, $definition, $subject, $actor, $decision, $approvals, $now): int {
-                if (! $repository->transition($request, [ChangeStatus::Pending, ChangeStatus::Approved], ChangeStatus::Applied, $actor ?? Actor::system(), $decision->reason, $now, $approvals)) {
+            $version = $store->transaction(function () use ($database, $request, $store, $key, $definition, $subject, $actor, $decision, $approvals, $now): int {
+                if (! $database->attempt(new StoreName($request->store), static fn (): bool => SettingChangeRequest::transition($database->connectionName(), $request, [ChangeStatus::Pending, ChangeStatus::Approved], ChangeStatus::Applied, $actor ?? Actor::system(), $decision->reason, $now, $approvals))) {
                     throw new ChangeRequestClosed(sprintf('Change request [%s] was decided by somebody else first.', $request->id));
                 }
 
@@ -97,36 +99,36 @@ final readonly class ApproveChange
             });
         } catch (ConcurrentModification) {
             // The setting moved on since the request was opened: never overwrite it.
-            $repository->transition($request, [ChangeStatus::Pending, ChangeStatus::Approved], ChangeStatus::Stale, $actor ?? Actor::system(), $decision->reason, $now, $approvals);
+            $database->attempt(new StoreName($request->store), static fn (): bool => SettingChangeRequest::transition($database->connectionName(), $request, [ChangeStatus::Pending, ChangeStatus::Approved], ChangeStatus::Stale, $actor ?? Actor::system(), $decision->reason, $now, $approvals));
             $this->access->auditor()->record(AuditAction::Approve, AuditOutcome::Failed, $subject, $actor, $decision->reason, meta: ['change_request' => $request->id, 'refusal' => 'stale']);
             $this->events->dispatch(new ChangeStale($request->id, $request->store, $request->scope, $request->key, $request->locale, $request->operation->value));
 
-            return $repository->get($store->name, $request->id);
+            return $database->attempt($store->name, static fn (): ChangeRequest => SettingChangeRequest::get($database->connectionName(), $store->name, $request->id));
         }
 
         $this->events->dispatch(new ChangeApproved($request->id, $request->store, $request->scope, $request->key, $request->locale, $request->operation->value));
         $this->events->dispatch(new ChangeApplied($request->id, $request->store, $request->scope, $request->key, $request->locale, $request->operation->value, $version));
 
-        return $repository->get($store->name, $request->id);
+        return $database->attempt($store->name, static fn (): ChangeRequest => SettingChangeRequest::get($database->connectionName(), $store->name, $request->id));
     }
 
     /** @param list<string> $approvals */
-    private function record(ChangeRequestRepository $repository, ChangeRequest $request, Subject $subject, ?Actor $actor, ?string $reason, array $approvals, int $remaining, CarbonImmutable $now): ChangeRequest
+    private function record(DatabaseDriver $database, ChangeRequest $request, Subject $subject, ?Actor $actor, ?string $reason, array $approvals, int $remaining, CarbonImmutable $now): ChangeRequest
     {
-        if (! $repository->transition($request, [ChangeStatus::Pending, ChangeStatus::Approved], ChangeStatus::Approved, null, null, $now, $approvals)) {
+        if (! $database->attempt(new StoreName($request->store), static fn (): bool => SettingChangeRequest::transition($database->connectionName(), $request, [ChangeStatus::Pending, ChangeStatus::Approved], ChangeStatus::Approved, null, null, $now, $approvals))) {
             throw new ChangeRequestClosed(sprintf('Change request [%s] was decided by somebody else first.', $request->id));
         }
 
         $this->access->auditor()->record(AuditAction::Approve, AuditOutcome::Pending, $subject, $actor, $reason, meta: ['change_request' => $request->id, 'remaining' => $remaining]);
         $this->events->dispatch(new ChangeApproved($request->id, $request->store, $request->scope, $request->key, $request->locale, $request->operation->value, $remaining));
 
-        return $repository->get($subject->store, $request->id);
+        return $database->attempt($subject->store, static fn (): ChangeRequest => SettingChangeRequest::get($database->connectionName(), $subject->store, $request->id));
     }
 
-    private function assertOpen(ChangeRequestRepository $repository, ChangeRequest $request, CarbonImmutable $now): void
+    private function assertOpen(DatabaseDriver $database, ChangeRequest $request, CarbonImmutable $now): void
     {
         if ($request->status->isOpen() && $request->isExpired($now)) {
-            $repository->transition($request, [ChangeStatus::Pending, ChangeStatus::Approved], ChangeStatus::Expired, null, null, $now);
+            $database->attempt(new StoreName($request->store), static fn (): bool => SettingChangeRequest::transition($database->connectionName(), $request, [ChangeStatus::Pending, ChangeStatus::Approved], ChangeStatus::Expired, null, null, $now));
 
             throw new ChangeRequestClosed(sprintf('Change request [%s] expired at %s.', $request->id, $request->expiresAt?->toIso8601String()));
         }

@@ -18,11 +18,11 @@ use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Events\ChangeRequested;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
-use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
  * Open a change request; needs the ability of the write it proposes. The value is validated and
@@ -48,7 +48,7 @@ final readonly class ProposeChange
         $subject = $target->subject();
 
         $this->access->authorize($actor, $proposal->operation->ability(), $subject);
-        $repository = ChangeRequestRepository::of($store);
+        $database = $store->changeRequestsDatabase();
 
         if (! $target->definition instanceof Definition && $store->strict) {
             throw new UnknownSetting(sprintf('Store [%s] is strict and has no definition for [%s].', $store->name, $target->key));
@@ -64,8 +64,8 @@ final readonly class ProposeChange
         $now = CarbonImmutable::now();
         $requester = $actor ?? Actor::system($target->reason);
 
-        $request = $store->transaction(function () use ($repository, $store, $scope, $target, $proposal, $payload, $base, $now, $requester, $subject, $actor): ChangeRequest {
-            $request = $repository->create([
+        $request = $store->transaction(function () use ($database, $store, $scope, $target, $proposal, $payload, $base, $now, $requester, $subject, $actor): ChangeRequest {
+            $request = $database->attempt($store->name, fn (): ChangeRequest => SettingChangeRequest::open($database->connectionName(), [
                 'store'        => $store->name->value,
                 'scope'        => $scope->value,
                 'key'          => $target->key->value,
@@ -77,7 +77,7 @@ final readonly class ProposeChange
                 'base_version' => $base,
                 'reason'       => $target->reason,
                 'expires_at'   => $this->policy->expireAfterDays === null ? null : $now->addDays($this->policy->expireAfterDays),
-            ], $requester, $now);
+            ], $requester, $now));
 
             $this->access->auditor()->record(AuditAction::Propose, AuditOutcome::Pending, $subject, $actor, $target->reason, versionFrom: $base > 0 ? $base : null, meta: [
                 'change_request' => $request->id,

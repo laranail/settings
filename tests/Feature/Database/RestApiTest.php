@@ -30,7 +30,7 @@ beforeEach(function (): void {
         'laranail.settings.http.enabled'    => true,
         'laranail.settings.http.middleware' => ['api', 'auth'],
     ]);
-    useDatabase(['stores.settings.owners' => ['user'], 'definitions.table' => true, 'configuration.persisted' => true, 'verification.driver' => 'none']);
+    useDatabase(['stores.settings.owners' => ['user'], 'definitions.sources' => ['code', 'config', 'database'], 'configuration.persisted' => true, 'verification.driver' => 'none']);
     Relation::morphMap(['user' => TestUser::class]);
     allowGates(...Ability::cases());
     $this->actingAs(user(1));

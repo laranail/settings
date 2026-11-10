@@ -92,7 +92,7 @@ it('lets only entry points depend on actions', function (): void {
         }
     }
 
-    expect(count($files))->toBeGreaterThanOrEqual(355)
+    expect(count($files))->toBeGreaterThanOrEqual(354)
         ->and($offenders)->toBe([]);
 });
 

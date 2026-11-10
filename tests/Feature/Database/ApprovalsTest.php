@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Artisan;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
@@ -235,11 +234,12 @@ it('expires overdue requests and prunes decided ones', function (): void {
 });
 
 it('refuses approval where a store cannot hold change requests', function (): void {
-    useDatabase(['approvals.table' => false]);
+    // File layers only: no database layer to hold the request.
+    config()->set('laranail.settings.stores.settings.layers', ['runtime', 'shipped']);
+    app()->forgetScopedInstances();
     needsApproval();
 
-    expect(Schema::hasTable('settings_change_requests'))->toBeFalse()
-        ->and(fn () => settings()->set('mail.host', 'a.test'))->toThrow(ApprovalUnavailable::class, 'cannot hold change requests')
+    expect(fn () => settings()->set('mail.host', 'a.test'))->toThrow(ApprovalUnavailable::class, 'cannot hold change requests')
         ->and(fn (): ChangeRequest => settings()->propose('mail.host', 'a.test'))->toThrow(ApprovalUnavailable::class);
 });
 

@@ -9,8 +9,8 @@ use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Events\CategoryDeleted;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
 use Simtabi\Laranail\Settings\Events\CategoryDeleting;
-use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /** Delete a category; its children move to the top level and its settings keep their values. */
 final readonly class DeleteCategory
@@ -24,8 +24,14 @@ final readonly class DeleteCategory
         $category = new CategorySlug($slug);
         $events = [new CategoryDeleting($store->name->value, $slug), new CategoryDeleted($store->name->value, $slug)];
 
-        $this->guard->run($store, $category, $actor, 'delete', $events[0], $events[1], static function (CategoryRepository $categories, DatabaseDriver $database) use ($category, $store): void {
-            $categories->delete($category, $database->tableFor($store->name));
+        $this->guard->run($store, $category, $actor, 'delete', $events[0], $events[1], static function (DatabaseDriver $database) use ($category, $store): void {
+            $connection = $database->connectionName();
+            $id = SettingCategory::idOf($connection, $store->name, $category);
+
+            // Unlinked here as well as by the foreign keys, which SQLite may not enforce.
+            SettingCategory::on($connection)->where('parent_id', $id)->update(['parent_id' => null]);
+            $database->unlinkCategory($store->name, $id);
+            SettingCategory::on($connection)->whereKey($id)->delete();
         });
     }
 }

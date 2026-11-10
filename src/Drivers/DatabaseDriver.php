@@ -19,12 +19,11 @@ use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Enums\IdentityMode;
-use Simtabi\Laranail\Settings\Enums\OwnerKeyType;
+use Simtabi\Laranail\Settings\Models\Setting;
+use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
-use Simtabi\Laranail\Settings\Database\SchemaShape;
-use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Illuminate\Database\ConnectionResolverInterface;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
@@ -43,7 +42,8 @@ use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
  *
  * Writes are version-checked and raise {@see ConcurrentModification} on a conflict. Database
  * errors surface as {@see DriverUnavailable} or {@see DriverFailure}, never as PDO exceptions.
- * The table's shape comes from the recorded {@see SchemaShape}, not from live configuration.
+ * Each instance serves one store: its table, soft deletes and dedicated owner come from that
+ * store's configuration.
  */
 final readonly class DatabaseDriver implements DatabaseBacked
 {
@@ -52,47 +52,24 @@ final readonly class DatabaseDriver implements DatabaseBacked
     /**
      * @param ?string $table the store's configured table (`stores.<name>.table`); null uses the store name
      * @param Closure(): SchemaReadinessInterface $probe db-tools' schema readiness, resolved only after a database error
-     * @param (Closure(): SchemaShape)|null $shape the recorded schema shape; null is the default shape over $names
-     * @param (Closure(): ?string)|null $tenant the current tenant (column-mode tenancy); null is no tenant
+     * @param bool $tenantColumn whether the tables carry a tenant column (`tenancy.mode` = column)
+     * @param (Closure(): ?string)|null $tenant the current tenant; null is no tenant
+     * @param ?string $ownerAlias the one owner alias of a dedicated store; null for a polymorphic store
+     * @param ?string $fallback the store a dedicated store's global values live in
      */
     public function __construct(
         private ConnectionResolverInterface $db,
         private ?string $connection,
-        private SchemaNames $names,
         private ?string $table,
         private bool $writable,
         private Closure $probe,
-        private ?Closure $shape = null,
+        private bool $tenantColumn = false,
         private ?Closure $tenant = null,
+        private bool $softDeletes = false,
+        private ?string $ownerAlias = null,
+        private IdType $ownerKeyType = IdType::Bigint,
+        private ?string $fallback = null,
     ) {}
-
-    /**
-     * A new primary key for this key type; empty for bigint, which the database assigns.
-     *
-     * @return array{id?: string}
-     */
-    public static function newId(IdType $type): array
-    {
-        return match ($type) {
-            IdType::Bigint => [],
-            IdType::Uuid   => ['id' => (string) Str::orderedUuid()],
-            IdType::Ulid   => ['id' => (string) Str::ulid()],
-        };
-    }
-
-    /** The recorded schema shape the table was created with. */
-    public function shape(): SchemaShape
-    {
-        $shape = $this->shape instanceof Closure ? ($this->shape)() : null;
-
-        return $shape instanceof SchemaShape ? $shape : new SchemaShape(names: $this->names);
-    }
-
-    /** The recorded schema of one store. */
-    public function schemaOf(StoreName $store): StoreSchema
-    {
-        return $this->shape()->store($store);
-    }
 
     public function database(): self
     {
@@ -117,15 +94,13 @@ final readonly class DatabaseDriver implements DatabaseBacked
 
     public function tableFor(StoreName $store): string
     {
-        $shape = $this->shape();
-
-        return $shape->names->store($store, $shape->hasStore($store) ? $shape->store($store)->table : $this->table);
+        return Setting::tableFor($store, $this->table);
     }
 
     /** The current tenant in column-mode tenancy; '' for central rows and in other modes. */
     public function tenant(): string
     {
-        if (! $this->shape()->tenancy->hasColumn() || ! $this->tenant instanceof Closure) {
+        if (! $this->tenantColumn || ! $this->tenant instanceof Closure) {
             return '';
         }
 
@@ -134,21 +109,15 @@ final readonly class DatabaseDriver implements DatabaseBacked
         return is_string($tenant) ? $tenant : '';
     }
 
-    /** Limit a query to the current tenant in column-mode tenancy. */
-    public function scoped(Builder $query): Builder
+    /** Whether the tables carry a tenant column (`tenancy.mode` = column). */
+    public function hasTenantColumn(): bool
     {
-        return $this->shape()->tenancy->hasColumn() ? $query->where('tenant', $this->tenant()) : $query;
-    }
-
-    /** @return array{tenant?: string} the tenant column a new row carries */
-    public function tenantColumns(): array
-    {
-        return $this->shape()->tenancy->hasColumn() ? ['tenant' => $this->tenant()] : [];
+        return $this->tenantColumn;
     }
 
     public function names(): SchemaNames
     {
-        return $this->shape()->names;
+        return ModelContext::names();
     }
 
     public function connection(): Connection
@@ -206,7 +175,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
                 $now = $record->writtenAt ?? CarbonImmutable::now();
                 $columns = $this->columns($store, $record) + ['version' => $record->version, 'updated_at' => $now];
                 $expected = $record->version - 1;
-                $softDeletes = $this->schemaOf($store)->softDeletes;
+                $softDeletes = $this->softDeletes;
 
                 // Versions start at 1, so a first write (expected 0) has no row to update.
                 if ($expected > 0 && $this->live($store)->where('scope', $record->scope->value)->where('key', $record->key->value)->where('locale', $record->locale->value)->where('version', $expected)->update($columns) > 0) {
@@ -227,7 +196,9 @@ final readonly class DatabaseDriver implements DatabaseBacked
 
                 try {
                     // A savepoint: on Postgres a unique violation would abort the whole transaction.
-                    $this->connection()->transaction(fn (): bool => $this->table($store)->insert($columns + $this->identityColumns($record) + $this->tenantColumns() + [
+                    $this->connection()->transaction(fn (): bool => $this->table($store)->insert($columns + $this->tenantColumns() + [
+                        'id'         => (string) Str::ulid(),
+                        'uid'        => (string) Str::ulid(),
                         'scope'      => $record->scope->value,
                         'key'        => $record->key->value,
                         'locale'     => $record->locale->value,
@@ -245,7 +216,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     /** The version of this identity's trashed row, or 0 when there is none. */
     public function trashedVersion(StoreName $store, Scope $scope, Key $key, Locale $locale): int
     {
-        if (! $this->schemaOf($store)->softDeletes) {
+        if (! $this->softDeletes) {
             return 0;
         }
 
@@ -268,21 +239,19 @@ final readonly class DatabaseDriver implements DatabaseBacked
         });
     }
 
-    /** The row's `uid`, or its primary key, as the history table references it. */
+    /** The row's `uid`, as the history table references it. */
     public function reference(StoreName $store, Scope $scope, Key $key, Locale $locale): ?string
     {
-        $column = $this->shape()->identity->hasUid() ? 'uid' : 'id';
+        $reference = $this->attempt($store, fn (): mixed => $this->identity($this->table($store), $scope, $key, $locale)->value('uid'));
 
-        $reference = $this->attempt($store, fn (): mixed => $this->identity($this->table($store), $scope, $key, $locale)->value($column));
-
-        return is_int($reference) || is_string($reference) ? (string) $reference : null;
+        return is_string($reference) ? $reference : null;
     }
 
     public function forget(StoreName $store, Scope $scope, Key $key, Locale $locale): void
     {
         $this->assertWritable($store);
 
-        $this->attempt($store, fn (): int => $this->schemaOf($store)->softDeletes
+        $this->attempt($store, fn (): int => $this->softDeletes
             ? $this->identity($this->live($store), $scope, $key, $locale)->update(['deleted_at' => CarbonImmutable::now()])
             : $this->identity($this->table($store), $scope, $key, $locale)->delete());
     }
@@ -292,9 +261,18 @@ final readonly class DatabaseDriver implements DatabaseBacked
     {
         $this->assertWritable($store);
 
-        return $this->attempt($store, fn (): int => $this->schemaOf($store)->softDeletes
+        return $this->attempt($store, fn (): int => $this->softDeletes
             ? $this->live($store)->where('scope', $scope->value)->update(['deleted_at' => CarbonImmutable::now()])
             : $this->table($store)->where('scope', $scope->value)->delete());
+    }
+
+    /** Unlink every row of the store, in every tenant and trashed or not, from a category. */
+    public function unlinkCategory(StoreName $store, string $category): int
+    {
+        return $this->attempt($store, fn (): int => $this->connection()->table($this->tableFor($store))
+            ->where('category_id', $category)
+            ->where('category_store', $store->value)
+            ->update(['category_id' => null, 'category_store' => null]));
     }
 
     /**
@@ -376,26 +354,16 @@ final readonly class DatabaseDriver implements DatabaseBacked
 
         return $this->attempt($store, function () use ($store, $from, $to): int {
             $changed = 0;
-            $polymorphic = ! $this->schemaOf($store)->isDedicated();
-            $perRow = $this->shape()->identity === IdentityMode::SlugPerRow;
 
             $this->connection()->table($this->tableFor($store))
                 ->where('scope', '>=', $from . ':')
                 ->where('scope', '<', $from . ';')
-                ->select(['id', 'scope', 'key', 'locale'])
-                ->chunkById(500, function ($rows) use ($store, $from, $to, $polymorphic, $perRow, &$changed): void {
+                ->select(['id', 'scope'])
+                ->chunkById(500, function ($rows) use ($store, $from, $to, &$changed): void {
                     foreach ($rows as $row) {
                         $row = (array) $row;
                         $scope = $to . substr(is_string($row['scope'] ?? null) ? $row['scope'] : '', strlen($from));
-                        $columns = ['scope' => $scope];
-
-                        if ($polymorphic) {
-                            $columns['settable_type'] = $to;
-                        }
-
-                        if ($perRow) {
-                            $columns['slug'] = sha1($scope . '|' . (is_string($row['key'] ?? null) ? $row['key'] : '') . '|' . (is_string($row['locale'] ?? null) ? $row['locale'] : ''));
-                        }
+                        $columns = $this->ownerAlias === null ? ['scope' => $scope, 'settable_type' => $to] : ['scope' => $scope];
 
                         $changed += $this->connection()->table($this->tableFor($store))->where('id', $row['id'])->update($columns);
                     }
@@ -498,12 +466,24 @@ final readonly class DatabaseDriver implements DatabaseBacked
     {
         $query = $this->table($store);
 
-        return $this->schemaOf($store)->softDeletes ? $query->whereNull('deleted_at') : $query;
+        return $this->softDeletes ? $query->whereNull('deleted_at') : $query;
     }
 
     private function trashed(StoreName $store): Builder
     {
         return $this->table($store)->whereNotNull('deleted_at');
+    }
+
+    /** Limit a query to the current tenant in column-mode tenancy. */
+    private function scoped(Builder $query): Builder
+    {
+        return $this->tenantColumn ? $query->where('tenant', $this->tenant()) : $query;
+    }
+
+    /** @return array{tenant?: string} the tenant column a new row carries */
+    private function tenantColumns(): array
+    {
+        return $this->tenantColumn ? ['tenant' => $this->tenant()] : [];
     }
 
     private function identity(Builder $query, Scope $scope, Key $key, Locale $locale): Builder
@@ -535,7 +515,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * The owner columns of a row for the store's mode.
+     * The owner columns of a row: `settable_type` and `settable_id`, or a dedicated store's `owner_id`.
      *
      * @return array<string, int|string|null>
      *
@@ -543,55 +523,26 @@ final readonly class DatabaseDriver implements DatabaseBacked
      */
     private function ownerColumns(StoreName $store, Scope $scope): array
     {
-        $schema = $this->schemaOf($store);
         $owner = $scope->owner();
         [$alias, $id] = $owner instanceof OwnerRef ? [$owner->alias, $owner->id] : [null, null];
 
-        if (! $schema->isDedicated()) {
-            $shape = $this->shape();
-
-            return [
-                'settable_type' => $alias,
-                'settable_id'   => $id === null || $shape->ownerKey === OwnerKeyType::String ? $id : $this->typedKey($store, $id, $shape->ownerKeyType),
-            ];
+        if ($this->ownerAlias === null) {
+            return ['settable_type' => $alias, 'settable_id' => $id];
         }
 
         if ($alias === null || $id === null) {
-            throw new OwnerNotAllowed(sprintf('Store [%s] is dedicated to owner [%s] and holds no global values; write those to store [%s].', $store, $schema->ownerAlias, $schema->fallback));
+            throw new OwnerNotAllowed(sprintf('Store [%s] is dedicated to owner [%s] and holds no global values; write those to store [%s].', $store, $this->ownerAlias, $this->fallback));
         }
 
-        if ($alias !== $schema->ownerAlias) {
-            throw new OwnerNotAllowed(sprintf('Store [%s] is dedicated to owner [%s], not [%s].', $store, $schema->ownerAlias, $alias));
+        if ($alias !== $this->ownerAlias) {
+            throw new OwnerNotAllowed(sprintf('Store [%s] is dedicated to owner [%s], not [%s].', $store, $this->ownerAlias, $alias));
         }
 
-        return ['owner_id' => $this->typedKey($store, $id, $schema->ownerKeyType)];
-    }
-
-    /** An owner id cast to the column's type. */
-    private function typedKey(StoreName $store, string $id, IdType $type): int|string
-    {
-        return match ($type) {
+        return ['owner_id' => match ($this->ownerKeyType) {
             IdType::Bigint => ctype_digit($id) ? (int) $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as bigint; [%s] is not one.', $store, $id)),
             IdType::Uuid   => strlen($id) === 36 ? $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as uuid; [%s] is not one.', $store, $id)),
             IdType::Ulid   => strlen($id) === 26 ? $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as ulid; [%s] is not one.', $store, $id)),
-        };
-    }
-
-    /**
-     * The columns only an insert sets: a generated key and the identity columns.
-     *
-     * @return array<string, string>
-     */
-    private function identityColumns(Record $record): array
-    {
-        $shape = $this->shape();
-        $columns = self::newId($shape->ids);
-
-        return $columns + match ($shape->identity) {
-            IdentityMode::SlugUid    => ['slug' => $record->key->slug(), 'uid' => (string) Str::ulid()],
-            IdentityMode::SlugPerRow => ['slug' => sha1($record->scope->value . '|' . $record->key->value . '|' . $record->locale->value)],
-            IdentityMode::UidOnly    => ['uid' => (string) Str::ulid()],
-        };
+        }];
     }
 
     /**
@@ -599,21 +550,16 @@ final readonly class DatabaseDriver implements DatabaseBacked
      *
      * @throws CategoryStoreMismatch when the slug belongs to another store only
      */
-    private function categoryId(StoreName $store, Record $record): int|string|null
+    private function categoryId(StoreName $store, Record $record): ?string
     {
         if ($record->category === null) {
             return null;
         }
 
-        $categories = $this->scoped($this->connection()->table($this->names()->categories()))->where('slug', $record->category);
-
-        if ($this->shape()->categoriesSoftDeletes) {
-            $categories->whereNull('deleted_at');
-        }
-
+        $categories = $this->scoped($this->connection()->table(new SettingCategory()->getTable()))->where('slug', $record->category);
         $id = (clone $categories)->where('store', $store->value)->value('id');
 
-        if (is_int($id) || is_string($id)) {
+        if (is_string($id)) {
             return $id;
         }
 

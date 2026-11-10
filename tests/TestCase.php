@@ -93,8 +93,6 @@ abstract class TestCase extends IsolatedTestCase
         Storage::fake('local');
         // No shipped file unless a test ships one.
         config()->set('laranail.settings.layers.shipped.path', '/nonexistent/laranail-settings-defaults.php');
-        // The schema-shape file goes to a path of this test's own, never the skeleton's database/.
-        config()->set('laranail.settings.schema.path', sys_get_temp_dir() . '/laranail-settings-schema-' . bin2hex(random_bytes(6)) . '.php');
         // File layers only unless a test asks for the database (useDatabase() in tests/Pest.php).
         config()->set('laranail.settings.stores.settings.layers', ['runtime', 'shipped']);
     }

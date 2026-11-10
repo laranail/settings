@@ -6,27 +6,21 @@ use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Support\Translations;
-use Simtabi\Laranail\Settings\Enums\TranslationsMode;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
-it('stores and reads titles in both translation modes', function (): void {
-    $lang = new Translations(TranslationsMode::Lang);
-    $json = new Translations(TranslationsMode::Json);
-
-    expect($lang->store('Mail', ['fr' => 'Courrier']))->toBe('Mail')
-        ->and($lang->texts('Mail'))->toBe(['' => 'Mail'])
-        ->and($lang->isJson())->toBeFalse()
-        ->and($json->store('Mail/É', ['fr' => 'Courrier']))->toBe('{"":"Mail/É","fr":"Courrier"}')
-        ->and($json->text('{"":"Mail","fr":"Courrier"}'))->toBe('Mail')
-        ->and($json->text('{"fr":"Courrier","de":"Post"}'))->toBe('Courrier')
-        ->and($json->texts('{"":"Mail","fr":3}'))->toBe(['' => 'Mail'])
-        ->and($json->text('not json'))->toBe('not json')
-        ->and($json->text('{"fr":3}'))->toBe('{"fr":3}')
-        ->and($json->storeNullable(null))->toBeNull()
-        ->and($json->nullableText(null))->toBeNull()
-        ->and($json->nullableText('{"":"Mail"}'))->toBe('Mail');
+it('builds and reads per-locale title maps', function (): void {
+    expect(Translations::of('Mail/É', ['fr' => 'Courrier']))->toBe(['' => 'Mail/É', 'fr' => 'Courrier'])
+        ->and(Translations::ofNullable(null))->toBeNull()
+        ->and(Translations::ofNullable('Mail'))->toBe(['' => 'Mail'])
+        ->and(Translations::text(['' => 'Mail', 'fr' => 'Courrier']))->toBe('Mail')
+        ->and(Translations::text(['fr' => 'Courrier', 'de' => 'Post']))->toBe('Courrier')
+        ->and(Translations::texts(['' => 'Mail', 'fr' => 3]))->toBe(['' => 'Mail'])
+        ->and(Translations::text('Mail'))->toBe('Mail')
+        ->and(Translations::texts('Mail'))->toBe(['' => 'Mail'])
+        ->and(Translations::text(['fr' => 3]))->toBeNull()
+        ->and(Translations::text(null))->toBeNull();
 });
 
 it('encodes JSON with one set of flags and names what failed', function (): void {

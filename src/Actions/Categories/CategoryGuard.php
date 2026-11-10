@@ -15,7 +15,6 @@ use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Support\AuditedTransaction;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * Authorizes `manage_categories` and runs a category change, its events and its audit entry in
@@ -31,7 +30,7 @@ final readonly class CategoryGuard
     /**
      * @template T
      *
-     * @param Closure(CategoryRepository, DatabaseDriver): T $work
+     * @param Closure(DatabaseDriver): T $work
      * @param list<object> $also more events dispatched after `$after`
      *
      * @return T
@@ -53,7 +52,7 @@ final readonly class CategoryGuard
             function () use ($store, $database, $work, $before): mixed {
                 $this->events->dispatch($before);
 
-                return $work(new CategoryRepository($database, $store->name), $database);
+                return $database->attempt($store->name, static fn (): mixed => $work($database));
             },
             then: function () use ($after, $also): void {
                 $this->events->dispatch($after);

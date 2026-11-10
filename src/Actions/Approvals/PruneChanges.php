@@ -10,11 +10,12 @@ use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Enums\ChangeStatus;
 use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
  * Expire overdue open change requests and delete decided ones older than `approvals.keep_days`,
@@ -42,14 +43,26 @@ final readonly class PruneChanges
         foreach ($this->stores->all() as $store) {
             $database = $store->database();
 
-            if (! $database instanceof DatabaseDriver || ! $database->shape()->changeRequestsTable || isset($seen[$database->connectionName()])) {
+            if (! $database instanceof DatabaseDriver || isset($seen[$database->connectionName()])) {
                 continue;
             }
 
             $seen[$database->connectionName()] = true;
-            [$expired, $deleted] = new ChangeRequestRepository($database)->sweep($now, $cutoff, $store->name);
-            $totals['expired'] += $expired;
-            $totals['deleted'] += $deleted;
+            $connection = $database->connectionName();
+
+            // Every tenant's requests: expire the overdue ones, then delete decided ones past the cutoff.
+            $totals['expired'] += $database->attempt($store->name, static fn (): int => SettingChangeRequest::on($connection)
+                ->allTenants()
+                ->overdue($now)
+                ->update(['status' => ChangeStatus::Expired->value, 'updated_at' => $now]));
+
+            if ($cutoff instanceof CarbonImmutable) {
+                $totals['deleted'] += $database->attempt($store->name, static fn (): int => SettingChangeRequest::on($connection)
+                    ->allTenants()
+                    ->whereNotIn('status', [ChangeStatus::Pending->value, ChangeStatus::Approved->value])
+                    ->where('updated_at', '<', $cutoff)
+                    ->toBase()->delete());
+            }
         }
 
         $this->access->auditor()->record(AuditAction::Prune, AuditOutcome::Allowed, $subject, $actor, meta: ['target' => 'change_requests'] + $totals);

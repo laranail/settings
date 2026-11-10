@@ -20,7 +20,7 @@ use Simtabi\Laranail\Settings\Data\HistoryEntry;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Data\HistoryFilter;
 use Simtabi\Laranail\Settings\Actions\QueryHistory;
-use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
+use Simtabi\Laranail\Settings\Models\SettingHistory;
 
 /**
  * An immutable query over the value history, newest version first, returned by
@@ -96,13 +96,13 @@ final readonly class HistoryQuery
             $query->limit(max(1, $limit));
         }
 
-        return array_values(array_map(fn (object $row): HistoryEntry => $this->entry((array) $row), $query->get()->all()));
+        return array_values(array_map($this->entry(...), $query->get()->all()));
     }
 
     /** @return LazyCollection<int, HistoryEntry> streamed in chunks, for long trails */
     public function cursor(): LazyCollection
     {
-        return $this->action->handle($this->filter, $this->actor)->cursor()->map(fn (object $row): HistoryEntry => $this->entry((array) $row));
+        return $this->action->handle($this->filter, $this->actor)->cursor()->map($this->entry(...));
     }
 
     /** One page; pass its `nextCursor` back for the next. */
@@ -111,17 +111,16 @@ final readonly class HistoryQuery
         $page = $this->action->handle($this->filter, $this->actor)->cursorPaginate(max(1, $perPage), ['*'], 'cursor', $cursor === null ? null : Cursor::fromEncoded($cursor));
 
         return new HistoryPage(
-            array_values(array_map(fn (mixed $row): HistoryEntry => $this->entry(is_object($row) ? (array) $row : []), $page->items())),
+            array_values(array_map($this->entry(...), $page->items())),
             max(1, $perPage),
             $page->nextCursor()?->encode(),
             $page->previousCursor()?->encode(),
         );
     }
 
-    /** @param array<array-key, mixed> $row */
-    private function entry(array $row): HistoryEntry
+    private function entry(SettingHistory $row): HistoryEntry
     {
-        $entry = HistoryRepository::entry($row);
+        $entry = $row->toEntry();
 
         return $this->mayView instanceof Closure && ! ($this->mayView)($entry) ? $entry->redacted() : $entry;
     }

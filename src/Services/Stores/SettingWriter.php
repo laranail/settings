@@ -20,6 +20,7 @@ use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Events\SettingSaved;
 use Simtabi\Laranail\Settings\Events\SettingLocked;
 use Simtabi\Laranail\Settings\Events\SettingSaving;
+use Simtabi\Laranail\Settings\Models\SettingHistory;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Enums\HistoryOperation;
 use Simtabi\Laranail\Settings\Events\SettingUnlocked;
@@ -33,7 +34,6 @@ use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
-use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 
 /**
  * Every write path: set, forget, lock and unlock.
@@ -194,34 +194,34 @@ final readonly class SettingWriter
             return $existing->version;
         }
 
-        $trashed = $this->database($layer)?->trashedVersion($store->name, $scope, $key, $locale) ?? 0;
+        $database = $this->database($layer);
 
-        return max($trashed, $this->history($layer)?->latestVersion($store->name, $scope, $key, $locale) ?? 0);
+        if (! $database instanceof DatabaseDriver) {
+            return 0;
+        }
+
+        $trashed = $database->trashedVersion($store->name, $scope, $key, $locale);
+        $history = $database->attempt($store->name, static fn (): int => SettingHistory::latestVersion($database->connectionName(), $store->name, $scope, $key, $locale));
+
+        return max($trashed, $history);
     }
 
     /** Store a record and its history entry in one transaction. */
     private function persist(Store $store, Layer $layer, HistoryOperation $operation, ?Record $before, Record $after): void
     {
-        $history = $this->history($layer);
+        $database = $this->database($layer);
 
-        if (! $history instanceof HistoryRepository) {
+        if (! $database instanceof DatabaseDriver) {
             $layer->driver->put($store->name, $after);
 
             return;
         }
 
-        $history->database()->transaction(function () use ($store, $layer, $history, $operation, $before, $after): void {
+        $database->transaction(function () use ($store, $layer, $database, $operation, $before, $after): void {
             $layer->driver->put($store->name, $after);
-            $history->record($store->name, $operation, $before, $after, $after->version, $history->database()->reference($store->name, $after->scope, $after->key, $after->locale), $this->causer, $this->reason, $this->clock->now());
+            $reference = $database->reference($store->name, $after->scope, $after->key, $after->locale);
+            $database->attempt($store->name, fn (): SettingHistory => SettingHistory::record($database->connectionName(), $store->name, $operation, $before, $after, $reference, $this->causer, $this->reason, $this->clock->now()));
         }, $store->name);
-    }
-
-    /** The history table of the layer's database, when the recorded schema has one. */
-    private function history(Layer $layer): ?HistoryRepository
-    {
-        $database = $this->database($layer);
-
-        return $database instanceof DatabaseDriver && $database->shape()->historyTable ? new HistoryRepository($database) : null;
     }
 
     private function database(Layer $layer): ?DatabaseDriver
@@ -242,14 +242,14 @@ final readonly class SettingWriter
         }
 
         $this->events->dispatch(new SettingForgetting($store->name->value, $scope->value, $key->value, $locale->value, $existing->version));
-        $history = $this->history($layer);
+        $database = $this->database($layer);
 
-        if ($history instanceof HistoryRepository) {
+        if ($database instanceof DatabaseDriver) {
             // A tombstone: the version that was removed, no new value. The next write continues after it.
-            $history->database()->transaction(function () use ($store, $layer, $history, $scope, $key, $locale, $existing): void {
-                $reference = $history->database()->reference($store->name, $scope, $key, $locale);
+            $database->transaction(function () use ($store, $layer, $database, $scope, $key, $locale, $existing): void {
+                $reference = $database->reference($store->name, $scope, $key, $locale);
                 $layer->driver->forget($store->name, $scope, $key, $locale);
-                $history->record($store->name, HistoryOperation::Forget, $existing, null, $existing->version, $reference, $this->causer, $this->reason, $this->clock->now());
+                $database->attempt($store->name, fn (): SettingHistory => SettingHistory::record($database->connectionName(), $store->name, HistoryOperation::Forget, $existing, null, $reference, $this->causer, $this->reason, $this->clock->now()));
             }, $store->name);
         } else {
             $layer->driver->forget($store->name, $scope, $key, $locale);

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Simtabi\Laranail\Settings\Data\Key;
@@ -34,14 +35,13 @@ beforeEach(function (): void {
     useDatabase();
 });
 
-it('stores a value as a row with its slug, uid, group and version', function (): void {
+it('stores a value as a row with its uid, group and version', function (): void {
     settings()->set('mail.from_address', 'ap@acme.test');
 
     $row = DB::table('settings')->first();
 
     expect(settings()->get('mail.from_address'))->toBe('ap@acme.test')
         ->and($row?->scope)->toBe('global')
-        ->and($row?->slug)->toBe('mail-from_address')
         ->and($row?->group)->toBe('mail')
         ->and(strlen((string) $row?->uid))->toBe(26)
         ->and((int) $row?->version)->toBe(1)
@@ -71,7 +71,7 @@ it('identifies a row by scope, key and locale, never by group', function (): voi
 
 it('keeps the identity index inside the utf8mb4 byte budget, tenant column included', function (): void {
     $migration = (string) file_get_contents(dirname(__DIR__, 3) . '/database/migrations/create_laranail_settings_tables.php');
-    $values = substr($migration, (int) strpos($migration, 'private function createValues'), 4000);
+    $values = substr($migration, (int) strpos($migration, 'private function valuesTable'), 4000);
     preg_match_all("/string\\('(tenant|scope|key|locale)', (\\d+)\\)/", $values, $matches);
     $lengths = array_combine($matches[1], array_map(intval(...), $matches[2]));
     ksort($lengths);
@@ -82,7 +82,7 @@ it('keeps the identity index inside the utf8mb4 byte budget, tenant column inclu
 
 it('treats keys case-sensitively in the table and lower-cases them in the API', function (): void {
     $now = now();
-    $row = static fn (string $key, string $uid): array => ['scope' => 'global', 'key' => $key, 'locale' => '', 'group' => 'x', 'uid' => $uid, 'value' => '1', 'version' => 1, 'created_at' => $now, 'updated_at' => $now];
+    $row = static fn (string $key, string $uid): array => ['id' => (string) Str::ulid(), 'scope' => 'global', 'key' => $key, 'locale' => '', 'group' => 'x', 'uid' => $uid, 'value' => '1', 'version' => 1, 'created_at' => $now, 'updated_at' => $now];
 
     DB::table('settings')->insert($row('Theme', str_repeat('A', 26)));
     DB::table('settings')->insert($row('theme', str_repeat('B', 26)));
@@ -150,8 +150,9 @@ it('refuses a group longer than the column', function (): void {
 
 it('links a setting to its category in the same store and refuses one from another store', function (): void {
     $now = now();
-    $id = DB::table('settings_categories')->insertGetId(['store' => 'settings', 'title' => 'Mail', 'slug' => 'mail', 'created_at' => $now, 'updated_at' => $now]);
-    DB::table('settings_categories')->insert(['store' => 'billing', 'title' => 'Tax', 'slug' => 'tax', 'created_at' => $now, 'updated_at' => $now]);
+    $id = (string) Str::ulid();
+    DB::table('settings_categories')->insert(['id' => $id, 'store' => 'settings', 'title' => '{"":"Mail"}', 'slug' => 'mail', 'created_at' => $now, 'updated_at' => $now]);
+    DB::table('settings_categories')->insert(['id' => (string) Str::ulid(), 'store' => 'billing', 'title' => '{"":"Tax"}', 'slug' => 'tax', 'created_at' => $now, 'updated_at' => $now]);
 
     $registry = app(DefinitionRegistry::class);
     $registry->define('mail.from')->inCategory('mail')->register();
@@ -161,7 +162,7 @@ it('links a setting to its category in the same store and refuses one from anoth
     settings()->set('mail.from', 'ap@acme.test');
     settings()->set('misc.flag', true);
 
-    expect((int) DB::table('settings')->where('key', 'mail.from')->value('category_id'))->toBe($id)
+    expect(DB::table('settings')->where('key', 'mail.from')->value('category_id'))->toBe($id)
         ->and(DB::table('settings')->where('key', 'mail.from')->value('category_store'))->toBe('settings')
         ->and(DB::table('settings')->where('key', 'misc.flag')->value('category_id'))->toBeNull()
         ->and(fn () => settings()->set('tax.rate', 16))->toThrow(CategoryStoreMismatch::class, 'belongs to store [billing]')

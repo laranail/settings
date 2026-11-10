@@ -4,81 +4,61 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Support;
 
-use Simtabi\Laranail\Settings\Enums\TranslationsMode;
-
 /**
- * Reads and writes titles, labels and descriptions per `translations.mode`: plain text, or a JSON
- * map of locale to text where `''` applies to any locale.
+ * Titles, labels and descriptions are stored as JSON maps of locale to text, where `''` is the
+ * text for any locale.
  */
 final readonly class Translations
 {
-    public function __construct(
-        private TranslationsMode $mode,
-    ) {}
-
-    public function isJson(): bool
-    {
-        return $this->mode === TranslationsMode::Json;
-    }
-
     /**
-     * The text as the column holds it.
+     * The map to store for a text and its translations.
      *
-     * @param array<string, string> $translations locale => text, used in json mode
-     */
-    public function store(string $text, array $translations = []): string
-    {
-        return $this->isJson() ? Json::encode(['' => $text] + $translations, 'A title or description') : $text;
-    }
-
-    /** {@see store()} for a nullable column: null stays null. */
-    public function storeNullable(?string $text): ?string
-    {
-        return $text === null ? null : $this->store($text);
-    }
-
-    /** The text for any locale: the `''` entry, else the first text, else the stored value as is. */
-    public function text(string $stored): string
-    {
-        $texts = $this->texts($stored);
-
-        if (isset($texts[''])) {
-            return $texts[''];
-        }
-
-        foreach ($texts as $text) {
-            return $text;
-        }
-
-        return $stored;
-    }
-
-    /** {@see text()} for a nullable column: null stays null. */
-    public function nullableText(?string $stored): ?string
-    {
-        return $stored === null ? null : $this->text($stored);
-    }
-
-    /**
-     * Every text by locale; `['' => stored]` when the value is not a JSON map of texts.
+     * @param array<string, string> $translations locale => text
      *
      * @return array<string, string>
      */
-    public function texts(string $stored): array
+    public static function of(string $text, array $translations = []): array
     {
-        if (! $this->isJson()) {
+        return ['' => $text] + $translations;
+    }
+
+    /**
+     * {@see of()} for a nullable column: null stays null.
+     *
+     * @return array<string, string>|null
+     */
+    public static function ofNullable(?string $text): ?array
+    {
+        return $text === null ? null : self::of($text);
+    }
+
+    /** The text for any locale: the `''` entry, else the first text; null when there is none. */
+    public static function text(mixed $stored): ?string
+    {
+        $texts = self::texts($stored);
+
+        return $texts[''] ?? ($texts === [] ? null : reset($texts));
+    }
+
+    /**
+     * Every text by locale. A plain string reads as the text for any locale.
+     *
+     * @return array<string, string>
+     */
+    public static function texts(mixed $stored): array
+    {
+        if (is_string($stored)) {
             return ['' => $stored];
         }
 
-        $decoded = json_decode($stored, true);
         $texts = [];
 
-        foreach (is_array($decoded) ? $decoded : [] as $locale => $text) {
+        foreach (is_array($stored) ? $stored : [] as $locale => $text) {
             if (is_string($text)) {
                 $texts[(string) $locale] = $text;
             }
         }
 
-        return $texts === [] ? ['' => $stored] : $texts;
+        return $texts;
     }
 }

@@ -105,7 +105,7 @@ function messageKeysUsedInSource(): array
         $keys = [...$keys, ...$matches[1]];
     }
 
-    expect($files)->toBeGreaterThanOrEqual(355);
+    expect($files)->toBeGreaterThanOrEqual(354);
 
     $problems = (string) file_get_contents($root . '/Http/Support/Problems.php');
     preg_match_all("/this->make\\(\\d+, '([a-z-]+)'/", $problems, $fixed);
