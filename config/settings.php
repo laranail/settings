@@ -189,6 +189,26 @@ return [
     ],
 
     /*
+    | The settings cache (database layers only; file layers are read directly).
+    | It holds each scope's raw rows (a "bag"), keyed by connection, database,
+    | tenant, store and scope, and is invalidated on every write by replacing a
+    | generation token, so a write is visible on the next read everywhere.
+    | `store` is a cache store from config/cache.php (null: the default one;
+    | it must exist, and a node-local store such as `array` or `file` is only
+    | right for a single server). `ttl` is how long a bag is fresh; for `stale`
+    | seconds after that it is still answered while it is refreshed in the
+    | background (Cache::flexible()); 0 turns that off. `prefix` starts every
+    | key, so two applications can share a cache store.
+    */
+    'cache' => [
+        'enabled' => env('LARANAIL_SETTINGS_CACHE', true),
+        'store'   => env('LARANAIL_SETTINGS_CACHE_STORE'),
+        'prefix'  => 'laranail-settings',
+        'ttl'     => 3600,
+        'stale'   => 300,
+    ],
+
+    /*
     | Events after which the schema readiness memo is forgotten, besides
     | migrations, queued jobs and Octane requests: tenant switches. db-tools has
     | no tenant hook of its own, so the tenancy packages' events are listened to

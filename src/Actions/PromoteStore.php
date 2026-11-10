@@ -104,6 +104,9 @@ final readonly class PromoteStore
             ]],
         );
 
+        // Promoted rows were written past the cache: reset the store's bags.
+        $store->forgetCachedStore();
+
         $archive = $request->from === null ? $runtime->archive($store->name, CarbonImmutable::now()) : null;
 
         $this->events->dispatch(new StorePromoted($store->name->value, count($promoted), count($skipped), $archive));

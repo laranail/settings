@@ -146,6 +146,25 @@ interface Settings
     public function flush(): void;
 
     /**
+     * Reset the cached settings this handle names (design §7.5): with `for($owner)`, that owner's
+     * cached values in its store; otherwise every cached value of the handle's store, for every
+     * tenant. Stored values are untouched. Needs `manage_stores` when the handle carries an actor.
+     * Does nothing when caching is off.
+     *
+     * @throws AccessDenied
+     */
+    public function clearCache(): void;
+
+    /**
+     * Load this handle's scope (its owner's, or the global scope) into the cache now, so the
+     * first read costs no query. Needs `manage_stores` when the handle carries an actor. Returns
+     * how many records were cached (0 when the store is not cached).
+     *
+     * @throws AccessDenied
+     */
+    public function warmCache(): int;
+
+    /**
      * Load the settings of many owners now, one read per store, so reading each of them later in
      * the request costs no further query (eager loading, G-9). Includes the global scope and the
      * owners' parents.

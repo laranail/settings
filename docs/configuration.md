@@ -59,12 +59,17 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `audit.keep_days` | `365` | how long `prune-audit` keeps audit rows |
 | `logging.channel` | `null` | the application's default channel, a channel name, or `false` for off |
 | `logging.level` | `info` (`LARANAIL_SETTINGS_LOG_LEVEL`) | the lowest level written |
+| `cache.enabled` | `true` (`LARANAIL_SETTINGS_CACHE`) | cache each database layer's per-scope bags |
+| `cache.store` | `null` (`LARANAIL_SETTINGS_CACHE_STORE`) | a store from `config/cache.php`; null is the default store; share it between servers |
+| `cache.prefix` | `laranail-settings` | the start of every cache key |
+| `cache.ttl` | `3600` | seconds a cached bag is fresh (at least 1) |
+| `cache.stale` | `300` | seconds after `ttl` a stale bag is still answered while it is refreshed (`Cache::flexible()`); `0` for none |
 
 Store names, keys, locales and owner aliases are validated, and a misconfiguration (an unknown driver, sink, verifier, resolver, level or ability included) raises `InvalidConfiguration` naming the config path on first use. The `password_confirmation` verifier also reads Laravel's own `auth.password_timeout`.
 
 Migration-time switches (`tenancy.mode` among them) are read by `install` and `make-store` and recorded in the schema file; after that the package reads the file, and `doctor` reports configuration that differs from it. See [Schema switches](tools/schema-switches.md).
 
-Access, audit and logging are described in [Access control](tools/access-control.md) and [Audit and logging](tools/audit-and-logging.md); per-request changes in [Runtime configuration](tools/runtime-configuration.md).
+The cache is described in [Caching](tools/caching.md). Access, audit and logging are described in [Access control](tools/access-control.md) and [Audit and logging](tools/audit-and-logging.md); per-request changes in [Runtime configuration](tools/runtime-configuration.md).
 
 ## Publishing
 

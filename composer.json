@@ -48,6 +48,7 @@
         "pestphp/pest": "^4.0",
         "pestphp/pest-plugin-arch": "^4.0",
         "pestphp/pest-plugin-laravel": "^4.0",
+        "phpbench/phpbench": "^1.4",
         "phpstan/phpstan": "^2.0",
         "rector/rector": "^2.5.8",
         "roave/security-advisories": "dev-latest"
@@ -67,7 +68,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Simtabi\\Laranail\\Settings\\Tests\\": "tests/"
+            "Simtabi\\Laranail\\Settings\\Tests\\": "tests/",
+            "Simtabi\\Laranail\\Settings\\Benchmarks\\": "benchmarks/"
         }
     },
     "scripts": {
@@ -76,6 +78,7 @@
         "test-coverage": "@test --coverage --min=90",
         "test-dirty": "@test --dirty --compact",
         "mutate": "vendor/bin/pest --mutate --everything --exclude-group=matrix --min=70",
+        "bench": "vendor/bin/phpbench run --report=settings",
         "lint": [
             "@pint",
             "@phpstan",

@@ -13,9 +13,12 @@ use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Simtabi\Laranail\Settings\Support\ConfigValues;
+use Simtabi\Laranail\Settings\Caching\SettingsCache;
+use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
+use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Contracts\BootstrapEvidence;
 use Simtabi\Laranail\Settings\Drivers\BootstrapGatedDriver;
@@ -49,12 +52,13 @@ final class StoreRegistry
         private readonly ?RuntimeConfiguration $runtime = null,
         private readonly ?BootstrapEvidence $evidence = null,
         private readonly ?Closure $onLayerSkipped = null,
+        private readonly ?SettingsCache $cache = null,
     ) {}
 
     /** A copy whose every layer is replaced by one driver (used by the fake). */
     public function withEveryLayer(Driver $driver): self
     {
-        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->onLayerSkipped);
+        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->onLayerSkipped, $this->cache);
     }
 
     /**
@@ -187,12 +191,22 @@ final class StoreRegistry
     }
 
     /**
-     * A layer built for one store: a database layer learns the store's table, and in a store in
-     * bootstrap mode it is put behind the bootstrap gate.
+     * A layer built for one store: a database layer learns the store's table, in a store in
+     * bootstrap mode it is put behind the bootstrap gate, and with caching on it is read through
+     * the settings cache (outside the gate, so a skipped layer is never cached).
      */
     private function storeLayer(string $name, string $storePath, StoreName $store, ?string $table, bool $bootstrap): Layer
     {
-        $layer = $this->layer($name, $storePath, $table === null ? [] : ['table' => $table]);
+        $layer = $this->gatedLayer($this->layer($name, $storePath, $table === null ? [] : ['table' => $table]), $store, $bootstrap);
+
+        return $this->cache instanceof SettingsCache && $layer->driver instanceof DatabaseBacked
+            ? new Layer($layer->name, new CachingDriver($layer->driver, $this->cache), $layer->type)
+            : $layer;
+    }
+
+    private function gatedLayer(Layer $layer, StoreName $store, bool $bootstrap): Layer
+    {
+        $name = $layer->name;
 
         if (! $bootstrap || ! $layer->driver instanceof DatabaseDriver) {
             return $layer;

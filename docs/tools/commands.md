@@ -1,6 +1,6 @@
 # Commands
 
-Eight Artisan commands, all named `laranail::settings.<command>`.
+Ten Artisan commands, all named `laranail::settings.<command>`.
 
 ## The commands
 
@@ -13,6 +13,8 @@ Eight Artisan commands, all named `laranail::settings.<command>`.
 | `laranail::settings.sync-definitions` | copies code and config definitions into the definitions table as system rows |
 | `laranail::settings.prune-orphans [--dry-run]` | removes the settings of owners that no longer exist |
 | `laranail::settings.prune-audit [--days=]` | removes audit rows older than `audit.keep_days` |
+| `laranail::settings.warm [--store=*]` | loads each cached store's global scope into the cache |
+| `laranail::settings.clear-cache [--store=*]` | resets the cached settings of every store, or the named ones, for every tenant |
 
 Each one delegates to an action (`Actions\PromoteStore`, `Actions\PruneOrphans`, …) that the PHP
 API uses too, so the console and the API cannot behave differently.
@@ -56,6 +58,17 @@ report.
 Lists, per store and alias, the owner scopes whose model no longer exists (soft-deleted models
 count as existing) and removes their rows. An alias with no model in the morph map is reported and
 left alone. Schedule it if you delete owners in bulk.
+
+## `warm` and `clear-cache`
+
+`warm` loads the global scope of every store that has a cached database layer (one query per
+store on a miss, none on a hit) and prints the record count per store. `clear-cache` replaces
+generation tokens: with no option every bag goes, with `--store=` only those stores'. Neither
+touches stored values or the application's other cache entries, and both do nothing when
+`cache.enabled` is off. Both run as the system actor and are audited as a `manage_stores` entry
+(`meta.operation` `cache.warm` or `cache.clear`); their actions, `Actions\WarmCache` and
+`Actions\ClearCache`, need `manage_stores` when called with an actor. See
+[Caching](caching.md) and [Warm the cache after a deploy](../recipes/warming-the-cache.md).
 
 ## Pruning and access
 
