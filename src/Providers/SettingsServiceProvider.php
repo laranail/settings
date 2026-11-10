@@ -54,6 +54,7 @@ use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Support\ConfigValues;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Database\ConnectionResolverInterface;
@@ -488,30 +489,29 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
     private static function integer(Application $app, string $key, int $default): int
     {
-        $value = $app->make(Repository::class)->get($key, $default);
-
-        return is_int($value) || (is_string($value) && ctype_digit($value)) ? (int) $value : $default;
+        return self::config($app)->integer($key, $default);
     }
 
     /** @return list<string> */
     private static function strings(Application $app, string $key): array
     {
-        return array_values(array_filter(self::array($app, $key), is_string(...)));
+        return self::config($app)->strings($key);
     }
 
     private static function string(Application $app, string $key, string $default): string
     {
-        $value = $app->make(Repository::class)->get($key, $default);
-
-        return is_string($value) ? $value : $default;
+        return self::config($app)->string($key, $default);
     }
 
     /** @return array<array-key, mixed> */
     private static function array(Application $app, string $key): array
     {
-        $value = $app->make(Repository::class)->get($key, []);
+        return self::config($app)->array($key);
+    }
 
-        return is_array($value) ? $value : [];
+    private static function config(Application $app): ConfigValues
+    {
+        return new ConfigValues($app->make(Repository::class));
     }
 
     /** stancl/tenancy's current tenant key, or null when tenancy is not initialised. */

@@ -58,3 +58,21 @@ it('parses stored scopes and names their owner', function (): void {
         ->and(Scope::global()->owner())->toBeNull()
         ->and(fn () => Scope::fromString('App\\Models\\User:1'))->toThrow(InvalidIdentifier::class);
 });
+
+it('reads configuration leniently, and lists strictly', function (): void {
+    $config = new Simtabi\Laranail\Settings\Support\ConfigValues(new Illuminate\Config\Repository([
+        'a' => ['name' => 'x', 'n' => '12', 'bad' => 1.5, 'list' => ['x', 2, 'y'], 'scalar' => 'no'],
+    ]));
+
+    expect($config->string('a.name', 'd'))->toBe('x')
+        ->and($config->string('a.n', 'd'))->toBe('12')
+        ->and($config->string('a.bad', 'd'))->toBe('d')
+        ->and($config->integer('a.n', 0))->toBe(12)
+        ->and($config->integer('a.bad', 7))->toBe(7)
+        ->and($config->integer('a.missing', 7))->toBe(7)
+        ->and($config->array('a.scalar'))->toBe([])
+        ->and($config->strings('a.list'))->toBe(['x', 'y'])
+        ->and(Simtabi\Laranail\Settings\Support\ConfigValues::listOfStrings(['x', 'y'], 'p'))->toBe(['x', 'y'])
+        ->and(fn () => Simtabi\Laranail\Settings\Support\ConfigValues::listOfStrings(['x', 2], 'p.q'))->toThrow(Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration::class, 'p.q: a list of strings is required.')
+        ->and(fn () => Simtabi\Laranail\Settings\Support\ConfigValues::listOfStrings('x', 'p.q'))->toThrow(Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration::class, 'p.q');
+});
