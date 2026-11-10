@@ -43,7 +43,7 @@ it('syncs code and config definitions in as system rows and removes stale ones',
     $password = DB::table('settings_definitions')->where('key', 'mail.password')->first();
 
     expect($report)->toMatchArray(['synced' => 2, 'removed' => 1, 'conflicts' => []])
-        ->and(DB::table('settings_definitions')->where('key', 'site.name')->value('label'))->toBe('{"":"Site name"}')
+        ->and(json_decode((string) DB::table('settings_definitions')->where('key', 'site.name')->value('label'), true))->toBe(['' => 'Site name'])
         ->and(DB::table('settings_definitions')->where('key', 'site.name')->value('default'))->toBe('"Acme"')
         ->and((bool) $password?->is_system)->toBeTrue()
         ->and($password?->default)->toBeNull()
@@ -59,7 +59,7 @@ it('reports a runtime row that shares a key with code, and leaves it alone', fun
     runtimeDefinition('site.name', ['label' => '{"":"Edited"}']);
 
     expect(app(SyncDefinitions::class)->handle()['conflicts'])->toBe(['settings.site.name'])
-        ->and(DB::table('settings_definitions')->value('label'))->toBe('{"":"Edited"}');
+        ->and(json_decode((string) DB::table('settings_definitions')->value('label'), true))->toBe(['' => 'Edited']);
 });
 
 it('answers for keys no code covers from runtime rows, never from system rows', function (): void {
