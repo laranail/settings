@@ -42,6 +42,8 @@ All under `/{prefix}/v1`. `{owner}` is either nothing (the global value) or `own
 | `PUT`, `DELETE stores/{store}/definitions/{key}` | `definitions.update`, `definitions.destroy` | `manage_definitions` |
 | `POST stores/{store}/export`, `/import`, `/diff` | `transfer.*` | `export` (`view_sensitive` for plaintext), `import` |
 
+Every route, with request and response examples, status codes and problem types, is in the [REST API reference](rest-api-reference.md).
+
 Each capability runs the same action the PHP API runs (`Enums\Capability::actions()`), and an architecture test fails if a route, the capability list or a controller drifts from the others.
 
 ## Requests and responses

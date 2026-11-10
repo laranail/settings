@@ -133,6 +133,7 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Owners\MorphMapOwnerResolver;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
 use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Database\SchemaReadinessProbe;
@@ -507,6 +508,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             approvalActions: $app->make(ApprovalActions::class),
             transferActions: $app->make(TransferActions::class),
             configurationActions: $app->make(ConfigurationActions::class),
+            listDefinitions: $app->make(ListDefinitions::class),
         ));
 
         $this->app->bind(DiagnoseSettings::class, static fn (Application $app): DiagnoseSettings => new DiagnoseSettings(

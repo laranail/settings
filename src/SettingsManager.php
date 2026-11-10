@@ -38,10 +38,12 @@ use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
+use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
 use Simtabi\Laranail\Settings\Actions\HistoryActions;
 use Simtabi\Laranail\Settings\Actions\SettingActions;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
@@ -53,6 +55,8 @@ use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
+use Simtabi\Laranail\Settings\Services\Resolution\ScopeKeys;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Actions\Transfer\TransferActions;
@@ -101,6 +105,7 @@ final readonly class SettingsManager implements Settings
         private ?ApprovalActions $approvalActions = null,
         private ?TransferActions $transferActions = null,
         private ?ConfigurationActions $configurationActions = null,
+        private ?ListDefinitions $listDefinitions = null,
     ) {
         $this->access = $access ?? AccessGuard::closed();
         $this->actions = $actions ?? SettingActions::using($writer, $this->access);
@@ -185,6 +190,59 @@ final readonly class SettingsManager implements Settings
         return $this->lookup($key)->isFound();
     }
 
+    public function missing(string $key): bool
+    {
+        return ! $this->has($key);
+    }
+
+    public function many(array $keys): array
+    {
+        $values = [];
+
+        foreach ($keys as $key => $default) {
+            if (is_int($key)) {
+                $key = is_string($default) ? $default : throw new InvalidKey('many() takes setting keys, or key => default pairs.');
+                $default = null;
+            }
+
+            $values[$key] = $this->get($key, $default);
+        }
+
+        return $values;
+    }
+
+    public function all(?string $prefix = null): array
+    {
+        $store = $this->targetStore();
+        $prefix = $prefix === null ? null : new Key(rtrim($prefix, '.'))->value;
+        $values = [];
+
+        foreach (new ScopeKeys($this->definitions)->keys($store, $this->scope()) as $key) {
+            if ($prefix !== null && $key !== $prefix && ! str_starts_with($key, $prefix . '.')) {
+                continue;
+            }
+
+            try {
+                $lookup = $this->lookup($key);
+            } catch (AccessDenied|UnknownSetting) {
+                continue;
+            }
+
+            if ($lookup->isFound()) {
+                $values[$key] = $lookup->value();
+            }
+        }
+
+        return $values;
+    }
+
+    public function definitions(): array
+    {
+        $list = $this->listDefinitions ?? throw new LogicException('This settings handle was built without the definitions listing; resolve Settings from the container.');
+
+        return $list->handle($this->targetStore(), $this->actingAs);
+    }
+
     public function string(string $key): string
     {
         $value = $this->required($key);
@@ -252,6 +310,34 @@ final readonly class SettingsManager implements Settings
         } finally {
             $this->resolver->forgetPreloaded($target->store, $this->scope());
         }
+    }
+
+    public function setMany(array $values): void
+    {
+        foreach ($values as $key => $value) {
+            $this->set($key, $value);
+        }
+    }
+
+    public function forgetMany(iterable $keys): void
+    {
+        foreach ($keys as $key) {
+            $this->forget($key);
+        }
+    }
+
+    public function remember(string $key, callable $value): mixed
+    {
+        $lookup = $this->lookup($key);
+
+        if ($lookup->isFound()) {
+            return $lookup->value();
+        }
+
+        $computed = $value();
+        $this->set($key, $computed);
+
+        return $this->get($key, $computed);
     }
 
     public function lock(string $key): void
@@ -569,6 +655,7 @@ final readonly class SettingsManager implements Settings
             $this->approvalActions,
             $this->transferActions,
             $this->configurationActions,
+            $this->listDefinitions,
         );
     }
 }

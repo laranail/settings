@@ -9,6 +9,7 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
@@ -17,6 +18,7 @@ use Simtabi\Laranail\Settings\Approvals\Approvals;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
+use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
@@ -100,10 +102,48 @@ interface Settings
      * Presence-aware read: found (value possibly null) or missing.
      *
      * @throws AccessDenied when the actor may not view the key (or, for a sensitive key, its value)
+     * @throws UnknownSetting when the store is strict and has no definition for the key
      */
     public function lookup(string $key): Lookup;
 
     public function has(string $key): bool;
+
+    /** The opposite of {@see has()}: true when nothing is stored and the definition has no default. */
+    public function missing(string $key): bool;
+
+    /**
+     * Several values at once, keyed as asked. Pass a list of keys, or `key => default` pairs, or
+     * both: `many(['site.name', 'site.tagline' => 'Welcome'])`. Each key is read (and authorized)
+     * exactly as {@see get()} reads it.
+     *
+     * @param array<array-key, mixed> $keys
+     *
+     * @return array<string, mixed>
+     *
+     * @throws InvalidKey when a list entry is not a string
+     * @throws AccessDenied
+     */
+    public function many(array $keys): array;
+
+    /**
+     * Every value this handle can see in its store and scope, by key, in key order: each key the
+     * scope holds in any layer, and each key a code or config definition of the store names. A key
+     * the actor may not view (or, when sensitive, may not read) is left out, not masked, as the
+     * REST API's listing leaves it out. `$prefix` keeps only `prefix` itself and the keys below it.
+     *
+     * @return array<string, mixed>
+     */
+    public function all(?string $prefix = null): array;
+
+    /**
+     * The definitions of this handle's store (code, configuration and the definitions table), in
+     * key order: what a UI renders a form from. Needs `view` on the store.
+     *
+     * @return list<Definition>
+     *
+     * @throws AccessDenied
+     */
+    public function definitions(): array;
 
     /** @throws TypeMismatch */
     public function string(string $key): string;
@@ -142,6 +182,30 @@ interface Settings
 
     /** Remove this handle's own value, so reads fall through again. */
     public function forget(string $key): void;
+
+    /**
+     * Write several values, one {@see set()} each, in the order given. Not atomic: each write is
+     * its own transaction, and the first refusal stops the rest (earlier writes stay).
+     *
+     * @param array<string, mixed> $values
+     */
+    public function setMany(array $values): void;
+
+    /**
+     * Remove several of this handle's own values, one {@see forget()} each, in the order given.
+     *
+     * @param iterable<string> $keys
+     */
+    public function forgetMany(iterable $keys): void;
+
+    /**
+     * The stored value, or, when nothing is found, `$value()` written with {@see set()} and read
+     * back (so the answer is cast exactly as a later read would be). A write that opens a change
+     * request leaves the value unwritten; the read then falls back to the computed value.
+     *
+     * @param callable(): mixed $value
+     */
+    public function remember(string $key, callable $value): mixed;
 
     public function lock(string $key): void;
 

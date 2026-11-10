@@ -1,6 +1,6 @@
 # Events
 
-Twenty-four events, all `final readonly` classes in `Simtabi\Laranail\Settings\Events`, carrying identifiers and counts, never a value.
+Thirty events, all `final readonly` classes in `Simtabi\Laranail\Settings\Events`, carrying identifiers and counts, never a value.
 
 ## Changes
 
@@ -16,6 +16,38 @@ Twenty-four events, all `final readonly` classes in `Simtabi\Laranail\Settings\E
 | `CategoryMoved` | after a move, besides `CategorySaved` | `store`, `slug`, `parent` (null: top level) |
 | `CategoryRenamed` | after a rename, besides `CategorySaved` | `store`, `slug` |
 | `CategoryDeleting` / `CategoryDeleted` | around a delete | `store`, `slug` |
+
+## Approvals
+
+| Event | Dispatched | Carries |
+|---|---|---|
+| `ChangeRequested` | a change request was opened, by `propose()` or by a write that needs approval | `id`, `store`, `scope`, `key`, `locale`, `operation` |
+| `ChangeApproved` | a request received an approval | the same, plus `remaining` (approvals still needed) |
+| `ChangeApplied` | an approved request was written through the write pipeline (besides `SettingSaved` and its kin) | the same, plus `version` |
+| `ChangeStale` | an approved request was not applied: its setting changed after it was opened | the same |
+| `ChangeRejected` | a request was rejected; nothing was written | the same |
+| `ChangeCancelled` | the requester cancelled a request; nothing was written | the same |
+
+None carries the proposed value. See [Approvals](approvals.md).
+
+## Which call fires what
+
+| Call (PHP, REST or console) | Events |
+|---|---|
+| `set()`, `setMany()`, `remember()` (when it writes), `PUT …/settings/{key}` | `SettingSaving`, `SettingSaved`; or `ChangeRequested` |
+| `forget()`, `forgetMany()`, `DELETE …/settings/{key}` | `SettingForgetting`, `SettingForgotten`; or `ChangeRequested` |
+| `lock()`, `unlock()` | `SettingLocked`, `SettingUnlocked`; or `ChangeRequested` |
+| `rollback()` | `SettingSaving`, `SettingSaved`, `SettingRolledBack` |
+| `flush()`, deleting a `HasSettings` model | `ScopeFlushing`, `ScopeFlushed` |
+| `promote()` | `StorePromoting`, `StorePromoted` |
+| `propose()`, `POST …/changes` | `ChangeRequested` |
+| `approvals()->approve()` | `ChangeApproved`, then `ChangeApplied` or `ChangeStale` once enough approvals arrive |
+| `approvals()->reject()`, `->cancel()` | `ChangeRejected`, `ChangeCancelled` |
+| `categories()` writes | `CategorySaving`, `CategorySaved`, `CategoryRenamed`, `CategoryMoved`, `CategoryDeleting`, `CategoryDeleted` |
+| `import()` | the events of each write it makes |
+| any refused call | `AccessWasDenied` or `VerificationWasRequired` |
+| `sync-definitions`, `prune-audit`, `prune-history`, `prune-orphans` | `DefinitionsSynced`, `AuditPruned`, `HistoryPruned`, `OrphansPruned` |
+| reads (`get()`, `all()`, `GET …`) | none |
 
 ## Refusals
 

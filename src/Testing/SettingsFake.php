@@ -113,6 +113,26 @@ final readonly class SettingsFake implements Settings
         return $this->inner->has($key);
     }
 
+    public function missing(string $key): bool
+    {
+        return $this->inner->missing($key);
+    }
+
+    public function many(array $keys): array
+    {
+        return $this->inner->many($keys);
+    }
+
+    public function all(?string $prefix = null): array
+    {
+        return $this->inner->all($prefix);
+    }
+
+    public function definitions(): array
+    {
+        return $this->inner->definitions();
+    }
+
     public function string(string $key): string
     {
         return $this->inner->string($key);
@@ -153,6 +173,37 @@ final readonly class SettingsFake implements Settings
     {
         $this->inner->forget($key);
         $this->log->forgotten[] = $key;
+    }
+
+    /** Each write goes through this fake's own set(), so assertSaved() sees every key. */
+    public function setMany(array $values): void
+    {
+        foreach ($values as $key => $value) {
+            $this->set($key, $value);
+        }
+    }
+
+    /** Each key goes through this fake's own forget(), so assertForgotten() sees every key. */
+    public function forgetMany(iterable $keys): void
+    {
+        foreach ($keys as $key) {
+            $this->forget($key);
+        }
+    }
+
+    /** The write, when one is made, goes through this fake's own set(), so assertSaved() sees it. */
+    public function remember(string $key, callable $value): mixed
+    {
+        $lookup = $this->inner->lookup($key);
+
+        if ($lookup->isFound()) {
+            return $lookup->value();
+        }
+
+        $computed = $value();
+        $this->set($key, $computed);
+
+        return $this->inner->get($key, $computed);
     }
 
     public function lock(string $key): void

@@ -65,7 +65,7 @@
             "Simtabi\\Laranail\\Settings\\Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "src/deprecated-aliases.php"
+            "helpers/helpers.php"
         ]
     },
     "autoload-dev": {
@@ -144,3 +144,5 @@
         }
     ]
 }
+
+

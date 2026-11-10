@@ -49,6 +49,8 @@ use Simtabi\Laranail\Settings\Facades\Settings;
 Settings::set('site.name', 'Acme');
 Settings::get('site.name');                 // 'Acme'
 Settings::get('site.tagline', 'Welcome');   // the default when nothing is stored
+Settings::many(['site.name', 'site.tagline' => 'Welcome']);
+Settings::all('mail');                      // every visible key under mail.
 ```
 
 ```php
@@ -88,7 +90,8 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 
 ### Reference
 
-- [Settings API](docs/tools/settings-api.md) — handles, reads, writes and the exceptions they raise.
+- [Settings API](docs/tools/settings-api.md) — every method of the handle, the facade, the `settings()` helper, `HasSettings` and typed settings, with examples, exceptions and events.
+- [Exceptions](docs/tools/exceptions.md) — every exception, when it is raised and how the REST API answers it.
 - [Definitions](docs/tools/definitions.md) — types, defaults, rules, encryption, locks and precedence.
 - [Drivers and layers](docs/tools/drivers.md) — the built-in drivers and custom ones.
 - [Database](docs/tools/database.md) — the tables, version-checked writes, eager loading and `HasSettings`.
@@ -112,6 +115,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Re-encryption and rescoping](docs/tools/reencryption.md) — after an `APP_KEY` rotation, and after renaming a morph alias.
 - [Persisted configuration](docs/tools/persisted-configuration.md) — stores, layers and definitions kept in the database.
 - [REST API](docs/tools/rest-api.md) — the opt-in JSON API: endpoints, ETags, approvals, problem details, idempotency and OpenAPI.
+- [REST API reference](docs/tools/rest-api-reference.md) — every route: ability, request, response, status codes and problem types.
 - [Typed settings](docs/tools/typed-settings.md) — typed classes over the key-value engine, and settings migrations.
 
 ### Recipes
@@ -127,6 +131,13 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Approve a change](docs/recipes/approving-a-change.md) — require a second person, then review and apply.
 - [Call the REST API with Sanctum](docs/recipes/calling-the-rest-api-with-sanctum.md) — a token with an ability ceiling, ETags and idempotency.
 - [Migrate from spatie/laravel-settings](docs/recipes/migrating-from-spatie-laravel-settings.md) — import the values and keep typed classes.
+- [Build your own admin UI on the REST API](docs/recipes/building-an-admin-ui-on-the-rest-api.md) — forms from definitions, ETag saves, history and activity.
+- [Read settings from an SPA or a mobile app](docs/recipes/consuming-from-an-spa-or-mobile-app.md) — cookies or tokens, ETags and safe retries.
+- [Build a per-user preferences screen](docs/recipes/building-a-preferences-screen.md) — defaults, `many()`, `setMany()` and resetting.
+- [Set up multi-tenancy](docs/recipes/setting-up-multi-tenancy.md) — a tenant column or a database per tenant.
+- [Audit a change](docs/recipes/auditing-a-change.md) — who, when, why, and the value before.
+- [Move settings between environments](docs/recipes/moving-settings-between-environments.md) — export, diff and a dry-run import.
+- [Use typed settings](docs/recipes/using-typed-settings.md) — a typed class over a group of keys.
 
 ## Contributing & security
 

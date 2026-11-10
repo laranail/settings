@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Consumer conveniences on the `Settings` contract, each a thin delegation onto the existing read
+  and write paths: `missing()`, `many()` (keys or `key => default` pairs), `setMany()` and
+  `forgetMany()` (one write each, not atomic), `remember()` (read-through: writes a computed value
+  once through `set()`), `all(?string $prefix)` (every visible value of the handle's scope, the PHP
+  form of the REST listing) and `definitions()` (the store's definitions, the PHP form of
+  `GET stores/{store}/definitions`). `SettingsFake` implements all of them and records the writes.
+  The facade's docblock now lists every contract method.
+- A namespaced `Simtabi\Laranail\Settings\settings()` helper (`use function …\settings;`): the
+  handle with no argument, else `get($key, $default)`. Deliberately not a global function.
+- `Services\Resolution\ScopeKeys`: the key walk a listing uses, shared by `all()` and the REST
+  listing (moved verbatim out of `Actions\Reads\ReadSettings`).
+- Documentation: a complete PHP API reference (every contract method with signature, example,
+  exceptions and events, plus the facade, the helper, `HasSettings` and typed settings), a per-route
+  REST API reference with every problem type, an exceptions reference, the six approval events and
+  a call-to-event table in the events reference, and recipes for an admin UI on the REST API, SPA and
+  mobile clients, a per-user preferences screen, multi-tenancy, auditing a change, moving settings
+  between environments and typed settings. Tests fail when a contract method, route, event,
+  exception, command or config key (and its default) goes undocumented.
+
 - Approvals (design §16.7, Phase 4b): a write (`set`, `forget`, `lock`, `unlock`) to a setting
   whose definition is `requiresApproval()`, or whose key matches the store's new
   `approvals.keys` globs, opens a change request instead of writing. A
@@ -226,21 +245,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Contracts\Settings` gains `clearCache()` and `warmCache()`; `Actions\StoreActions` gains the
   optional `warmCache` and `clearCache` actions.
 
-### Deprecated
+### Removed
 
-- The old names of the 19 classes moved into `Services\` (listed under Changed):
-  `Database\AuditRepository`, `Database\CategoryRepository`, `Database\DefinitionsRepository`,
-  `Database\SchemaInspector`, `Database\SchemaShapeRepository`, `Stores\SettingWriter`,
-  `Stores\StoreRegistry`, `Resolution\Resolver`, `Resolution\PreloadedRecords`,
-  `Authorization\AccessGuard`, `Audit\Auditor`, `Configuration\RuntimeConfiguration`,
-  `Definitions\DefinitionRegistry`, `Definitions\DatabaseDefinitions`,
-  `Tenancy\TenantDiscriminators`, `Casting\CasterRegistry`, `Support\ValuePipeline`,
-  `Drivers\DriverFactory` and `Caching\SettingsCache`. Each still resolves to the moved class
-  through `class_alias` in `src/deprecated-aliases.php` (Composer `autoload.files`), so imports,
-  type declarations, container bindings and `instanceof` keep working; removed in 1.0.
-- `PruneOrphans::find()`: use `FindOrphans::handle()`. It forwards; removed in 1.0.
-- `DatabaseDefinitions::localised()`: use `Support\Translations::nullableText()`. It forwards;
-  removed in 1.0.
+- The old names of the 19 classes moved into `Services\` (listed under Changed), the
+  `src/deprecated-aliases.php` file that aliased them, `PruneOrphans::find()` (use
+  `FindOrphans::handle()`) and `DatabaseDefinitions::localised()` (use
+  `Support\Translations::nullableText()`). None was ever in a tagged release.
 
 - The four migration stubs are replaced by one migration,
   `database/migrations/create_laranail_settings_tables.php`, which creates categories, the

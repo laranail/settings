@@ -1,6 +1,6 @@
 # Commands
 
-Nineteen Artisan commands, all named `laranail::settings.<command>`.
+Eighteen Artisan commands, all named `laranail::settings.<command>`.
 
 ## The commands
 
