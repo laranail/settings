@@ -69,7 +69,7 @@ Events, all dispatched after commit and carrying identifiers only: `ChangeReques
 
 ## Where requests are kept
 
-The `settings_change_requests` table, one per connection a store uses (like the history), created when `approvals.table` is on (the default; a schema switch recorded in the schema file). A store without an active database layer, or a schema recorded without the table, cannot hold requests: a write that needs approval there raises `ApprovalUnavailable`.
+The `settings_change_requests` table, one per connection a store uses (like the history). A store without an active database layer cannot hold requests: a write that needs approval there raises `ApprovalUnavailable`.
 
 Run `laranail::settings.prune-changes` on a schedule: it marks open requests past their expiry as `expired` and deletes decided ones older than `approvals.keep_days`. `doctor` warns about open requests past their expiry.
 

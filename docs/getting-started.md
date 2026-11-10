@@ -69,7 +69,7 @@ Definitions add types, defaults, validation, encryption, locks and inheritance. 
 
 | Phase | Adds |
 |---|---|
-| Schema switches | uuid/ulid ids, typed owner keys, other identity modes, dedicated stores, soft deletes, translated labels |
+| Dedicated stores | an `owner_id` foreign key that deletes an owner's settings with it; soft deletes |
 | Performance | caching with stale-while-revalidate |
 | Governance | history and rollback, approvals, export and import, the full `doctor` |
 | Typed classes | strongly typed settings classes over the same engine |

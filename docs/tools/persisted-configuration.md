@@ -7,13 +7,13 @@ Stores, layers and definitions saved in the database and edited through the PHP 
 ```php
 // config/laranail/settings.php
 'configuration' => [
-    'persisted' => true,                              // a schema switch: creates settings_stores
+    'persisted' => true,                              // read and write settings_stores
     'sources'   => ['config', 'database', 'runtime'], // merge order, later wins
 ],
-'definitions' => ['table' => true],                   // persisted definitions live here
+'definitions' => ['sources' => ['code', 'config', 'database']], // read saved definitions
 ```
 
-Both are schema switches, recorded in the schema file: turn them on, then `laranail::settings.install` and `migrate`.
+The migration always creates `settings_stores` and `settings_definitions`.
 
 ## Editing
 

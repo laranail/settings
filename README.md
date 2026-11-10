@@ -104,7 +104,6 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Access control](docs/tools/access-control.md) — actors, abilities, authorizers, guarded locks, sensitive reads and step-up verification.
 - [Audit and logging](docs/tools/audit-and-logging.md) — the audit trail, its sinks and the operational log.
 - [Runtime configuration](docs/tools/runtime-configuration.md) — stores, definitions and access changed in code for one request.
-- [Schema switches](docs/tools/schema-switches.md) — identity, key types, dedicated stores, soft deletes, JSON translations, the definitions table and the schema file.
 - [Audit queries](docs/tools/audit-queries.md) — reading the audit trail from PHP, gated by `view_audit`.
 - [Tenancy](docs/tools/tenancy.md) — tenant column or database per tenant, the discriminator, and the stancl and spatie adapters.
 - [Models and factories](docs/tools/models-and-factories.md) — Eloquent models and factories for tests, seeding and admin screens.

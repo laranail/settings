@@ -7,11 +7,11 @@ Three modes keep each tenant's settings apart: none, a tenant column, or a datab
 | `tenancy.mode` | What changes | For |
 |---|---|---|
 | `none` (default) | nothing: one set of settings | single-tenant applications |
-| `column` | the values, categories and audit tables get a `tenant` column; every row is stamped with the current tenant and every query is limited to it | one database shared by every tenant |
+| `column` | the values, categories, audit, history and change requests tables get a `tenant` column; every row is stamped with the current tenant and every query is limited to it | one database shared by every tenant |
 | `database` | no column: the tenancy package switches the connection, and the store follows it | a database per tenant |
 
-The mode is migration-time, like the other [schema switches](schema-switches.md): set it before
-`install`, and the schema file records it. In `column` mode the tenant leads the unique keys
+The mode is the one switch in the table shape: the migration adds the column, and the runtime
+reads the same key, so set it before migrating and change it only with a migration. In `column` mode the tenant leads the unique keys
 (`unique(tenant, scope, key, locale)` on values, `unique(tenant, store, slug)` on categories), so
 two tenants can hold the same key, and `''` is the central application's rows. The column is
 `string(64)` and binary-collated, like `scope`.

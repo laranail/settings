@@ -9,7 +9,7 @@ Every change to a setting on a database layer appends one history entry: the val
 | Field | Meaning |
 |---|---|
 | `store`, `scope`, `key`, `locale` | which setting; the history is always looked up by these four |
-| `setting_ref` | the row's `uid` (or its id where the identity mode has no uid), as a string |
+| `setting_ref` | the row's `uid` |
 | `operation` | `set`, `forget`, `lock`, `unlock` or `rollback` |
 | `old_value`, `new_value` | the payloads exactly as the values table stored them: encoded JSON, and still encrypted for an encrypted setting |
 | `old_type`, `new_type`, `old_encrypted`, `new_encrypted` | what is needed to read the payloads back |
@@ -19,7 +19,7 @@ Every change to a setting on a database layer appends one history entry: the val
 
 A failed history insert rolls the change back with it, so the history never misses a change.
 
-A `forget` writes a tombstone (no new value). Setting the key again continues its version from the history, so "version 3" always means one value: `set:1`, `forget:1`, `set:2`. `flush()` and promotion are audited but write no history entries. History is not written for file layers, or when the schema was recorded with `history.enabled` off.
+A `forget` writes a tombstone (no new value). Setting the key again continues its version from the history, so "version 3" always means one value: `set:1`, `forget:1`, `set:2`. `flush()` and promotion are audited but write no history entries. History is not written for file layers.
 
 ## Reading the history
 
@@ -62,9 +62,10 @@ The value of version 3 is read back from the history, decrypted and decoded, the
 
 `history.keep_days` drops entries older than that many days; `history.keep_versions` keeps only that many versions of each setting. Either may be null; `laranail::settings.prune-history` applies them (needs `prune`, audited, dispatches `HistoryPruned`). Retention covers every tenant.
 
-## Switching it off
+## Stores without history
 
-`history.enabled` is a [schema switch](schema-switches.md): it decides whether the migration creates the table, and the package reads the recorded value, not live configuration. With it off, `history()`, `rollback()` and `historyDiff()` raise `HistoryUnavailable`, and a key set again after a forget starts at version 1.
+Every store with an active database layer keeps history. For a store on file layers only,
+`history()`, `rollback()` and `historyDiff()` raise `HistoryUnavailable`.
 
 `reencrypt` (rewriting payloads after a key rotation, history included) is not part of this release.
 

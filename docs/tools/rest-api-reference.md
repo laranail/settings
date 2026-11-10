@@ -51,7 +51,7 @@ Status: `200`, `401`, `403`, `404` (`unknown-store`).
 
 ### `PUT /stores/{store}/definitions/{key}`
 
-`definitions.update`, ability `manage_definitions`. Saves a definition in the definitions table (needs `definitions.table`). It only answers for keys no code or config definition covers.
+`definitions.update`, ability `manage_definitions`. Saves a definition in the definitions table (read back with `database` in `definitions.sources`). It only answers for keys no code or config definition covers.
 
 ```json
 {"attributes": {"type": "string", "default": "free", "rules": ["in:free,pro"], "label": "Plan"}}

@@ -6,16 +6,22 @@ Four Eloquent models, `Setting`, `SettingCategory`, `SettingDefinition` and `Set
 
 | Model | Table | Notes |
 |---|---|---|
-| `Models\SettingCategory` | categories | `parent()`, `children()`, `forStore()` scope; trashed rows hidden |
-| `Models\Setting` | one store's values | `Setting::forStore('billing')`, `->inStore('billing')`; `category()`; trashed rows hidden |
-| `Models\SettingDefinition` | the optional definitions table | shared by every tenant |
-| `Models\SettingAuditEntry` | the audit trail | ULID key, no timestamps |
+| `Models\SettingCategory` | categories | `parent()`, `children()`, `forStore()` and `central()` scopes |
+| `Models\Setting` | one store's values | `Setting::forStore('billing')`, `->inStore('billing')`; `category()`; trashed rows hidden in a soft-deleting store |
+| `Models\SettingDefinition` | definitions | `forStore()` and `runtime()` scopes; shared by every tenant |
+| `Models\SettingAuditEntry` | the audit trail | `matching(AuditFilter)` scope; no timestamps |
+| `Models\SettingHistory` | the value history | `forSetting()` and `matching(HistoryFilter)` scopes |
+| `Models\SettingChangeRequest` | change requests | `matching(ChangeFilter)`, `open()` and `overdue()` scopes |
 
-Table names, key types and connections come from the recorded schema shape, so the models follow
-the [schema switches](schema-switches.md): uuid and ulid keys are generated on create. In
-column-mode [tenancy](tenancy.md) they are limited to the current tenant and stamp it on create.
+All of them extend `Models\SettingsModel`: ULID keys, the default store's connection unless a
+query names another with `on()`, and table names from `tables`. In column-mode
+[tenancy](tenancy.md) they are limited to the current tenant and stamp it on create;
+`allTenants()` lifts that for maintenance.
 
-The engine never uses them: reads and writes go through the drivers on the query builder. A
+The package reads and writes categories, definitions, audit, history and change requests through
+these models. Values are the exception: the database driver reads and writes them through the
+query builder, because that path runs on every request, and takes the table name from
+`Setting::tableFor()`. A
 change made through a model skips validation, casting, encryption, locks, authorization and the
 audit trail, and `Setting::$value` is the encoded payload, so application code changes settings
 and categories through `Settings::`.

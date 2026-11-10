@@ -209,6 +209,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The table shape is fixed, with `tenancy.mode` as the one switch: every table is keyed by a ULID,
+  each values row has a unique `uid` (the history's `setting_ref`) and no `slug`, `settable_id` is
+  `string(36)`, and titles, labels and descriptions are JSON maps of locale to text. The migration
+  always creates the definitions, history, change requests and persisted configuration tables, and
+  every values table has `deleted_at`. In `column` mode each tenant-owned table gets `tenant` in its
+  unique and lookup keys. Dedicated stores keep their `owner_id` foreign key.
+- History is always recorded for a store with a database layer, and change requests always have
+  their table. A store on file layers only still raises `HistoryUnavailable` and
+  `ApprovalUnavailable`.
+- `definitions.sources` defaults to `['code', 'config']`: add `database` to read definitions saved at
+  runtime, which costs one query per store per request.
+- `configuration.persisted` now only turns the persisted configuration on and off; its table always
+  exists.
+- Deleting a category deletes the row; creating the slug again makes a new category.
+- The Eloquent models are the data layer for categories, definitions, audit, history and change
+  requests: `SettingsModel` holds the ULID keys, the connection and the tenant scope
+  (`Models\Scopes\TenantScope`, lifted with `allTenants()`), and the new `SettingHistory` and
+  `SettingChangeRequest` join `Setting`, `SettingCategory`, `SettingDefinition` and
+  `SettingAuditEntry`. The database driver still reads and writes values through the query builder
+  and takes the table name from `Setting::tableFor()`. `ModelContext` now holds the configuration
+  and the current tenant only.
+- `doctor` checks that every column the package uses exists, instead of comparing a recorded shape
+  with configuration and the database.
+- `QueryHistory::handle()` returns an Eloquent builder of `SettingHistory`.
+
 - Prepared for the public release. Source, config, migration, route, helper and test comments are
   rewritten as short plain docblocks, with no references to internal planning documents; the
   design rationale they carried is now in `docs/architecture.md`. Comment lines in `src/` went
@@ -301,6 +326,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   optional `warmCache` and `clearCache` actions.
 
 ### Removed
+
+- Removed with the owner's approval (2026-11-10), before the first tag, with the fixed schema:
+  the config keys `schema.path`, `identity.mode`, `ids.type`, `ids.owner_key`,
+  `translations.mode`, `categories.soft_deletes`, `definitions.table`, `history.enabled` and
+  `approvals.table`; `Database\SchemaShape`, `Database\StoreSchema`,
+  `Services\Database\SchemaShapeRepository` and the `database/settings-schema.php` file that
+  `install` and `make-store` recorded; the `Enums\IdentityMode`, `Enums\OwnerKeyType` and
+  `Enums\TranslationsMode` enums; `DatabaseDriver::newId()`, `shape()` and `schemaOf()`; the
+  `doctor` checks against a recorded shape; the pairwise schema matrix
+  (`tests/Feature/Database/SchemaMatrixTest.php`, `tests/Support/Pairwise.php`, test groups
+  `matrix`) and the weekly `matrix-full` CI job, replaced by a tenancy matrix (`none`, `column`)
+  in the `database` group; and `docs/tools/schema-switches.md`, whose surviving content is in
+  `docs/tools/database.md`.
+- Removed with the same approval: `Services\Database\CategoryRepository`,
+  `DefinitionsRepository`, `AuditRepository`, `HistoryRepository` and `ChangeRequestRepository`,
+  whose queries live on the models and in the actions; and `Models\Concerns\UsesSettingsSchema`,
+  replaced by `Models\Concerns\BelongsToTenant` on `SettingsModel`.
 
 - Removed with the owner's approval (2026-11-10), before the first tag: `Http\ApiRoutes`,
   `Enums\Capability`, `Http\OpenApi\OpenApiDocument` and the `laranail::settings.openapi`

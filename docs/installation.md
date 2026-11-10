@@ -42,13 +42,11 @@ php artisan migrate
 
 Install publishes `config/laranail/settings.php` (tag `laranail::settings-config`) and the
 package's one migration (tag `laranail::settings-migrations`,
-`…_create_laranail_settings_tables.php`), and records the schema it will produce in
-`database/settings-schema.php`. The migration creates, in order, `settings_categories`, the
-optional `settings_definitions`, one values table per database store (`settings` for the default
-store), `settings_audit`, `settings_history` (`history.enabled`), `settings_change_requests`
-(`approvals.table`) and `settings_stores` (`configuration.persisted`), and `down()` drops them in
-reverse. Set the
-[schema switches](tools/schema-switches.md) and `tenancy.mode` before installing. The default store
+`…_create_laranail_settings_tables.php`). The migration creates, in order, `settings_categories`,
+`settings_definitions`, one values table per database store (`settings` for the default store),
+`settings_audit`, `settings_history`, `settings_change_requests` and `settings_stores`, and
+`down()` drops them in reverse. The table shape is fixed (see [Database](tools/database.md)); set
+`tenancy.mode`, the table names and any dedicated stores before migrating. The default store
 reads the database first, so run the migrations before the first read; until then a read raises
 `DriverUnavailable`.
 
