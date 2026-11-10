@@ -13,10 +13,10 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Support\AuditedTransaction;
-use Simtabi\Laranail\Settings\Database\CategoryRepository;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * What every category change does around its work: authorize `manage_categories`, then run the
@@ -35,10 +35,11 @@ final readonly class CategoryGuard
      * @template T
      *
      * @param Closure(CategoryRepository, DatabaseDriver): T $work
+     * @param list<object> $also more events dispatched after `$after` (what exactly changed)
      *
      * @return T
      */
-    public function run(Store $store, CategorySlug $slug, ?Actor $actor, string $operation, object $before, object $after, Closure $work): mixed
+    public function run(Store $store, CategorySlug $slug, ?Actor $actor, string $operation, object $before, object $after, Closure $work, array $also = []): mixed
     {
         $subject = new Subject($store->name, category: $slug->value);
         $meta = ['operation' => $operation, 'category' => $slug->value];
@@ -57,8 +58,12 @@ final readonly class CategoryGuard
 
                 return $work(new CategoryRepository($database, $store->name), $database);
             },
-            then: function () use ($after): void {
+            then: function () use ($after, $also): void {
                 $this->events->dispatch($after);
+
+                foreach ($also as $event) {
+                    $this->events->dispatch($event);
+                }
             },
             meta: $meta,
         );

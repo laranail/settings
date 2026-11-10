@@ -10,8 +10,8 @@ use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Actions\FindForeignTables;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /** The values table's column names. */
 function valueColumns(string $table = 'settings'): array

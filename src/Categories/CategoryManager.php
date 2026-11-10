@@ -12,11 +12,11 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
-use Simtabi\Laranail\Settings\Database\CategoryRepository;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 use Simtabi\Laranail\Settings\Actions\Categories\CategoryActions;
+use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * The categories of one store, for the actor of the handle that returned it

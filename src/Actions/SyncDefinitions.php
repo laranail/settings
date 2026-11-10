@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Simtabi\Laranail\Settings\Data\Actor;
+use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
-use Simtabi\Laranail\Settings\Database\DefinitionsRepository;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Events\DefinitionsSynced;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Database\DefinitionsRepository;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
  * Copy every code and config definition into the definitions table as an `is_system` row (D-6,
@@ -33,6 +35,7 @@ final readonly class SyncDefinitions
         private DefinitionRegistry $definitions,
         private ValueEncoder $encoder,
         private AccessGuard $access,
+        private ?Dispatcher $events = null,
     ) {}
 
     /** @return SyncReport */
@@ -70,6 +73,7 @@ final readonly class SyncDefinitions
             'removed'   => $report['removed'],
             'conflicts' => count($report['conflicts']),
         ]);
+        $this->events?->dispatch(new DefinitionsSynced($report['synced'], $report['removed'], count($report['conflicts']), count($report['skipped'])));
 
         return $report;
     }

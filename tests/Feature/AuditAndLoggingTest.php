@@ -22,9 +22,9 @@ use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /** Point the package log at a Monolog test handler and return the handler. */
 function captureLog(): TestHandler

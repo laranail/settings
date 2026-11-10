@@ -1,6 +1,6 @@
 # Schema switches
 
-Seven schema switches choose the shape of the package's tables at migration time; the defaults are the recommended shape, and the package then reads the recorded shape, never live configuration.
+Eight schema switches choose the shape of the package's tables at migration time; the defaults are the recommended shape, and the package then reads the recorded shape, never live configuration.
 
 ## The switches
 
@@ -13,10 +13,11 @@ Seven schema switches choose the shape of the package's tables at migration time
 | `stores.<name>.soft_deletes` | `false`, `true` | forgotten rows are trashed, and restored by the next write |
 | `translations.mode` | `lang`, `json` | titles, labels and descriptions as text, or as per-locale JSON maps |
 | `definitions.table` | `false`, `true` | creates the optional `settings_definitions` table |
+| `history.enabled` | `true`, `false` | creates `settings_history` and records every change in it ([History](history.md)) |
 
 `categories.soft_deletes` (default `false`) gives categories the same trash-and-restore rule.
 `tables.prefix` and the table names (`tables.categories`, `tables.audit`, `tables.definitions`,
-`stores.<name>.table`) are recorded with the switches and honoured everywhere, including the
+`tables.history`, `stores.<name>.table`) are recorded with the switches and honoured everywhere, including the
 check that refuses to install over a table that is not the package's.
 
 ## Identity modes
@@ -118,11 +119,12 @@ type fails). A database store with no entry in the file fails.
 ## Keeping the switches tested
 
 `tests/Feature/Database/SchemaMatrixTest.php` builds a pairwise set of shapes (every pair of
-switch values meets in at least one; 10 shapes covering all 177 pairs of the nine switches,
-`tenancy.mode` none and column included, both counts asserted) and runs each end to end, inside a
-tenant in column mode, finishing with `doctor`. It runs on SQLite with the suite and on MySQL and
-PostgreSQL in the `database` group; `LARANAIL_SETTINGS_MATRIX=full` runs all 1,152 shapes, which
-the weekly CI job does. (`database` mode adds no column, so it is not a separate shape.)
+switch values meets in at least one; 11 shapes covering all 217 pairs of the ten switches,
+`tenancy.mode` none and column and `history.enabled` on and off included, both counts asserted)
+and runs each end to end, inside a tenant in column mode, reading the history where it is on, and
+finishing with `doctor`. It runs on SQLite with the suite and on MySQL and PostgreSQL in the
+`database` group; `LARANAIL_SETTINGS_MATRIX=full` runs all 2,304 shapes, which the weekly CI job
+does. A schema file recorded before `history.enabled` existed reads as history off. (`database` mode adds no column, so it is not a separate shape.)
 
 ---
 

@@ -13,19 +13,34 @@ use Simtabi\Laranail\Package\Tools\Providers\PackageToolsServiceProvider;
 
 abstract class TestCase extends IsolatedTestCase
 {
+    /** @var array<string, mixed> configuration applied while the application boots (rebootWith()) */
+    private static array $bootConfig = [];
+
     #[Override]
     protected function setUp(): void
     {
         parent::setUp();
 
-        // The runtime layer writes through the `local` disk; keep every test's files apart.
-        Storage::fake('local');
-        // No shipped file unless a test ships one.
-        config()->set('laranail.settings.layers.shipped.path', '/nonexistent/laranail-settings-defaults.php');
-        // The schema-shape file goes to a path of this test's own, never the skeleton's database/.
-        config()->set('laranail.settings.schema.path', sys_get_temp_dir() . '/laranail-settings-schema-' . bin2hex(random_bytes(6)) . '.php');
-        // File layers only unless a test asks for the database (useDatabase() in tests/Pest.php).
-        config()->set('laranail.settings.stores.settings.layers', ['runtime', 'shipped']);
+        $this->configureSettings();
+    }
+
+    /**
+     * Boot the application again with this configuration in place before the providers boot (the
+     * REST API registers its routes at boot, only when http.enabled is on).
+     *
+     * @param array<string, mixed> $config full config keys
+     */
+    public function rebootWith(array $config): void
+    {
+        self::$bootConfig = $config;
+
+        try {
+            $this->refreshApplication();
+        } finally {
+            self::$bootConfig = [];
+        }
+
+        $this->configureSettings();
     }
 
     /**
@@ -37,6 +52,10 @@ abstract class TestCase extends IsolatedTestCase
     protected function defineEnvironment($app): void
     {
         parent::defineEnvironment($app);
+
+        foreach (self::$bootConfig as $key => $value) {
+            $app['config']->set($key, $value);
+        }
 
         $connection = getenv('DB_CONNECTION');
 
@@ -66,5 +85,17 @@ abstract class TestCase extends IsolatedTestCase
         // package-tools' own provider is auto-discovered in an application; it holds the seeder
         // registry the package's seeders are registered into.
         return [PackageToolsServiceProvider::class, DbToolsServiceProvider::class, SettingsServiceProvider::class];
+    }
+
+    private function configureSettings(): void
+    {
+        // The runtime layer writes through the `local` disk; keep every test's files apart.
+        Storage::fake('local');
+        // No shipped file unless a test ships one.
+        config()->set('laranail.settings.layers.shipped.path', '/nonexistent/laranail-settings-defaults.php');
+        // The schema-shape file goes to a path of this test's own, never the skeleton's database/.
+        config()->set('laranail.settings.schema.path', sys_get_temp_dir() . '/laranail-settings-schema-' . bin2hex(random_bytes(6)) . '.php');
+        // File layers only unless a test asks for the database (useDatabase() in tests/Pest.php).
+        config()->set('laranail.settings.stores.settings.layers', ['runtime', 'shipped']);
     }
 }

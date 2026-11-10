@@ -8,9 +8,9 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Actions\WarmCache;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**

@@ -7,11 +7,12 @@ namespace Simtabi\Laranail\Settings\Actions\Categories;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
+use Simtabi\Laranail\Settings\Events\CategoryMoved;
 use Simtabi\Laranail\Settings\Events\CategorySaved;
 use Simtabi\Laranail\Settings\Events\CategorySaving;
 use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
-use Simtabi\Laranail\Settings\Database\CategoryRepository;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
+use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * Put a category under another of the same store, or at the top level with a null parent:
@@ -32,6 +33,6 @@ final readonly class MoveCategory
 
         $this->guard->run($store, $category, $actor, 'move', $events[0], $events[1], static function (CategoryRepository $categories) use ($category, $under): void {
             $categories->move($category, $under);
-        });
+        }, [new CategoryMoved($store->name->value, $slug, $parent)]);
     }
 }

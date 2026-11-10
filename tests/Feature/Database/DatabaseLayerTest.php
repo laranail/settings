@@ -11,16 +11,16 @@ use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
-use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 function databaseDriver(bool $writable = true): DatabaseDriver
 {

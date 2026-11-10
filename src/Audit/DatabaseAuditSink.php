@@ -8,9 +8,9 @@ use Closure;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Database\AuditRepository;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Database\AuditRepository;
 
 /**
  * Writes each audit entry as a row of `settings_audit` on the connection of the entry's store

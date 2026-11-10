@@ -10,7 +10,7 @@ use Simtabi\Laranail\Settings\Data\Category;
 use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Events\CategorySaved;
 use Simtabi\Laranail\Settings\Events\CategorySaving;
-use Simtabi\Laranail\Settings\Database\CategoryRepository;
+use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * Create a category in a store, optionally under a parent of the same store: needs

@@ -17,7 +17,7 @@ use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Events\ScopeFlushed;
 use Simtabi\Laranail\Settings\Events\ScopeFlushing;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Authorization\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 
 /**
  * Remove every value an owner holds in a store, from every writable layer: needs `forget`. Used

@@ -1,6 +1,6 @@
 # Commands
 
-Ten Artisan commands, all named `laranail::settings.<command>`.
+Nineteen Artisan commands, all named `laranail::settings.<command>`.
 
 ## The commands
 
@@ -13,8 +13,17 @@ Ten Artisan commands, all named `laranail::settings.<command>`.
 | `laranail::settings.sync-definitions` | copies code and config definitions into the definitions table as system rows |
 | `laranail::settings.prune-orphans [--dry-run]` | removes the settings of owners that no longer exist |
 | `laranail::settings.prune-audit [--days=]` | removes audit rows older than `audit.keep_days` |
+| `laranail::settings.history {key} [--store=] [--owner=] [--locale=] [--diff=FROM..TO] [--rollback=] [--reveal] [--limit=20]` | lists a setting's versions, compares two, or rolls it back |
+| `laranail::settings.prune-history [--days=] [--versions=]` | removes history entries `history.keep_days` / `history.keep_versions` no longer keep |
 | `laranail::settings.warm [--store=*]` | loads each cached store's global scope into the cache |
 | `laranail::settings.clear-cache [--store=*]` | resets the cached settings of every store, or the named ones, for every tenant |
+| `laranail::settings.prune-changes` | marks open change requests past `approvals.expire_after` as expired and deletes decided ones older than `approvals.keep_days` |
+| `laranail::settings.export [path] [--store=] [--with-secrets] [--decrypt] [--confirm=]` | writes a store as a JSON document; secrets redacted unless asked for |
+| `laranail::settings.import {source} [--store=] [--from=] [--apply] [--trusted]` | imports an export file, or another package's settings through an importer; a dry run without `--apply` |
+| `laranail::settings.diff {path} [--store=]` | compares a store with an export file, by identity only; exits 1 when they differ |
+| `laranail::settings.reencrypt` | encrypts every stored secret again under the current key (values, history, change requests) |
+| `laranail::settings.rescope {from} {to}` | renames an owner alias in stored values, history and change requests |
+| `laranail::settings.openapi [--output=]` | writes the OpenAPI 3.1 document of the REST API (needs `http.enabled`) |
 
 Each one delegates to an action (`Actions\PromoteStore`, `Actions\PruneOrphans`, …) that the PHP
 API uses too, so the console and the API cannot behave differently.
@@ -69,6 +78,30 @@ touches stored values or the application's other cache entries, and both do noth
 (`meta.operation` `cache.warm` or `cache.clear`); their actions, `Actions\WarmCache` and
 `Actions\ClearCache`, need `manage_stores` when called with an actor. See
 [Caching](caching.md) and [Warm the cache after a deploy](../recipes/warming-the-cache.md).
+
+## `history`
+
+```bash
+php artisan laranail::settings.history mail.from_address
+php artisan laranail::settings.history theme --owner=user:42 --diff=3..5
+php artisan laranail::settings.history mail.from_address --rollback=3
+```
+
+Without an option it lists the newest versions (operation, scope, causer, reason, time; no
+values). `--diff` prints the value at two versions; an encrypted or sensitive value prints as
+`[protected]` unless `--reveal` is given. `--rollback` writes the value of that version as a new
+version, through the same action as `rollback()`. See [History](history.md).
+
+## Governance commands
+
+`export`, `import` and `diff` are described in [Import and export](import-export.md) and
+[Importers](importers.md); `reencrypt` and `rescope` in [Re-encryption and rescoping](reencryption.md);
+`prune-changes` in [Approvals](approvals.md); `openapi` in [REST API](rest-api.md). Each runs as the
+system actor, is audited under its name, and delegates to the same action as the PHP API.
+
+`doctor` also checks, per database store: encrypted values no current or previous key can read,
+open change requests past their expiry, schema drift on the history, change requests and
+persisted configuration tables, and persisted configuration entries skipped as invalid.
 
 ## Pruning and access
 

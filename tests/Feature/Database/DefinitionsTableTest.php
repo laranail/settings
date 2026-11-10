@@ -12,9 +12,9 @@ use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /** Insert a definition row edited at runtime (not is_system). */
 function runtimeDefinition(string $key, array $columns = []): void

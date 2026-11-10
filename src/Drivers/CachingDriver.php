@@ -11,8 +11,8 @@ use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\CacheTarget;
-use Simtabi\Laranail\Settings\Caching\SettingsCache;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
+use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 
 /**
  * A database layer behind the settings cache (design §7.3, §7.5): reads come from cached per-scope

@@ -10,7 +10,7 @@ use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Events\CategoryDeleted;
 use Simtabi\Laranail\Settings\Events\CategoryDeleting;
-use Simtabi\Laranail\Settings\Database\CategoryRepository;
+use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
  * Delete a category: needs `manage_categories`. Its children move to the top level and the

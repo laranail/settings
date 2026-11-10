@@ -12,14 +12,14 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Drivers\CachingDriver;
-use Simtabi\Laranail\Settings\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 use Simtabi\Laranail\Settings\Drivers\BootstrapGatedDriver;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 
 it('flushes one owner\'s values from every writable layer and leaves others alone', function (): void {
     useDatabase(['stores.settings.owners' => ['user']]);

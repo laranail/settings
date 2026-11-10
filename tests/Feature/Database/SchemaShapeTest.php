@@ -10,8 +10,8 @@ use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Actions\MakeStore;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Database\StoreSchema;
-use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 // Writes into the testbench application shared by every process (config/, database/), so it
 // cannot run beside itself in parallel; the parallel mutation run leaves this group out.

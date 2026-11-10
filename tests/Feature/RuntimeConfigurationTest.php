@@ -13,20 +13,20 @@ use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\SettingsManager;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
-use Simtabi\Laranail\Settings\Resolution\Resolver;
-use Simtabi\Laranail\Settings\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Verification\NullVerifier;
-use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
-use Simtabi\Laranail\Settings\Configuration\RuntimeConfiguration;
 use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /** A logger that keeps messages, for runtime logTo() tests. */
 function memoryLogger(): AbstractLogger

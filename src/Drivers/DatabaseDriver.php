@@ -291,6 +291,20 @@ final readonly class DatabaseDriver implements DatabaseBacked
         });
     }
 
+    /**
+     * The stable reference of one identity's row (live or trashed) for the history table: its
+     * `uid` when the identity mode has one, else its primary key, as a string. Null when there is
+     * no row.
+     */
+    public function reference(StoreName $store, Scope $scope, Key $key, Locale $locale): ?string
+    {
+        $column = $this->shape()->identity->hasUid() ? 'uid' : 'id';
+
+        $reference = $this->attempt($store, fn (): mixed => $this->identity($this->table($store), $scope, $key, $locale)->value($column));
+
+        return is_int($reference) || is_string($reference) ? (string) $reference : null;
+    }
+
     public function forget(StoreName $store, Scope $scope, Key $key, Locale $locale): void
     {
         $this->assertWritable($store);
@@ -342,6 +356,88 @@ final readonly class DatabaseDriver implements DatabaseBacked
             $this->table($store)->distinct()->orderBy('scope')->pluck('scope')->all(),
             is_string(...),
         )));
+    }
+
+    /**
+     * Rewrite every encrypted payload of the store, every tenant's and trashed rows included
+     * (re-encryption after a key rotation), in chunks by primary key. `$rewrite` returns the new
+     * payload, or null when it could not read the old one (counted as failed, left as it was).
+     * Returns [rewritten, failed].
+     *
+     * @param Closure(string): ?string $rewrite
+     *
+     * @return array{int, int}
+     */
+    public function rewriteEncrypted(StoreName $store, Closure $rewrite): array
+    {
+        $this->assertWritable($store);
+
+        return $this->attempt($store, function () use ($store, $rewrite): array {
+            $rewritten = 0;
+            $failed = 0;
+
+            $this->connection()->table($this->tableFor($store))
+                ->where('is_encrypted', true)
+                ->whereNotNull('value')
+                ->select(['id', 'value'])
+                ->chunkById(500, function ($rows) use ($store, $rewrite, &$rewritten, &$failed): void {
+                    foreach ($rows as $row) {
+                        $row = (array) $row;
+                        $new = is_string($row['value'] ?? null) ? $rewrite($row['value']) : null;
+
+                        if ($new === null) {
+                            $failed++;
+
+                            continue;
+                        }
+
+                        $rewritten += $this->connection()->table($this->tableFor($store))->where('id', $row['id'])->update(['value' => $new]);
+                    }
+                });
+
+            return [$rewritten, $failed];
+        });
+    }
+
+    /**
+     * Rename an owner alias in the store (G-30): every scope `<from>:<id>` becomes `<to>:<id>`,
+     * with `settable_type` in a polymorphic store and the per-row slug of `slug_per_row`, for
+     * every tenant and trashed rows too, in chunks. Returns how many rows changed. A row whose new
+     * identity already exists makes the database refuse the rename (DriverFailure).
+     */
+    public function rescope(StoreName $store, string $from, string $to): int
+    {
+        $this->assertWritable($store);
+
+        return $this->attempt($store, function () use ($store, $from, $to): int {
+            $changed = 0;
+            $polymorphic = ! $this->schemaOf($store)->isDedicated();
+            $perRow = $this->shape()->identity === IdentityMode::SlugPerRow;
+
+            $this->connection()->table($this->tableFor($store))
+                ->where('scope', '>=', $from . ':')
+                ->where('scope', '<', $from . ';')
+                ->select(['id', 'scope', 'key', 'locale'])
+                ->chunkById(500, function ($rows) use ($store, $from, $to, $polymorphic, $perRow, &$changed): void {
+                    foreach ($rows as $row) {
+                        $row = (array) $row;
+                        $scope = $to . substr(is_string($row['scope'] ?? null) ? $row['scope'] : '', strlen($from));
+                        $columns = ['scope' => $scope];
+
+                        if ($polymorphic) {
+                            $columns['settable_type'] = $to;
+                        }
+
+                        if ($perRow) {
+                            $columns['slug'] = sha1($scope . '|' . (is_string($row['key'] ?? null) ? $row['key'] : '') . '|' . (is_string($row['locale'] ?? null) ? $row['locale'] : ''));
+                        }
+
+                        $changed += $this->connection()->table($this->tableFor($store))->where('id', $row['id'])->update($columns);
+                    }
+                });
+
+            return $changed;
+        });
     }
 
     /**

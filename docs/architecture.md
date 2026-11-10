@@ -20,9 +20,11 @@ How `laranail/settings` is shaped, and why.
 
 | Layer | Holds | Examples |
 |---|---|---|
-| Entry points | resolve inputs and delegate; no work of their own | `SettingsManager`, `CategoryManager`, `AuditQuery`, the console commands, the facade |
-| Actions (`Actions/`) | one intent each, `handle()` only, final and readonly | `SetSetting`, `PromoteStore`, `SyncDefinitions`, `FindOrphans` |
-| Services | the database, the files, a body of rules | `Database\AuditRepository`, `Database\DefinitionsRepository`, `Database\SchemaInspector`, `Database\CategoryRepository`, the drivers, `Stores\SettingWriter`, `Resolution\Resolver`, `Authorization\AccessGuard`, `Tenancy\TenantDiscriminators`, `Caching\SettingsCache` |
+| Entry points | resolve inputs and delegate; no work of their own | `SettingsManager`, `CategoryManager`, `AuditQuery`, `HistoryQuery`, the console commands, the facade |
+| Actions (`Actions/`) | one intent each, `handle()` only, final and readonly | `SetSetting`, `RollbackSetting`, `PromoteStore`, `SyncDefinitions`, `FindOrphans` |
+| Services (`Services/`) | the database, the files, a body of rules | `Services\Database\AuditRepository`, `Services\Database\HistoryRepository`, `Services\Database\CategoryRepository`, `Services\Stores\SettingWriter`, `Services\Resolution\Resolver`, `Services\Access\AccessGuard`, `Services\Tenancy\TenantDiscriminators`, `Services\Cache\SettingsCache` |
+| Contract implementations | one per kind, beside its kind | the drivers, the audit sinks, the authorizers, the casters, the verifiers, the actor resolvers |
+| Listeners (`Listeners/`) and notifications | react to events | `SendSettingsAlert`, `LogSettingsEvent`, `Notifications\SettingsAlert` |
 | Support (`Support/`) | stateless logic shared by several classes | `AuditedTransaction`, `Translations`, `Json`, `DatabaseValues`, `ConfigValues`, `ValueEncoder`, `BagCodec` |
 
 An action never builds a query or reads the schema itself; it asks a repository, so the table,
@@ -31,6 +33,41 @@ through `Support\AuditedTransaction`, so every write, category change and promot
 audits the same way. Only entry points depend on actions. Architecture tests hold each rule,
 and each exemption (the guards the actions run through, the action bundles, `QueryAudit`'s three
 result shapes) carries its reason and fails when it is no longer needed.
+
+## Why a Services namespace?
+
+The layering above names a service as a stateful collaborator that owns I/O or a body of rules,
+but until 0.1 the services sat beside whatever they served: `Database\AuditRepository` next to the
+schema value objects, `Stores\SettingWriter` next to `Store` and `Layer`, `Support\ValuePipeline`
+among the stateless helpers it is not one of. Reading a directory did not say which kind of class
+it held. Every service now lives under `Services\` (`Database`, `Stores`, `Resolution`, `Access`,
+`Configuration`, `Definitions`, `Tenancy`, `Casting`, `Values`, `Drivers`, `Cache`),
+and the classes left in their old directories are value objects, contract implementations and
+entry points.
+
+Two architecture tests keep it so: nothing under `Services\` implements a plug-in contract (a
+driver, sink, authorizer, caster, verifier, resolver or discriminator stays beside its kind, where
+a reader looking for "the drivers" finds them), and no class named `*Repository` or `*Registry`
+lives anywhere else. The 19 classes that moved keep their old names through `class_alias` in
+`src/deprecated-aliases.php`, loaded by Composer, until 1.0. The aliases are declared eagerly:
+PHP does not autoload a class for a type check, so a lazily declared alias would make
+`function f(Stores\SettingWriter $w)` refuse the object it accepted before. A third test asserts the
+alias file names exactly the moved classes.
+
+## Why history and audit are separate tables
+
+They answer different questions. The audit trail records **actions**, every allowed change and
+every refusal, with who asked, through which channel and why; it never holds a value, so it can be
+read by anyone allowed `view_audit` and shipped to a log. The history records **values by
+version**: what a setting held before and after each change, as stored (an encrypted value stays
+encrypted), so a version can be compared or returned to. One table cannot do both: values in the
+audit would put secrets in front of every auditor, and refusals in the history would put entries
+that changed nothing between the versions a rollback counts.
+
+They also keep different retention (`audit.keep_days`; `history.keep_days` and
+`history.keep_versions`), and they are read with different abilities (`view_audit`;
+`view_history`, plus `view_sensitive` before a protected value is decrypted). Both are written in
+the change's transaction, so a failure of either rolls the change back.
 
 ## Why build rather than adopt?
 
@@ -104,7 +141,7 @@ on SQLite, MySQL and PostgreSQL, and the full product weekly.
 ## Why one migration?
 
 Every table the package uses is created by one migration file, in dependency order (categories,
-definitions, each store's values, audit), with a `down()` that drops them in reverse. Four
+definitions, each store's values, audit, history), with a `down()` that drops them in reverse. Four
 migration stubs used to do this, each repeating the same connection and shape lookups, and a new
 store meant copying a stub. Nothing in the migration varies per application any more (the shape
 comes from the schema file), so it ships as a real PHP file. Its table definitions stay inline,
@@ -183,7 +220,15 @@ round trips per store on the first read of a request and none after it.
 
 ## Why headless?
 
-The package ships no views, Blade components, Livewire, Filament or assets. A settings engine is consumed by many interfaces (an admin panel, a CLI, an API client, another package), and any UI bundled here would be the wrong one for most of them and would drag view dependencies into every host. Its surfaces are the PHP API, events, Artisan commands and, later, an opt-in JSON API; an admin UI is a separate companion package. An architecture test fails on any view, Blade, Livewire or Filament reference in `src/` and on a `resources/views` directory.
+The package ships no views, Blade components, Livewire, Filament or assets. A settings engine is consumed by many interfaces (an admin panel, a CLI, an API client, another package), and any UI bundled here would be the wrong one for most of them and would drag view dependencies into every host. Its surfaces are the PHP API, events, Artisan commands and an opt-in JSON API; an admin UI is a separate companion package. An architecture test fails on any view, Blade, Livewire or Filament reference in `src/` and on a `resources/views` directory.
+
+## Why the REST API lives in the package
+
+The API is a channel, not a product: every endpoint runs an action the PHP API already runs (`Enums\Capability::actions()`), with the same authorizer, verifier, audit, locks and approvals. Shipped as a separate `settings-http` package it would have to reach into those actions from outside, keep its own copy of the capability list, and drift a release behind the engine whenever an action changed; the design moved it in (D-26) so one pull request changes a capability in every channel at once, and an architecture test fails when a route, the capability enum or a controller disagrees with the others. It costs nothing until it is used: no route is registered, no middleware or rate limiter defined, unless `http.enabled` is on, and it adds no dependency (Sanctum stays a suggestion). It returns JSON only, so the package stays headless.
+
+## Why change requests are a table
+
+A write that needs approval has to outlive the request that proposed it: the approver acts later, from another request, maybe another server, and a queue or a cache entry can be evicted before anyone looks. So a proposal is a row, written in the same transaction as its `pending` audit entry, on the store's own connection (one table per connection, like the history), with the proposed value stored exactly as the values table would store it, encrypted for an encrypted definition. Keeping the base version on the row is what makes applying it safe: the approval writes through the version-checked update, so a setting that changed in the meantime is never overwritten and the request becomes `stale`. Requests are keyed by ULID, so the table never depends on `ids.type`, and the table is a schema switch (`approvals.table`) like the history.
 
 ## Dependencies
 

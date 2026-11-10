@@ -64,12 +64,42 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `cache.prefix` | `laranail-settings` | the start of every cache key |
 | `cache.ttl` | `3600` | seconds a cached bag is fresh (at least 1) |
 | `cache.stale` | `300` | seconds after `ttl` a stale bag is still answered while it is refreshed (`Cache::flexible()`); `0` for none |
+| `tables.history` | `settings_history` | the history table's name (after `tables.prefix`) |
+| `history.enabled` | `true` (`LARANAIL_SETTINGS_HISTORY`) | schema switch: create the history table and record every change in it |
+| `history.keep_days` | `365` | how long `prune-history` keeps history entries; null for no age limit |
+| `history.keep_versions` | `null` | how many versions of each setting `prune-history` keeps; null for all |
+| `stores.<name>.approvals.keys` | `[]` | key globs (`billing.*`) whose writes become change requests |
+| `tables.change_requests` | `settings_change_requests` | the change requests table (after `tables.prefix`), one per connection |
+| `tables.stores` | `settings_stores` | the persisted configuration table, on the default store's connection |
+| `approvals.table` | `true` | schema switch: create the change requests table |
+| `approvals.min_approvals` | `1` | approvals that apply a change |
+| `approvals.allow_self` | `false` | let the requester approve their own request |
+| `approvals.expire_after` | `7` | days before an open request expires; null for never |
+| `approvals.keep_days` | `90` | days `prune-changes` keeps decided requests; null for ever |
+| `configuration.persisted` | `false` (`LARANAIL_SETTINGS_PERSISTED_CONFIGURATION`) | schema switch: create `settings_stores` and read persisted stores and layers |
+| `configuration.sources` | `['config', 'database', 'runtime']` | merge order of the file, persisted entries and runtime changes; later wins |
+| `importers` | `spatie`, `toolkit`, `akaunting` | importers `import --from=` can use, name => class |
+| `typed.classes` | `[]` | typed settings classes whose properties are registered as definitions |
+| `http.enabled` | `false` (`LARANAIL_SETTINGS_HTTP`) | register the REST API's routes |
+| `http.prefix` | `api/settings` | the routes' prefix; they live under `<prefix>/v1` |
+| `http.middleware` | `null` | the routes' middleware; null is `['api', 'auth:sanctum']` with Sanctum, else `['api', 'auth']` |
+| `http.rate_limit` | `60` | requests per minute per user (or IP); `0` for none |
+| `http.routes.<group>` | `true` | switch a group off: `stores`, `definitions`, `settings`, `history`, `audit`, `approvals`, `categories`, `configuration`, `transfer` |
+| `http.idempotency.cache` / `http.idempotency.ttl` | `null` / `86400` | where and how long a write's response is kept for an `Idempotency-Key` |
+| `http.owners` | unset | owner alias => model class for URLs; unset uses the morph map |
+| `http.page_size` | `50` | the default page size of lists |
+| `listeners.alerts` | `true` | register the alert listener (alerts still need `alerts.enabled`) |
+| `listeners.log` | `false` | write every settings event to the logging channel |
+| `alerts.enabled` | `false` (`LARANAIL_SETTINGS_ALERTS`) | send alerts |
+| `alerts.cache` | `null` | the cache store holding the alert throttle; null for the default |
+| `alerts.throttle` | `300` | seconds a rule stays quiet about one key after alerting; `0` for never |
+| `alerts.rules` | `[]` | which events alert whom; see [Alerts](tools/alerts.md) |
 
 Store names, keys, locales and owner aliases are validated, and a misconfiguration (an unknown driver, sink, verifier, resolver, level or ability included) raises `InvalidConfiguration` naming the config path on first use. The `password_confirmation` verifier also reads Laravel's own `auth.password_timeout`.
 
 Migration-time switches (`tenancy.mode` among them) are read by `install` and `make-store` and recorded in the schema file; after that the package reads the file, and `doctor` reports configuration that differs from it. See [Schema switches](tools/schema-switches.md).
 
-The cache is described in [Caching](tools/caching.md). Access, audit and logging are described in [Access control](tools/access-control.md) and [Audit and logging](tools/audit-and-logging.md); per-request changes in [Runtime configuration](tools/runtime-configuration.md).
+Approvals are described in [Approvals](tools/approvals.md), persisted configuration in [Persisted configuration](tools/persisted-configuration.md), the REST API in [REST API](tools/rest-api.md), typed classes in [Typed settings](tools/typed-settings.md), and import and export in [Import and export](tools/import-export.md). History is described in [History](tools/history.md), events and the built-in listeners in [Events](tools/events.md), alerts in [Alerts](tools/alerts.md). The cache is described in [Caching](tools/caching.md). Access, audit and logging are described in [Access control](tools/access-control.md) and [Audit and logging](tools/audit-and-logging.md); per-request changes in [Runtime configuration](tools/runtime-configuration.md).
 
 ## Publishing
 

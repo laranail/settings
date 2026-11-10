@@ -10,8 +10,8 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\GeneratedStore;
 use Simtabi\Laranail\Settings\Database\StoreSchema;
-use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /**
  * Generate a new database store (G-3: no runtime DDL): one migration for it, a copy of the

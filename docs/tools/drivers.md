@@ -43,7 +43,7 @@ A missing file is an empty layer. The file is read once per process and opcache 
 Register a closure on the factory, in a service provider's `boot()`. Built-in names cannot be replaced, and a driver name never becomes a class or method name.
 
 ```php
-use Simtabi\Laranail\Settings\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 
 app(DriverFactory::class)->extend('dynamo', fn (LayerConfig $layer) => new DynamoDriver(/* ... */));

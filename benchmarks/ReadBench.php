@@ -12,7 +12,7 @@ use PhpBench\Attributes\BeforeMethods;
 use Illuminate\Support\Facades\Artisan;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Contracts\Settings;
-use Simtabi\Laranail\Settings\Caching\SettingsCache;
+use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 use Orchestra\Testbench\Foundation\Application as Testbench;
 use Simtabi\Laranail\DbTools\Providers\DbToolsServiceProvider;
 use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;

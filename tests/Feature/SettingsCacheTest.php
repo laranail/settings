@@ -14,9 +14,9 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\CacheTarget;
-use Simtabi\Laranail\Settings\Caching\SettingsCache;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Cache\Repository as CacheContract;
+use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /*

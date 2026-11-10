@@ -6,8 +6,10 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Blade;
 use Simtabi\Laranail\Settings\Actions\SetSetting;
 use Simtabi\Laranail\Settings\Actions\LockSetting;
+use Simtabi\Laranail\Settings\Typed\TypedSettings;
 use Simtabi\Laranail\Settings\Actions\ForgetSetting;
 use Simtabi\Laranail\Settings\Actions\UnlockSetting;
+use Simtabi\Laranail\Settings\Typed\SettingsMigration;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
@@ -26,6 +28,9 @@ arch('classes are final unless they are an exception base')
         // Bases callers catch; their subtypes are final.
         SettingsException::class,
         InvalidIdentifier::class,
+        // Bases applications extend: a typed settings class, a settings migration.
+        TypedSettings::class,
+        SettingsMigration::class,
     ]);
 
 arch('nothing outside Providers and Facades reaches into the container')
@@ -74,7 +79,7 @@ it('ships no views directory and registers no views or assets', function (): voi
     }
 
     // A scan that inspects nothing has broken, not found a clean tree.
-    expect($inspected)->toBeGreaterThanOrEqual(110)
+    expect($inspected)->toBeGreaterThanOrEqual(360)
         ->and($offending)->toBe([])
         ->and(is_dir($root . '/resources/views'))->toBeFalse();
 });
