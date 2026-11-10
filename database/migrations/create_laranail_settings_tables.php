@@ -18,30 +18,26 @@ use Simtabi\Laranail\Settings\Enums\TranslationsMode;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
 /*
- * laranail/settings: every table the package uses, in dependency order.
+ * Every table laranail/settings uses, in dependency order:
  *
- *   1. categories    shared by the stores on a connection; nested by parent_id
- *   2. definitions   optional (definitions.table), on the default store's connection
- *   3. values        one table per database store
- *   4. audit         actions and denials, never values
- *   5. history       every value by version (history.enabled), encrypted values still encrypted
- *   6. change requests  four-eyes approvals (approvals.table); proposed values encrypted as stored
- *   7. stores        persisted store and layer configuration (configuration.persisted), on the
- *                    default store's connection
+ *   categories        shared by the stores on a connection, nested by parent_id
+ *   definitions       optional (definitions.table), on the default store's connection
+ *   <store>           one values table per database store
+ *   audit             actions and denials, never values
+ *   history           every value by version (history.enabled)
+ *   change requests   pending approvals (approvals.table)
+ *   stores            persisted store and layer configuration (configuration.persisted)
  *
- * The shape (key type, identity mode, owner keys, dedicated stores, soft deletes, translations,
- * tenancy, table names, connections) comes from the recorded schema file
- * (database/settings-schema.php, written by `install` and `make-store`), or from configuration
- * when nothing is recorded. Column types are explicit, so db-tools' blueprint macros cannot retype
- * them. `down()` drops the same tables in reverse order.
+ * The shape (key types, identity mode, owner keys, soft deletes, translations, tenancy, table
+ * names and connections) comes from the recorded schema file, database/settings-schema.php, or
+ * from configuration when nothing is recorded.
  *
- * `laranail::settings.make-store` copies this file for one new store by rewriting the $only line
- * (and, with --connection, the $pinnedConnection line): the copy creates that store's values table
- * and, on a connection of its own, that connection's categories, audit and history tables.
+ * `laranail::settings.make-store` copies this file for one store by rewriting the $only line
+ * (and, with --connection, the $pinnedConnection line). Keep both lines exactly as they are.
  */
 return new class extends Migration
 {
-    /** null: every recorded database store plus the shared tables; a store name: that store only. */
+    /** null: every recorded store plus the shared tables; a store name: that store only. */
     private ?string $only = null;
 
     private ?string $pinnedConnection = null;
@@ -53,10 +49,11 @@ return new class extends Migration
 
     public function up(): void
     {
-        foreach ($this->plan() as $connection => $tables) {
-            $shape = $this->shape();
+        $shape = $this->shape();
+        $names = $shape->names;
 
-            if ($tables['shared'] && ($this->only === null || ! Schema::connection($connection)->hasTable($shape->names->categories()))) {
+        foreach ($this->plan() as $connection => $tables) {
+            if ($tables['shared'] && $this->missing($connection, $names->categories())) {
                 $this->createCategories($connection, $shape);
             }
 
@@ -65,22 +62,20 @@ return new class extends Migration
             }
 
             foreach ($tables['stores'] as $store) {
-                // A store's own copy skips a table the full migration already created (a
-                // `migrate:fresh` replays both: the full one creates every recorded store).
-                if ($this->only === null || ! Schema::connection($connection)->hasTable($shape->names->store($store->name, $store->table))) {
+                if ($this->missing($connection, $names->store($store->name, $store->table))) {
                     $this->createValues($connection, $shape, $store);
                 }
             }
 
-            if ($tables['shared'] && ($this->only === null || ! Schema::connection($connection)->hasTable($shape->names->audit()))) {
+            if ($tables['shared'] && $this->missing($connection, $names->audit())) {
                 $this->createAudit($connection, $shape);
             }
 
-            if ($tables['shared'] && $shape->historyTable && ($this->only === null || ! Schema::connection($connection)->hasTable($shape->names->history()))) {
+            if ($tables['shared'] && $shape->historyTable && $this->missing($connection, $names->history())) {
                 $this->createHistory($connection, $shape);
             }
 
-            if ($tables['shared'] && $shape->changeRequestsTable && ($this->only === null || ! Schema::connection($connection)->hasTable($shape->names->changeRequests()))) {
+            if ($tables['shared'] && $shape->changeRequestsTable && $this->missing($connection, $names->changeRequests())) {
                 $this->createChangeRequests($connection, $shape);
             }
 
@@ -93,66 +88,39 @@ return new class extends Migration
     public function down(): void
     {
         $shape = $this->shape();
+        $names = $shape->names;
 
         foreach (array_reverse($this->plan(), true) as $connection => $tables) {
             $schema = Schema::connection($connection);
 
             if ($tables['definitions'] && $shape->storesTable) {
-                $schema->dropIfExists($shape->names->stores());
+                $schema->dropIfExists($names->stores());
             }
 
             if ($tables['shared'] && $shape->changeRequestsTable) {
-                $schema->dropIfExists($shape->names->changeRequests());
+                $schema->dropIfExists($names->changeRequests());
             }
 
             if ($tables['shared'] && $shape->historyTable) {
-                $schema->dropIfExists($shape->names->history());
+                $schema->dropIfExists($names->history());
             }
 
             if ($tables['shared']) {
-                $schema->dropIfExists($shape->names->audit());
+                $schema->dropIfExists($names->audit());
             }
 
             foreach (array_reverse($tables['stores']) as $store) {
-                $schema->dropIfExists($shape->names->store($store->name, $store->table));
+                $schema->dropIfExists($names->store($store->name, $store->table));
             }
 
             if ($tables['definitions']) {
-                $schema->dropIfExists($shape->names->definitions());
+                $schema->dropIfExists($names->definitions());
             }
 
             if ($tables['shared']) {
-                $schema->dropIfExists($shape->names->categories());
+                $schema->dropIfExists($names->categories());
             }
         }
-    }
-
-    /**
-     * What to create on each connection, the default store's connection first.
-     *
-     * @return array<string, array{shared: bool, definitions: bool, stores: list<StoreSchema>}>
-     */
-    private function plan(): array
-    {
-        $shape = $this->shape();
-        $main = $this->connectionOf($shape->store($this->primaryStore()));
-
-        if ($this->only !== null) {
-            $store = $shape->store(new StoreName($this->only));
-            $connection = $this->pinnedConnection ?? $this->connectionOf($store);
-
-            return [$connection => ['shared' => $this->pinnedConnection !== null, 'definitions' => false, 'stores' => [$store]]];
-        }
-
-        $plan = [$main => ['shared' => true, 'definitions' => $shape->definitionsTable, 'stores' => []]];
-
-        foreach ($shape->stores as $store) {
-            $connection = $this->connectionOf($store);
-            $plan[$connection] ??= ['shared' => true, 'definitions' => false, 'stores' => []];
-            $plan[$connection]['stores'][] = $store;
-        }
-
-        return $plan;
     }
 
     private function createCategories(string $connection, SchemaShape $shape): void
@@ -219,24 +187,20 @@ return new class extends Migration
     }
 
     /**
-     * One store's values. Identity is (tenant, scope, key, locale); those columns are
-     * binary-collated so `Theme` and `theme`, or `pt_BR` and `pt_br`, cannot become one row on
-     * MySQL only (G-38).
+     * One store's values. The identity columns are binary-collated, so `Theme` and `theme` stay
+     * two rows on MySQL as they do elsewhere.
      */
     private function createValues(string $connection, SchemaShape $shape, StoreSchema $store): void
     {
         $name = $shape->names->store($store->name, $store->table);
-        $categories = $shape->names->categories();
         $index = substr($name, 0, 40);
         $binary = $this->binaryCollation($connection);
 
-        Schema::connection($connection)->create($name, function (Blueprint $table) use ($binary, $categories, $index, $shape, $store): void {
-            $collate = static fn (ColumnDefinition $column): ColumnDefinition => $binary === null ? $column : $column->collation($binary);
-
+        Schema::connection($connection)->create($name, function (Blueprint $table) use ($binary, $index, $shape, $store): void {
             $this->key($table, 'id', $shape->ids, primary: true);
 
             if ($shape->tenancy === TenancyMode::Column) {
-                $collate($table->string('tenant', 64)->default(''));
+                $this->collate($table->string('tenant', 64)->default(''), $binary);
             }
 
             if ($store->isDedicated()) {
@@ -248,21 +212,21 @@ return new class extends Migration
                     : $table->string('settable_id', 36)->nullable();
             }
 
-            $collate($table->string('scope', 128));
+            $this->collate($table->string('scope', 128), $binary);
             $this->key($table, 'category_id', $shape->ids)->nullable();
             $table->string('category_store', 64)->nullable();
             $table->string('group', 64);
-            $collate($table->string('key', 191));
+            $this->collate($table->string('key', 191), $binary);
 
             if ($shape->identity->hasSlug()) {
-                $collate($table->string('slug', $shape->identity === IdentityMode::SlugPerRow ? 40 : 191)->nullable());
+                $this->collate($table->string('slug', $shape->identity === IdentityMode::SlugPerRow ? 40 : 191)->nullable(), $binary);
             }
 
             if ($shape->identity->hasUid()) {
                 $table->char('uid', 26)->nullable();
             }
 
-            $collate($table->string('locale', 16)->default(''));
+            $this->collate($table->string('locale', 16)->default(''), $binary);
             $table->longText('value')->nullable();
             $table->string('type', 64)->nullable();
             $this->translatable($table, 'label', $shape);
@@ -280,35 +244,41 @@ return new class extends Migration
                 $table->timestamp('deleted_at')->nullable();
             }
 
-            $tenant = $this->tenantColumns($shape);
-            $table->unique([...$tenant, 'scope', 'key', 'locale'], $index . '_identity_unique');
-
-            if ($shape->identity->hasUid()) {
-                $table->unique('uid', $index . '_uid_unique');
-            }
-
-            match ($shape->identity) {
-                IdentityMode::SlugPerRow => $table->unique([...$tenant, 'slug'], $index . '_slug_unique'),
-                IdentityMode::SlugUid    => $table->index('slug', $index . '_slug_index'),
-                IdentityMode::UidOnly    => null,
-            };
-
-            if ($store->isDedicated()) {
-                $table->index('owner_id', $index . '_owner_index');
-                $table->foreign('owner_id', $index . '_owner_foreign')
-                    ->references($store->ownerKey)->on((string) $store->ownerTable)->cascadeOnDelete();
-            } else {
-                $table->index(['settable_type', 'settable_id'], $index . '_settable_index');
-            }
-
-            $table->index('category_id', $index . '_category_index');
-            $table->index(['autoload', 'scope'], $index . '_autoload_index');
-            $table->foreign(['category_id', 'category_store'], $index . '_category_foreign')
-                ->references(['id', 'store'])->on($categories)->nullOnDelete();
+            $this->indexValues($table, $index, $shape, $store);
         });
     }
 
-    /** The audit trail (§16.8): who did what, when and through which channel. No value column. */
+    private function indexValues(Blueprint $table, string $index, SchemaShape $shape, StoreSchema $store): void
+    {
+        $tenant = $this->tenantColumns($shape);
+
+        $table->unique([...$tenant, 'scope', 'key', 'locale'], $index . '_identity_unique');
+
+        if ($shape->identity->hasUid()) {
+            $table->unique('uid', $index . '_uid_unique');
+        }
+
+        match ($shape->identity) {
+            IdentityMode::SlugPerRow => $table->unique([...$tenant, 'slug'], $index . '_slug_unique'),
+            IdentityMode::SlugUid    => $table->index('slug', $index . '_slug_index'),
+            IdentityMode::UidOnly    => null,
+        };
+
+        if ($store->isDedicated()) {
+            $table->index('owner_id', $index . '_owner_index');
+            $table->foreign('owner_id', $index . '_owner_foreign')
+                ->references($store->ownerKey)->on((string) $store->ownerTable)->cascadeOnDelete();
+        } else {
+            $table->index(['settable_type', 'settable_id'], $index . '_settable_index');
+        }
+
+        $table->index('category_id', $index . '_category_index');
+        $table->index(['autoload', 'scope'], $index . '_autoload_index');
+        $table->foreign(['category_id', 'category_store'], $index . '_category_foreign')
+            ->references(['id', 'store'])->on($shape->names->categories())->nullOnDelete();
+    }
+
+    /** Who did what, when and through which channel. There is no value column. */
     private function createAudit(string $connection, SchemaShape $shape): void
     {
         $name = $shape->names->audit();
@@ -343,11 +313,8 @@ return new class extends Migration
     }
 
     /**
-     * The value history (§4.3): one row per version of a setting, with the payload before and
-     * after exactly as the values table stores it (an encrypted value stays encrypted). Queried
-     * by (store, scope, key, locale), so a forget followed by a set keeps one trail; `setting_ref`
-     * is the row's uid (or id), kept as a string so the table never depends on `ids.type`.
-     * Identity columns are binary-collated like the values table's.
+     * One row per version of a setting, with the payload before and after exactly as the values
+     * table stores it. `setting_ref` is a string so the table never depends on `ids.type`.
      */
     private function createHistory(string $connection, SchemaShape $shape): void
     {
@@ -355,19 +322,17 @@ return new class extends Migration
         $binary = $this->binaryCollation($connection);
 
         Schema::connection($connection)->create($name, function (Blueprint $table) use ($binary, $name, $shape): void {
-            $collate = static fn (ColumnDefinition $column): ColumnDefinition => $binary === null ? $column : $column->collation($binary);
-
             $table->char('id', 26)->primary();
 
             if ($shape->tenancy === TenancyMode::Column) {
-                $collate($table->string('tenant', 64)->default(''));
+                $this->collate($table->string('tenant', 64)->default(''), $binary);
             }
 
             $table->string('store', 64);
             $table->string('setting_ref', 36)->nullable();
-            $collate($table->string('scope', 128));
-            $collate($table->string('key', 191));
-            $collate($table->string('locale', 16)->default(''));
+            $this->collate($table->string('scope', 128), $binary);
+            $this->collate($table->string('key', 191), $binary);
+            $this->collate($table->string('locale', 16)->default(''), $binary);
             $table->string('operation', 16);
             $table->longText('old_value')->nullable();
             $table->longText('new_value')->nullable();
@@ -388,12 +353,8 @@ return new class extends Migration
     }
 
     /**
-     * Change requests (§16.7): a write that needs approval waits here until enough approvers
-     * decide it. `payload` is the proposed value exactly as the values table would store it, so
-     * the value of an encrypted definition is encrypted at rest; `base_version` is the version the
-     * setting was at when the request was opened, and applying checks it, so a request whose
-     * setting changed since becomes `stale` instead of overwriting. Keyed by ULID, so the table
-     * never depends on `ids.type`.
+     * Writes waiting for approval. `payload` is stored as the values table would store it, and
+     * `base_version` lets a request whose setting has since changed become `stale`.
      */
     private function createChangeRequests(string $connection, SchemaShape $shape): void
     {
@@ -401,18 +362,16 @@ return new class extends Migration
         $binary = $this->binaryCollation($connection);
 
         Schema::connection($connection)->create($name, function (Blueprint $table) use ($binary, $name, $shape): void {
-            $collate = static fn (ColumnDefinition $column): ColumnDefinition => $binary === null ? $column : $column->collation($binary);
-
             $table->char('id', 26)->primary();
 
             if ($shape->tenancy === TenancyMode::Column) {
-                $collate($table->string('tenant', 64)->default(''));
+                $this->collate($table->string('tenant', 64)->default(''), $binary);
             }
 
             $table->string('store', 64);
-            $collate($table->string('scope', 128));
-            $collate($table->string('key', 191));
-            $collate($table->string('locale', 16)->default(''));
+            $this->collate($table->string('scope', 128), $binary);
+            $this->collate($table->string('key', 191), $binary);
+            $this->collate($table->string('locale', 16)->default(''), $binary);
             $table->string('operation', 16);
             $table->longText('payload')->nullable();
             $table->string('type', 64)->nullable();
@@ -438,11 +397,7 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Persisted configuration (§16.11): store and layer entries edited through the API, merged
-     * with the configuration file in `configuration.sources` order. `config` holds the entry as
-     * the configuration file would (JSON, so its key order is never relied on).
-     */
+    /** Store and layer entries edited through the API; `config` holds the entry as JSON. */
     private function createStores(string $connection, SchemaShape $shape): void
     {
         $name = $shape->names->stores();
@@ -459,9 +414,45 @@ return new class extends Migration
     }
 
     /**
-     * A key column typed per `ids.type`. The primary key is an explicit command, not the fluent
-     * ->primary(): Laravel appends fluent indexes after every other command, so PostgreSQL would
-     * see a self-referencing foreign key before the key it references (SQLSTATE 42830).
+     * What to create on each connection, the default store's connection first.
+     *
+     * @return array<string, array{shared: bool, definitions: bool, stores: list<StoreSchema>}>
+     */
+    private function plan(): array
+    {
+        $shape = $this->shape();
+        $main = $this->connectionOf($shape->store($this->primaryStore()));
+
+        if ($this->only !== null) {
+            $store = $shape->store(new StoreName($this->only));
+            $connection = $this->pinnedConnection ?? $this->connectionOf($store);
+
+            return [$connection => ['shared' => $this->pinnedConnection !== null, 'definitions' => false, 'stores' => [$store]]];
+        }
+
+        $plan = [$main => ['shared' => true, 'definitions' => $shape->definitionsTable, 'stores' => []]];
+
+        foreach ($shape->stores as $store) {
+            $connection = $this->connectionOf($store);
+            $plan[$connection] ??= ['shared' => true, 'definitions' => false, 'stores' => []];
+            $plan[$connection]['stores'][] = $store;
+        }
+
+        return $plan;
+    }
+
+    /**
+     * Whether to create this table. A single store's copy skips a table that already exists,
+     * because `migrate:fresh` replays both it and the full migration.
+     */
+    private function missing(string $connection, string $table): bool
+    {
+        return $this->only === null || ! Schema::connection($connection)->hasTable($table);
+    }
+
+    /**
+     * A key column typed per `ids.type`. The primary key is an explicit command rather than the
+     * fluent ->primary(), so PostgreSQL sees it before a self-referencing foreign key.
      */
     private function key(Blueprint $table, string $column, IdType $type, bool $primary = false): ColumnDefinition
     {
@@ -482,7 +473,7 @@ return new class extends Migration
         return $definition;
     }
 
-    /** A title, label or description: text, or a JSON map of locale to text (D-8). */
+    /** A title, label or description: text, or a JSON map of locale to text. */
     private function translatable(Blueprint $table, string $column, SchemaShape $shape, bool $nullable = true): void
     {
         $definition = $shape->translations === TranslationsMode::Json
@@ -494,7 +485,12 @@ return new class extends Migration
         }
     }
 
-    /** The binary collation of the identity columns on this connection's driver (G-38). */
+    private function collate(ColumnDefinition $column, ?string $binary): ColumnDefinition
+    {
+        return $binary === null ? $column : $column->collation($binary);
+    }
+
+    /** The binary collation for identity columns on this connection's driver. */
     private function binaryCollation(string $connection): ?string
     {
         return match (DB::connection($connection)->getDriverName()) {
@@ -504,7 +500,7 @@ return new class extends Migration
         };
     }
 
-    /** The tenant column of column-mode tenancy: '' is the central (no tenant) partition. */
+    /** The tenant column of column-mode tenancy: '' is the central partition. */
     private function tenant(Blueprint $table, SchemaShape $shape): void
     {
         if ($shape->tenancy === TenancyMode::Column) {
