@@ -12,10 +12,11 @@ declare(strict_types=1);
 |
 |     php artisan laranail::settings.install
 |
-| The default store keeps its values in the database (publish and run the
-| migrations with the install command above), above a JSON runtime file and
-| the shipped PHP defaults. An application without a database drops
-| `database` from the store's `layers`.
+| The default store keeps its values in the database (the install command
+| above publishes the package's one migration; then run `php artisan
+| migrate`), above a JSON runtime file and the shipped PHP defaults. An
+| application without a database drops `database` from the store's
+| `layers`.
 |
 */
 
@@ -91,8 +92,9 @@ return [
     | Schema switches (migration-time)
     |--------------------------------------------------------------------------
     |
-    | Read by `install` and `make-store`, which record the shape they produce
-    | in the schema file (`schema.path`, default database/settings-schema.php).
+    | Read by `install` and `make-store`, which record the shape the package
+    | migration produces in the schema file (`schema.path`, default
+    | database/settings-schema.php); the migration reads that file.
     | The package then reads that file, not these keys, so changing a switch
     | after migrating changes nothing until a migration says so; `doctor`
     | reports the drift. The defaults are the recommended shape.
@@ -126,6 +128,54 @@ return [
 
     'categories' => [
         'soft_deletes' => false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tenancy
+    |--------------------------------------------------------------------------
+    |
+    | mode (migration-time, recorded in the schema file):
+    |   `none`     one set of settings for the application (the default);
+    |   `column`   one database: the values, categories and audit tables get a
+    |              `tenant` column, every row is stamped with the current tenant
+    |              and every query is limited to it ('' is the central rows);
+    |   `database` a database per tenant, switched by the tenancy package: no
+    |              tenant column; publish the migration into the tenant
+    |              migrations folder.
+    | discriminator: who the current tenant is. `auto` uses stancl/tenancy or
+    | spatie/laravel-multitenancy when installed (neither is required), else
+    | none; or `null`, `stancl`, `spatie`, or a class implementing
+    | Simtabi\Laranail\Settings\Contracts\TenantDiscriminator. In every mode
+    | the tenant also keys what is held in memory during a request or job.
+    | Definitions are shared by every tenant.
+    */
+    'tenancy' => [
+        'mode'          => env('LARANAIL_SETTINGS_TENANCY', 'none'),
+        'discriminator' => 'auto',
+    ],
+
+    /*
+    | Default data, seeded with the application's `php artisan db:seed` (or
+    | `db:seed --class="Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder"`).
+    | `categories` are created as system categories in each of `stores` (empty:
+    | the default store), as the system actor, so they are validated and
+    | audited; one that already exists is left as it is, so seeding twice
+    | changes nothing. A category is `slug => title` or `slug => [title,
+    | description, icon, parent, sort_order, translations]`. No setting values
+    | and never any credentials are seeded. `enabled` false switches it off.
+    */
+    'seed' => [
+        'enabled'    => env('LARANAIL_SETTINGS_SEED', true),
+        'stores'     => [],
+        'categories' => [
+            'general'       => ['title' => 'General', 'description' => 'Site name, contact details and other application-wide settings.', 'icon' => 'cog'],
+            'appearance'    => ['title' => 'Appearance', 'description' => 'Theme, branding and layout.', 'icon' => 'swatch'],
+            'localisation'  => ['title' => 'Localisation', 'description' => 'Language, time zone, date and number formats.', 'icon' => 'globe'],
+            'mail'          => ['title' => 'Mail', 'description' => 'Sender name and address, and other mail options.', 'icon' => 'envelope'],
+            'notifications' => ['title' => 'Notifications', 'description' => 'Which notifications are sent, and how.', 'icon' => 'bell'],
+            'security'      => ['title' => 'Security', 'description' => 'Sign-in, sessions and other security options.', 'icon' => 'shield'],
+        ],
     ],
 
     /*

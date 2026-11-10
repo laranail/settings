@@ -13,6 +13,9 @@ The `database` driver keeps a store's values in a table, through the query build
 
 `tables.prefix` goes in front of all of them. Every connection a store uses has its own
 categories and audit tables, so a store's foreign keys and transactions never cross connections.
+One migration creates them all, in that order (`down()` in reverse): see
+[Installation](../installation.md). In column-mode [tenancy](tenancy.md) the values, categories
+and audit tables have a `tenant` column that leads their unique keys.
 
 The values table, in the default shape (polymorphic owners, identity mode `slug_uid`, bigint ids,
 string owner key). Every other shape is a [schema switch](schema-switches.md): `uuid` / `ulid`

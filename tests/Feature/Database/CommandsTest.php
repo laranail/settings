@@ -33,7 +33,7 @@ afterEach(function (): void {
     File::delete(config_path('laranail/settings.php'));
 });
 
-it('publishes the config and the four migrations on install, and records the schema', function (): void {
+it('publishes the config and the one migration on install, and records the schema', function (): void {
     config()->set('laranail.settings.stores.settings.layers', ['database', 'runtime', 'shipped']);
 
     $this->artisan('laranail::settings.install')->assertSuccessful();
@@ -41,7 +41,7 @@ it('publishes the config and the four migrations on install, and records the sch
     $names = array_map(static fn (string $path): string => preg_replace('/^\d{4}_\d{2}_\d{2}_\d{6}_/', '', basename($path)) ?? '', settingsMigrations());
     sort($names);
 
-    expect($names)->toBe(['create_settings_audit_table.php', 'create_settings_categories_table.php', 'create_settings_definitions_table.php', 'create_settings_table.php'])
+    expect($names)->toBe(['create_laranail_settings_tables.php'])
         ->and(app(SchemaShapeRepository::class)->recorded()?->hasStore(new StoreName('settings')))->toBeTrue();
 });
 
@@ -73,7 +73,7 @@ it('generates a store\'s migration and prints its configuration', function (): v
     $files = settingsMigrations();
 
     expect($files)->toHaveCount(1)
-        ->and(File::get($files[0]))->toContain("private string \$store = 'user_settings';")
+        ->and(File::get($files[0]))->toContain("private ?string \$only = 'user_settings';")
         ->and(File::get($files[0]))->toContain('private ?string $pinnedConnection = null;');
 
     $this->artisan('laranail::settings.make-store', ['store' => 'user_settings'])->expectsOutputToContain('already exists')->assertFailed();
@@ -92,14 +92,33 @@ it('generates a store\'s migration and prints its configuration', function (): v
 });
 
 it('generates the categories and audit tables too for a store on its own connection', function (): void {
+    config()->set('database.connections.archive_db', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '', 'foreign_key_constraints' => true]);
     $generated = app(MakeStore::class)->handle(new StoreName('archive'), 'archive_db', ['ledger']);
 
-    expect($generated->migrations)->toHaveCount(3)
+    expect($generated->migrations)->toHaveCount(1)
         ->and(File::get($generated->migrations[0]))->toContain("private ?string \$pinnedConnection = 'archive_db';")
-        ->and(File::get($generated->migrations[2]))->toContain("private string \$store = 'archive';")
+        ->and(File::get($generated->migrations[0]))->toContain("private ?string \$only = 'archive';")
         ->and($generated->config)->toContain("'database_archive_db' => ['driver' => 'database', 'connection' => 'archive_db']")
         ->and(fn () => app(MakeStore::class)->handle(new StoreName('other'), 'bad connection!'))->toThrow(InvalidConfiguration::class)
         ->and(fn () => app(MakeStore::class)->handle(new StoreName('other'), null, ['Bad Alias']))->toThrow(InvalidIdentifier::class);
+
+    // The one generated migration creates the store's table and that connection's own
+    // categories and audit tables, and drops all three again.
+    $migration = require $generated->migrations[0];
+    $migration->up();
+    $schema = Schema::connection('archive_db');
+
+    expect($migration->getConnection())->toBe('archive_db')
+        ->and($schema->hasTable('archive'))->toBeTrue()
+        ->and($schema->hasTable('settings_categories'))->toBeTrue()
+        ->and($schema->hasTable('settings_audit'))->toBeTrue()
+        ->and($schema->hasTable('settings_definitions'))->toBeFalse();
+
+    $migration->down();
+
+    expect($schema->hasTable('archive'))->toBeFalse()
+        ->and($schema->hasTable('settings_categories'))->toBeFalse()
+        ->and($schema->hasTable('settings_audit'))->toBeFalse();
 });
 
 it('reports readiness, schema drift and rows the database cannot guard', function (): void {

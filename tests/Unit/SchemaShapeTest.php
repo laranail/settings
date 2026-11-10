@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Enums\StoreMode;
+use Simtabi\Laranail\Settings\Enums\TenancyMode;
 use Simtabi\Laranail\Settings\Enums\IdentityMode;
 use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Database\StoreSchema;
@@ -107,4 +108,19 @@ it('parses id types loosely and knows which identity columns each mode has', fun
         ->and(IdentityMode::UidOnly->hasSlug())->toBeFalse()
         ->and(IdentityMode::SlugPerRow->hasUid())->toBeFalse()
         ->and(IdentityMode::SlugUid->hasSlug() && IdentityMode::SlugUid->hasUid())->toBeTrue();
+});
+
+it('records the tenancy mode, and reads a file written before it existed as none', function (): void {
+    $shape = SchemaShape::fromConfig(settingsConfig(['tenancy' => ['mode' => 'column']]));
+    $written = $shape->toArray();
+    $older = $written;
+    unset($older['switches']['tenancy']);
+
+    expect($shape->tenancy)->toBe(TenancyMode::Column)
+        ->and($written['switches']['tenancy'])->toBe('column')
+        ->and(SchemaShape::fromArray($written)->tenancy)->toBe(TenancyMode::Column)
+        ->and(SchemaShape::fromArray($older)->tenancy)->toBe(TenancyMode::None)
+        ->and($shape->withStore(new StoreSchema(new StoreName('extra')))->tenancy)->toBe(TenancyMode::Column)
+        ->and(SchemaShape::fromConfig(settingsConfig())->differencesFrom($shape))->toContain('switches.tenancy: column → none')
+        ->and(fn (): SchemaShape => SchemaShape::fromArray(['switches' => ['tenancy' => 'schema']] + $written))->toThrow(InvalidConfiguration::class, 'tenancy');
 });

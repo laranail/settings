@@ -54,6 +54,7 @@ final readonly class PruneAudit
 
             $seen[$database->connectionName()] = true;
 
+            // Retention is one policy for the whole application, so it prunes every tenant's rows.
             $removed += $database->attempt($store->name, static fn (): int => $database->connection()
                 ->table($database->names()->audit())
                 ->where('occurred_at', '<', $cutoff)

@@ -6,8 +6,8 @@ Eight Artisan commands, all named `laranail::settings.<command>`.
 
 | Command | Does |
 |---|---|
-| `laranail::settings.install` | publishes the config and the migrations, records the schema file, syncs definitions once the table exists; refuses to run over a foreign table of the same name |
-| `laranail::settings.make-store {store} [--owner=*] [--connection=]` | writes a new store's migration, records it in the schema file and prints its configuration entry |
+| `laranail::settings.install` | publishes the config and the package's one migration, records the schema file, syncs definitions once the table exists; refuses to run over a foreign table of the same name |
+| `laranail::settings.make-store {store} [--owner=*] [--connection=]` | writes a new store's migration (a copy of the package migration pinned to that store), records it in the schema file and prints its configuration entry |
 | `laranail::settings.promote [store] [--force] [--from=]` | copies values written before install from the runtime file into the database |
 | `laranail::settings.doctor [--json] [--fix]` | checks readiness, schema drift against the schema file and rows the database cannot guard; `--fix` syncs definitions first |
 | `laranail::settings.sync-definitions` | copies code and config definitions into the definitions table as system rows |
@@ -24,9 +24,17 @@ php artisan laranail::settings.make-store user_settings --owner=user
 php artisan migrate
 ```
 
-It writes `…_create_settings_user_settings_table.php` and prints the entry to add under
-`stores`. With `--connection=archive` it also writes the categories and audit tables for that
-connection and prints the layer to add. It refuses a store that already has a migration.
+It writes one file, `…_create_settings_user_settings_table.php`: a copy of the package migration
+whose `$only` line names the store, so it creates that store's values table and nothing else.
+With `--connection=archive` the copy's `$pinnedConnection` line names the connection too, and it
+also creates that connection's categories and audit tables (each skipped when it already
+exists); it prints the layer to add. It refuses a store that already has a migration.
+
+## Seeding
+
+`php artisan db:seed` runs the package's `DefaultCategoriesSeeder` (registered by the package, so
+`DatabaseSeeder` does not name it); `db:seed --class` runs it alone. See
+[Seed the default categories](../recipes/seeding-default-categories.md).
 
 ## `doctor`
 

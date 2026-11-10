@@ -79,13 +79,13 @@ jobs:
       - name: Run the database group
         run: vendor/bin/pest --group=database
 
-  # §13: the full product of the schema switches (576 shapes) on SQLite, weekly and on demand.
+  # §13: the full product of the schema switches (1,152 shapes, tenancy included) on SQLite, weekly and on demand.
   # Pull requests run the pairwise set (10 shapes) inside the jobs above.
   matrix-full:
     name: Schema switches · full product
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     env:
       LARANAIL_SETTINGS_MATRIX: full
       COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ secrets.GITHUB_TOKEN }}"}}'

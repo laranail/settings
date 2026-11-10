@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tenancy (`tenancy.mode`: `none`, `column`, `database`; recorded in the schema file). Column
+  mode adds a `tenant` column to the values, categories and audit tables, leading their unique
+  keys; every row is stamped with the current tenant and every query, the audit trail and the
+  models included, is limited to it. A `TenantDiscriminator` contract (`NullTenantDiscriminator`,
+  `ClosureTenantDiscriminator`) picked by `tenancy.discriminator` (`auto` detects stancl/tenancy,
+  then spatie/laravel-multitenancy; both only suggested). Preloaded records are kept per tenant
+  in every mode. New enum `TenancyMode`.
+- Default categories: `DefaultCategoriesSeeder` (in `database/seeders`, registered with the
+  application's `db:seed`) creates `seed.categories` (general, appearance, localisation, mail,
+  notifications, security) as system categories in `seed.stores`, through the settings API as
+  the system actor; idempotent; `seed.enabled` switches it off. `NewCategory` takes `system`.
+- Eloquent models (`Models\Setting`, `SettingCategory`, `SettingDefinition`,
+  `SettingAuditEntry`) and their factories in `database/factories`, for tests, seeding and admin
+  screens; they follow the recorded shape and tenancy. The engine itself stays on the query
+  builder.
 - Schema switches (design phase 2b, §4.0): `identity.mode` (`slug_uid`, `slug_per_row`,
   `uid_only`), `ids.type` (`bigint`, `uuid`, `ulid`; follows `laranail.db-tools.id_type` unless
   set) with matching category keys, `ids.owner_key` (`string`, `typed`), `stores.<name>.mode`
@@ -46,6 +61,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The four migration stubs are replaced by one migration,
+  `database/migrations/create_laranail_settings_tables.php`, which creates categories, the
+  optional definitions table, every recorded database store's values table (on its own
+  connection, with that connection's categories and audit tables) and the audit table, in
+  that order, and drops them in reverse. `install` publishes it; migrations published from the
+  stubs keep working. `make-store` writes one migration per store, a copy of it pinned to the
+  store (and connection), instead of up to three stub copies.
+- The schema-switch matrix covers `tenancy.mode`: 10 pairwise shapes for 177 pairs per pull
+  request, 1,152 shapes in the weekly full product.
 - The migration stubs read the recorded schema shape (or configuration, when nothing is
   recorded) instead of individual config keys, and run on the store's recorded connection.
 - `laranail::settings.install` publishes a fourth migration (`create_settings_definitions_table`,

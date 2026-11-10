@@ -41,8 +41,9 @@ Add a store for user settings in `config/laranail/settings.php`:
 ],
 ```
 
-Generate its table with `php artisan laranail::settings.make-store user_settings --owner=user`
-and migrate. Give the model a morph alias (`Relation::enforceMorphMap(['user' => User::class])`),
+A store configured before `install` gets its table from the package migration. One added
+later gets its own: `php artisan laranail::settings.make-store user_settings --owner=user`,
+then migrate. Give the model a morph alias (`Relation::enforceMorphMap(['user' => User::class])`),
 implement `Settable` and use `HasSettings` (see [Owners and inheritance](tools/owners.md)), then:
 
 ```php

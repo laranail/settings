@@ -15,6 +15,7 @@ use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\Precedence;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\ValuePipeline;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 
 /**
  * Resolves a read through the cascade:
@@ -34,6 +35,7 @@ final readonly class Resolver
         private ValuePipeline $pipeline,
         private string $fallbackLocale,
         private PreloadedRecords $preloaded = new PreloadedRecords,
+        private ?TenantDiscriminator $tenant = null,
     ) {}
 
     /**
@@ -45,14 +47,14 @@ final readonly class Resolver
     public function preload(array $groups): void
     {
         foreach ($groups as [$store, $scopes]) {
-            $this->preloaded->remember($store->name, $scopes, $store->load($scopes));
+            $this->preloaded->remember($store->name, $scopes, $store->load($scopes), $this->tenant());
         }
     }
 
     /** Drop what was preloaded for one scope (it was just written). */
     public function forgetPreloaded(Store $store, Scope $scope): void
     {
-        $this->preloaded->forget($store->name, $scope);
+        $this->preloaded->forget($store->name, $scope, $this->tenant());
     }
 
     /** @param list<OwnerRef> $parents */
@@ -154,7 +156,8 @@ final readonly class Resolver
      */
     private function load(Store $store, array $scopes): array
     {
-        $missing = array_values(array_filter($scopes, fn (Scope $scope): bool => ! $this->preloaded->has($store->name, $scope)));
+        $tenant = $this->tenant();
+        $missing = array_values(array_filter($scopes, fn (Scope $scope): bool => ! $this->preloaded->has($store->name, $scope, $tenant)));
 
         if ($missing === $scopes) {
             return $store->load($scopes);
@@ -167,7 +170,7 @@ final readonly class Resolver
             $records = isset($fresh[$layer->name]) ? $fresh[$layer->name]->all() : [];
 
             foreach ($scopes as $scope) {
-                $records = [...$records, ...($this->preloaded->get($store->name, $scope)[$layer->name] ?? [])];
+                $records = [...$records, ...($this->preloaded->get($store->name, $scope, $tenant)[$layer->name] ?? [])];
             }
 
             $merged[$layer->name] = new RecordSet($records);
@@ -190,5 +193,11 @@ final readonly class Resolver
         }
 
         return array_values($candidates);
+    }
+
+    /** The current tenant's key ('' outside any tenant), which partitions the preloaded records. */
+    private function tenant(): string
+    {
+        return $this->tenant?->current() ?? '';
     }
 }

@@ -54,11 +54,15 @@
     },
     "suggest": {
         "laranail/installer-headless": "Lets a store's database layer be skipped while the application is being installed (design: bootstrap mode).",
-        "laravel/sanctum": "Enables the sanctum actor resolver, which makes a token's settings:<ability> abilities a ceiling on what the token may do."
+        "laravel/sanctum": "Enables the sanctum actor resolver, which makes a token's settings:<ability> abilities a ceiling on what the token may do.",
+        "stancl/tenancy": "Detected automatically (tenancy.discriminator = auto): settings, categories, audit rows and in-memory reads are kept per tenant.",
+        "spatie/laravel-multitenancy": "Detected automatically (tenancy.discriminator = auto), like stancl/tenancy."
     },
     "autoload": {
         "psr-4": {
-            "Simtabi\\Laranail\\Settings\\": "src/"
+            "Simtabi\\Laranail\\Settings\\": "src/",
+            "Simtabi\\Laranail\\Settings\\Database\\Factories\\": "database/factories/",
+            "Simtabi\\Laranail\\Settings\\Database\\Seeders\\": "database/seeders/"
         }
     },
     "autoload-dev": {

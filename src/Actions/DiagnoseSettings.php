@@ -139,10 +139,11 @@ final readonly class DiagnoseSettings
         $schema = $shape->store($store->name);
         $missing = [];
         $unexpected = [];
+        $tenant = $shape->tenancy->hasColumn() ? ['tenant'] : [];
         $expected = [
-            $database->tableFor($store->name) => [...self::VALUES_COLUMNS, ...$this->switchColumns($shape, $schema->isDedicated(), $schema->softDeletes)],
-            $shape->names->categories()       => [...self::CATEGORY_COLUMNS, ...($shape->categoriesSoftDeletes ? ['deleted_at'] : [])],
-            $shape->names->audit()            => self::AUDIT_COLUMNS,
+            $database->tableFor($store->name) => [...self::VALUES_COLUMNS, ...$tenant, ...$this->switchColumns($shape, $schema->isDedicated(), $schema->softDeletes)],
+            $shape->names->categories()       => [...self::CATEGORY_COLUMNS, ...$tenant, ...($shape->categoriesSoftDeletes ? ['deleted_at'] : [])],
+            $shape->names->audit()            => [...self::AUDIT_COLUMNS, ...$tenant],
         ];
 
         if ($shape->definitionsTable) {
@@ -160,7 +161,7 @@ final readonly class DiagnoseSettings
                 $missing[] = $table . '.' . $column;
             }
 
-            foreach (array_diff(array_intersect($present, ['deleted_at', 'slug', 'uid', 'settable_type', 'settable_id', 'owner_id']), $columns) as $column) {
+            foreach (array_diff(array_intersect($present, ['deleted_at', 'slug', 'uid', 'settable_type', 'settable_id', 'owner_id', 'tenant']), $columns) as $column) {
                 $unexpected[] = $table . '.' . $column;
             }
         }

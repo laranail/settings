@@ -60,7 +60,7 @@ final readonly class DatabaseAuditSink implements AuditSink
             'request_id'     => $entry->requestId,
             'reason'         => $entry->reason,
             'meta'           => $this->meta($entry),
-        ]));
+        ] + $database->tenantColumns()));
     }
 
     private function target(AuditEntry $entry): ?DatabaseDriver

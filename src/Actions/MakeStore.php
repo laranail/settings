@@ -14,25 +14,35 @@ use Simtabi\Laranail\Settings\Database\SchemaShapeRepository;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * Generate a new database store (G-3: no runtime DDL): a migration for its values table, copied
- * from the package's stub with the store name filled in, plus the categories and audit tables
- * when the store lives on a connection of its own (each connection keeps its own). Returns the
- * files written and the configuration entry to add by hand.
+ * Generate a new database store (G-3: no runtime DDL): one migration for it, a copy of the
+ * package's migration (`create_laranail_settings_tables.php`) with its `$only` line naming the
+ * store and, with a connection, its `$pinnedConnection` line naming that connection. The copy
+ * creates the store's values table and, on a connection of its own, that connection's categories
+ * and audit tables (each connection keeps its own). Returns the file written and the
+ * configuration entry to add by hand.
  *
  * The store's shape (mode, soft deletes, owner table) is recorded in the schema file (§4.0):
  * taken from its configuration entry when it has one, else the default polymorphic shape on the
- * given connection. The file's switches (key type, identity, translations) are kept, so the new
- * table's `category_id` always matches the categories key it points at.
+ * given connection. The file's switches (key type, identity, translations, tenancy) are kept, so
+ * the new table's `category_id` always matches the categories key it points at.
  */
 final readonly class MakeStore
 {
-    private const string STORE_LINE = "private string \$store = 'settings';";
+    /** The package migration, without its extension. */
+    public const string MIGRATION = 'create_laranail_settings_tables';
+
+    private const string ONLY_LINE = 'private ?string $only = null;';
 
     private const string CONNECTION_LINE = 'private ?string $pinnedConnection = null;';
 
+    /**
+     * @param string $migration the package migration file make-store copies (a directory, as
+     *                          before 0.1's single migration, means that directory's copy of it)
+     * @param string $migrations the application's migrations directory
+     */
     public function __construct(
         private Filesystem $files,
-        private string $stubs,
+        private string $migration,
         private string $migrations,
         private ?SchemaShapeRepository $shapes = null,
     ) {}
@@ -58,20 +68,10 @@ final readonly class MakeStore
             throw new InvalidConfiguration(sprintf('A migration for store [%s] already exists: %s', $store, basename($existing[0])));
         }
 
-        $now = CarbonImmutable::now();
-        $pinned = $connection === null ? self::CONNECTION_LINE : sprintf("private ?string \$pinnedConnection = '%s';", $connection);
-        $written = [];
-
-        if ($connection !== null) {
-            foreach (['create_settings_categories_table', 'create_settings_audit_table'] as $index => $stub) {
-                $written[] = $this->write($stub, sprintf('create_settings_%s_%s', $store->value, $index === 0 ? 'categories' : 'audit'), $now->addSeconds($index), [self::CONNECTION_LINE => $pinned]);
-            }
-        }
-
-        $written[] = $this->write('create_settings_table', "create_settings_{$store->value}_table", $now->addSeconds(2), [
-            self::STORE_LINE      => sprintf("private string \$store = '%s';", $store->value),
-            self::CONNECTION_LINE => $pinned,
-        ]);
+        $written = [$this->write("create_settings_{$store->value}_table", CarbonImmutable::now(), [
+            self::ONLY_LINE       => sprintf("private ?string \$only = '%s';", $store->value),
+            self::CONNECTION_LINE => $connection === null ? self::CONNECTION_LINE : sprintf("private ?string \$pinnedConnection = '%s';", $connection),
+        ])];
 
         if ($this->shapes instanceof SchemaShapeRepository) {
             $this->shapes->recordStore($this->shapes->configured()->stores[$store->value] ?? new StoreSchema($store, connection: $connection));
@@ -81,13 +81,14 @@ final readonly class MakeStore
     }
 
     /** @param array<string, string> $replacements */
-    private function write(string $stub, string $name, CarbonImmutable $at, array $replacements): string
+    private function write(string $name, CarbonImmutable $at, array $replacements): string
     {
-        $source = $this->files->get(rtrim($this->stubs, '/') . "/{$stub}.php.stub");
+        $file = $this->files->isDirectory($this->migration) ? rtrim($this->migration, '/') . '/' . self::MIGRATION . '.php' : $this->migration;
+        $source = $this->files->get($file);
 
         foreach ($replacements as $search => $replace) {
             if (! str_contains($source, $search)) {
-                throw new InvalidConfiguration(sprintf('The stub [%s] no longer contains [%s]; it cannot be copied for another store.', $stub, $search));
+                throw new InvalidConfiguration(sprintf('The migration [%s] no longer contains [%s]; it cannot be copied for another store.', basename($file), $search));
             }
 
             $source = str_replace($search, $replace, $source);

@@ -64,7 +64,7 @@ function auditInMemory(): InMemoryAuditSink
 
 /**
  * Put the default store on the database (database, runtime, shipped), with any store
- * overrides, and run the package's migrations from its stubs, as an application would after
+ * overrides, and run the package's migration, as an application would after
  * `install`. On MySQL and Postgres the schema is dropped first, so every test starts empty.
  *
  * @param array<string, mixed> $config extra `laranail.settings.*` values, set before migrating
@@ -85,9 +85,7 @@ function useDatabase(array $config = [], array $stores = [], array $ownerTables 
     $directory = sys_get_temp_dir() . '/laranail-settings-migrations-' . bin2hex(random_bytes(4));
     mkdir($directory);
 
-    foreach (['create_settings_categories_table', 'create_settings_table', 'create_settings_audit_table', 'create_settings_definitions_table'] as $index => $stub) {
-        copy(dirname(__DIR__) . "/database/migrations/{$stub}.php.stub", sprintf('%s/2026_01_01_00000%d_%s.php', $directory, $index, $stub));
-    }
+    copy(__DIR__ . '/../database/migrations/create_laranail_settings_tables.php', $directory . '/2026_01_01_000000_create_laranail_settings_tables.php');
 
     if ($ownerTables !== []) {
         file_put_contents($directory . '/2025_01_01_000000_create_owner_tables.php', '<?php return new class extends Illuminate\Database\Migrations\Migration {
@@ -108,10 +106,10 @@ function useDatabase(array $config = [], array $stores = [], array $ownerTables 
     }
 
     foreach ($stores as $index => $store) {
-        $source = (string) file_get_contents(__DIR__ . '/../database/migrations/create_settings_table.php.stub');
+        $source = (string) file_get_contents(__DIR__ . '/../database/migrations/create_laranail_settings_tables.php');
         file_put_contents(
             sprintf('%s/2026_01_01_0001%02d_create_settings_%s_table.php', $directory, $index, $store),
-            str_replace("private string \$store = 'settings';", "private string \$store = '{$store}';", $source),
+            str_replace('private ?string $only = null;', "private ?string \$only = '{$store}';", $source),
         );
     }
 

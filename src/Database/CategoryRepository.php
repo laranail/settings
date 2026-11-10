@@ -91,7 +91,7 @@ final readonly class CategoryRepository
             'description' => $category->description === null ? null : $this->encode($category->description),
             'icon'        => $category->icon,
             'sort_order'  => $category->sortOrder,
-            'is_system'   => false,
+            'is_system'   => $category->system,
             'updated_at'  => $now,
         ];
 
@@ -104,7 +104,7 @@ final readonly class CategoryRepository
             return $this->get($category->slug);
         }
 
-        $this->database->attempt($this->store, fn (): bool => $this->table()->insert($columns + DatabaseDriver::newId($this->database->shape()->ids) + [
+        $this->database->attempt($this->store, fn (): bool => $this->table()->insert($columns + DatabaseDriver::newId($this->database->shape()->ids) + $this->database->tenantColumns() + [
             'store'      => $this->store->value,
             'slug'       => $category->slug->value,
             'created_at' => $now,
@@ -299,8 +299,9 @@ final readonly class CategoryRepository
         return $texts === [] ? ['' => $stored] : $texts;
     }
 
+    /** The categories table, limited to the current tenant (column-mode tenancy). */
     private function table(): Builder
     {
-        return $this->database->connection()->table($this->database->names()->categories());
+        return $this->database->scoped($this->database->connection()->table($this->database->names()->categories()));
     }
 }

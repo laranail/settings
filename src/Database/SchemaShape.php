@@ -8,6 +8,7 @@ use BackedEnum;
 use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Enums\StoreMode;
+use Simtabi\Laranail\Settings\Enums\TenancyMode;
 use Simtabi\Laranail\Settings\Enums\IdentityMode;
 use Simtabi\Laranail\Settings\Enums\OwnerKeyType;
 use Simtabi\Laranail\Settings\Enums\TranslationsMode;
@@ -41,6 +42,7 @@ final readonly class SchemaShape
         public bool $definitionsTable = false,
         public SchemaNames $names = new SchemaNames,
         public array $stores = [],
+        public TenancyMode $tenancy = TenancyMode::None,
     ) {}
 
     /**
@@ -63,6 +65,7 @@ final readonly class SchemaShape
         $ownerKey = self::enum($ids, 'owner_key', OwnerKeyType::String, OwnerKeyType::tryFrom(...), 'laranail.settings.ids.owner_key: use [string] or [typed].');
         $identity = self::enum(self::section($settings, 'identity'), 'mode', IdentityMode::SlugUid, IdentityMode::tryFrom(...), 'laranail.settings.identity.mode: use slug_uid, slug_per_row or uid_only.');
         $translations = self::enum(self::section($settings, 'translations'), 'mode', TranslationsMode::Lang, TranslationsMode::tryFrom(...), 'laranail.settings.translations.mode: use [lang] or [json].');
+        $tenancy = self::enum(self::section($settings, 'tenancy'), 'mode', TenancyMode::None, TenancyMode::tryFrom(...), 'laranail.settings.tenancy.mode: use none, column or database.');
         $categories = self::section($settings, 'categories');
         $definitions = $settings['definitions'] ?? [];
 
@@ -90,6 +93,7 @@ final readonly class SchemaShape
             $definitionsTable,
             SchemaNames::fromConfig(self::section($settings, 'tables')),
             self::storesFromConfig($settings, $followed ?? IdType::Bigint, $default),
+            $tenancy,
         );
     }
 
@@ -131,6 +135,7 @@ final readonly class SchemaShape
             ($switches['definitions_table'] ?? false) === true,
             SchemaNames::fromConfig($tables),
             $stores,
+            TenancyMode::tryFrom(self::text($switches, 'tenancy', 'none')) ?? throw $invalid('tenancy'),
         );
     }
 
@@ -155,6 +160,7 @@ final readonly class SchemaShape
                 'translations'            => $this->translations->value,
                 'categories_soft_deletes' => $this->categoriesSoftDeletes,
                 'definitions_table'       => $this->definitionsTable,
+                'tenancy'                 => $this->tenancy->value,
             ],
             'tables' => $this->names->toArray(),
             'stores' => $stores,
@@ -179,7 +185,7 @@ final readonly class SchemaShape
             return $this;
         }
 
-        return new self($this->version, $this->identity, $this->ids, $this->ownerKey, $this->ownerKeyType, $this->translations, $this->categoriesSoftDeletes, $this->definitionsTable, $this->names, [...$this->stores, $store->name->value => $store]);
+        return new self($this->version, $this->identity, $this->ids, $this->ownerKey, $this->ownerKeyType, $this->translations, $this->categoriesSoftDeletes, $this->definitionsTable, $this->names, [...$this->stores, $store->name->value => $store], $this->tenancy);
     }
 
     /**

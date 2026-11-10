@@ -40,10 +40,34 @@ php artisan laranail::settings.install
 php artisan migrate
 ```
 
-Install publishes `config/laranail/settings.php` (tag `laranail::settings-config`) and three
-migrations (tag `laranail::settings-migrations`): `settings_categories`, `settings` (the
-default store's values) and `settings_audit`. The default store reads the database first, so
-run the migrations before the first read; until then a read raises `DriverUnavailable`.
+Install publishes `config/laranail/settings.php` (tag `laranail::settings-config`) and the
+package's one migration (tag `laranail::settings-migrations`,
+`…_create_laranail_settings_tables.php`), and records the schema it will produce in
+`database/settings-schema.php`. The migration creates, in order, `settings_categories`, the
+optional `settings_definitions`, one values table per database store (`settings` for the default
+store) and `settings_audit`, and `down()` drops them in reverse. Set the
+[schema switches](tools/schema-switches.md) and `tenancy.mode` before installing. The default store
+reads the database first, so run the migrations before the first read; until then a read raises
+`DriverUnavailable`.
+
+## Default categories
+
+```bash
+php artisan db:seed
+```
+
+The package registers its seeder with the application's `db:seed`, so `DatabaseSeeder` does not
+name it. It creates the `seed.categories` set (general, appearance, localisation, mail,
+notifications, security) as system categories and changes nothing when run again. See
+[Seed the default categories](recipes/seeding-default-categories.md).
+
+## Upgrading from the four migration stubs
+
+Before the single migration, install published four migrations (`create_settings_categories_table`,
+`create_settings_table`, `create_settings_audit_table`, `create_settings_definitions_table`).
+They stay in your `database/migrations` and keep working; do not publish the new one next to
+them, or the tables would be created twice. Store migrations written by an older `make-store`
+keep working too.
 
 Install refuses to publish anything when a table of the same name already exists and is not
 this package's (a `settings` table of your own, say). Rename the package's tables with

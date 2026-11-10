@@ -10,7 +10,8 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
  * The input for creating a category: slug and title, optionally a parent (by slug), a
  * description, an icon name, a sort position and, for `translations.mode = json` (D-8), the
  * title per locale. Under `lang` the translations are ignored: the title is plain text or a
- * translation key.
+ * translation key. `system` marks a category shipped by code or the default seeder
+ * (`is_system`), which UIs do not let anyone delete.
  */
 final readonly class NewCategory
 {
@@ -30,6 +31,7 @@ final readonly class NewCategory
         public ?string $icon = null,
         public int $sortOrder = 0,
         array $translations = [],
+        public bool $system = false,
     ) {
         if (trim($title) === '' || mb_strlen($title) > 255) {
             throw new InvalidIdentifier(sprintf('Category [%s] needs a title of 1-255 characters.', $slug));
