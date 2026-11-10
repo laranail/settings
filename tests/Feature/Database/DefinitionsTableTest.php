@@ -30,7 +30,7 @@ function runtimeDefinition(string $key, array $columns = []): void
     ]);
 }
 
-it('syncs code and config definitions in as system rows and removes stale ones (D-6)', function (): void {
+it('syncs code and config definitions in as system rows and removes stale ones', function (): void {
     config()->set('laranail.settings.definitions', ['site.name' => ['type' => 'string', 'default' => 'Acme', 'label' => 'Site name']] + config('laranail.settings.definitions'));
     useDatabase(['definitions.table' => true]);
     settings()->categories()->create(new NewCategory('mail', 'Mail'));

@@ -27,7 +27,7 @@ final readonly class ValuePipeline
         private ValueEncoder $encoder,
     ) {}
 
-    /** The encoded (and, for an encrypted definition, encrypted) payload. */
+    /** The encoded, and where defined encrypted, payload. */
     public function toPayload(Key $key, mixed $value, ?Definition $definition): string
     {
         $this->validator->validate($key, $value, $definition->rules ?? []);

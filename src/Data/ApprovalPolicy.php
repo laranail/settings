@@ -6,11 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
-/**
- * The approval rules (§16.7, `approvals.*`): how many approvals apply a change, whether the
- * requester may approve their own request, after how many days an open request expires (null:
- * never), and how many days decided requests are kept (null: for ever).
- */
+/** The approval rules from `approvals.*`. Null days mean never expire, or keep for ever. */
 final readonly class ApprovalPolicy
 {
     public function __construct(
@@ -31,8 +27,6 @@ final readonly class ApprovalPolicy
     }
 
     /**
-     * The policy `approvals.*` describes.
-     *
      * @param array<array-key, mixed> $approvals `laranail.settings.approvals`
      */
     public static function fromConfig(array $approvals): self

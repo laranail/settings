@@ -24,7 +24,7 @@ function useDedicatedStore(array $extra = []): void
     DB::table('users')->insert([['id' => 1, 'name' => 'Ada'], ['id' => 2, 'name' => 'Grace']]);
 }
 
-it('replaces settable_* with a non-null owner_id foreign key (D-3)', function (): void {
+it('replaces settable_* with a non-null owner_id foreign key', function (): void {
     useDedicatedStore();
 
     settings()->for(new OwnerRef('user', 1))->set('theme', 'dark');
@@ -37,14 +37,14 @@ it('replaces settable_* with a non-null owner_id foreign key (D-3)', function ()
         ->and(collect(Schema::getForeignKeys('user_settings'))->pluck('foreign_table')->all())->toContain('users');
 });
 
-it('holds owner rows only: a global write is refused and names the fallback store (D-3)', function (): void {
+it('holds owner rows only: a global write is refused and names the fallback store', function (): void {
     useDedicatedStore();
 
     expect(fn () => settings()->store('user_settings')->set('theme', 'dark'))->toThrow(OwnerNotAllowed::class, 'store [settings]')
         ->and(DB::table('user_settings')->count())->toBe(0);
 });
 
-it('reads its global value from the fallback store when owners inherit (§7.2)', function (): void {
+it('reads its global value from the fallback store when owners inherit', function (): void {
     useDedicatedStore(['inherits' => true]);
 
     settings()->set('theme', 'light');

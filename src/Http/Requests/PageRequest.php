@@ -9,11 +9,7 @@ use Simtabi\Laranail\Settings\Data\Http\PageInput;
 use Simtabi\Laranail\Settings\Data\Http\AddressInput;
 use Simtabi\Laranail\Settings\Http\Requests\Concerns\ReadsAddress;
 
-/**
- * A list request: `?limit=` (1-200), `?cursor=` (from the previous page's `meta.next_cursor`) and
- * the list's filters (`store`, `key`, `scope`, `status`, `action`, `outcome`, `locale`, `since`,
- * `until`). Route parameters (store, key, owner) come through `address()`.
- */
+/** A list request: `?limit=`, `?cursor=` and the list's filters. */
 final class PageRequest extends FormRequest
 {
     use ReadsAddress;

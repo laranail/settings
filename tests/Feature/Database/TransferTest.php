@@ -25,7 +25,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
- * G-10, G-42, G-43: exports name categories by slug and settings by scope, key and locale; secrets
+ * Exports name categories by slug and settings by scope, key and locale; secrets
  * are redacted unless asked for; import is a dry run until applied, goes through the write
  * pipeline, and creates categories first; importers read other packages without needing them.
  */
@@ -95,7 +95,7 @@ it('round-trips a store into an empty one through a dry run, then an apply', fun
     expect($report->applied)->toBeTrue()
         ->and(settings()->get('mail.port'))->toBe(587)
         ->and(settings()->for(new OwnerRef('user', 7))->get('theme'))->toBe('dark')
-        // Untrusted: the lock in the file is not applied (G-10).
+        // Untrusted: the lock in the file is not applied.
         ->and((bool) DB::table('settings')->where('scope', 'user:7')->value('is_locked'))->toBeFalse()
         ->and(settings()->categories()->get('smtp')->parent?->value)->toBe('mail')
         ->and(settings()->compare($document)->isEmpty())->toBeFalse()

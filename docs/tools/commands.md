@@ -1,6 +1,6 @@
 # Commands
 
-Eighteen Artisan commands, all named `laranail::settings.<command>`.
+Nineteen Artisan commands, all named `laranail::settings.<command>`.
 
 ## The commands
 
@@ -10,6 +10,7 @@ Eighteen Artisan commands, all named `laranail::settings.<command>`.
 | `laranail::settings.make-store {store} [--owner=*] [--connection=]` | writes a new store's migration (a copy of the package migration pinned to that store), records it in the schema file and prints its configuration entry |
 | `laranail::settings.promote [store] [--force] [--from=]` | copies values written before install from the runtime file into the database |
 | `laranail::settings.doctor [--json] [--fix]` | checks readiness, schema drift against the schema file and rows the database cannot guard; `--fix` syncs definitions first |
+| `laranail::settings.show {key} [--store=] [--owner=] [--locale=] [--reveal]` | prints how one setting resolves: value, layer, scope, type, version, flags and the latest audit entry |
 | `laranail::settings.sync-definitions` | copies code and config definitions into the definitions table as system rows |
 | `laranail::settings.prune-orphans [--dry-run]` | removes the settings of owners that no longer exist |
 | `laranail::settings.prune-audit [--days=]` | removes audit rows older than `audit.keep_days` |
@@ -57,9 +58,48 @@ For every store with a database layer:
 | schema | a column the recorded shape uses is missing, or `id` has the wrong type (warns on a column the shape does not have) |
 | scopes | a scope names a class instead of a morph alias (fails) or an alias the store does not list (warns) |
 | categories | a row points at a category of another store |
+| category keys | warns when a value's key does not start with its category's slug |
 
-It exits non-zero on a failure, so it can gate a deploy. `--json` prints a machine-readable
+After the stores it checks code and config definitions the same way (`definitions: category
+keys`, a warning) and lists persisted configuration entries skipped as invalid.
+
+It exits non-zero on a failure, not on a warning, so it can gate a deploy. `--json` prints a machine-readable
 report.
+
+## `show`
+
+```bash
+php artisan laranail::settings.show mail.from_address
+php artisan laranail::settings.show theme --owner=user:42 --locale=fr
+```
+
+```text
++------------+---------------------------------------------------------------------+
+| Field      | Value                                                               |
++------------+---------------------------------------------------------------------+
+| Key        | mail.from_address                                                   |
+| Store      | settings                                                            |
+| Scope      | global                                                              |
+| Locale     | -                                                                   |
+| Value      | "hello@example.com"                                                 |
+| Layer      | database                                                            |
+| From scope | global                                                              |
+| Type       | string                                                              |
+| Version    | 3                                                                   |
+| Locked     | no                                                                  |
+| Encrypted  | no                                                                  |
+| Sensitive  | no                                                                  |
+| Defined    | yes                                                                 |
+| Last audit | update allowed by user:user:1 via rest at 2026-11-10T09:12:44+00:00 |
++------------+---------------------------------------------------------------------+
+```
+
+The resolution steps follow the table, one per line, as `explain()` returns them. The value of a
+sensitive or encrypted setting prints as `[protected]` unless `--reveal` is given. `Version` and
+the flags come from the row that answered; for a definition default or a miss they come from the
+definition, or show `-`. `Last audit` is the newest entry for that key and scope, or `-` when the
+audit trail is not stored in the database. The command runs as the system actor, through the same
+`Actions\Reads\ExplainSetting` action as `explain()` and the REST API.
 
 ## `prune-orphans`
 

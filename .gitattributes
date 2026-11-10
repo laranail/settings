@@ -2,8 +2,9 @@
 * text=auto eol=lf
 
 # Keep the Composer dist lean: exclude dev-only paths from package archives.
-# Source, config, database (migration, factories, seeders), README, LICENSE, CHANGELOG and composer.json ship.
+# src, config, database, routes, resources, helpers, README, LICENSE, CHANGELOG and composer.json ship.
 /.github               export-ignore
+/.claude               export-ignore
 /benchmarks            export-ignore
 /docs                  export-ignore
 /tests                 export-ignore

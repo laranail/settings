@@ -19,14 +19,8 @@ use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
 
 /**
- * What every write action does around its write, in this order: authorize the ability (or
- * check that an actor is not required), turn a write to a setting that needs approval into a
- * change request (or refuse it where the store cannot hold one), decide whether a
- * locked row may be overridden, run the write, and audit the outcome. Denials are audited by
- * the {@see AccessGuard}; failures and successes here. An allowed write and its audit entry run
- * in one transaction on the store's database connection (when it has one), so a failed audit
- * insert rolls the write back; failures are audited after the rollback. Values never reach the
- * audit.
+ * Wraps every write: authorize, open a change request when approval is needed, decide lock
+ * overrides, run the write and audit it in one transaction.
  */
 final readonly class WriteGuard
 {
@@ -39,7 +33,7 @@ final readonly class WriteGuard
     /**
      * @param bool $respectsLocks whether a locked row stops this write (set and forget, not lock and unlock)
      * @param Closure(bool): array{?int, ?int} $write runs the write (told whether to override a lock); returns [version before, version after]
-     * @param ?ChangeProposal $proposal the change request to open instead, when the setting needs approval (§16.7)
+     * @param ?ChangeProposal $proposal the change request to open instead, when the setting needs approval
      *
      * @return ?ChangeRequest the change request opened instead of writing, or null when the write ran
      */
@@ -51,7 +45,6 @@ final readonly class WriteGuard
         $this->access->authorize($actor, $ability, $subject);
 
         if ($subject->requiresApproval) {
-            // A store that can hold change requests turns the write into one (§16.7).
             if ($proposal instanceof ChangeProposal && $target->store->acceptsChangeRequests()) {
                 return $this->proposer->handle($proposal, $actor);
             }
@@ -65,7 +58,6 @@ final readonly class WriteGuard
 
         $override = $respectsLocks && $this->mayOverrideLock($target, $actor);
 
-        // The write and its audit row commit together: an audit failure rolls the write back.
         new AuditedTransaction($this->access)->run(
             $target->store,
             $action,
@@ -79,10 +71,7 @@ final readonly class WriteGuard
         return null;
     }
 
-    /**
-     * A locked row may be written only by an actor holding `override_lock` on a store whose
-     * locks are overridable. Anything else leaves the lock to refuse the write, as before.
-     */
+    /** Whether the actor may write over a lock: `override_lock` on a store with overridable locks. */
     private function mayOverrideLock(SettingTarget $target, ?Actor $actor): bool
     {
         if (! $actor instanceof Actor || $actor->isSystem() || ! $target->store->locksOverridable) {
@@ -99,7 +88,7 @@ final readonly class WriteGuard
             return false;
         }
 
-        // Allowed: enforce it properly, so step-up verification and auditing of a refusal apply.
+        // Enforce again so step-up verification and refusal auditing apply.
         $this->access->authorize($actor, Ability::OverrideLock, $subject);
 
         return true;

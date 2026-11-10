@@ -15,10 +15,7 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
-/**
- * Save a persisted store or layer (§16.11): needs `manage_stores` (step-up verification applies by
- * default). Validated exactly like the configuration file before it is stored; audited.
- */
+/** Save a persisted store or layer, validated like the configuration file. */
 final readonly class SaveConfigurationEntry
 {
     public function __construct(

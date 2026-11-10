@@ -10,10 +10,8 @@ use Simtabi\Laranail\Settings\Enums\ChangeStatus;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 
 /**
- * A write waiting for approval (§16.7). `payload` is the proposed value exactly as the values
- * table would store it (ciphertext for an encrypted definition), so it is never exposed by
- * {@see toArray()}; `baseVersion` is the version the setting was at when the request was opened.
- * `approvals` lists who approved so far, as `type:alias:id` strings.
+ * A write waiting for approval. `payload` is stored as the values table would store it and is
+ * left out of {@see toArray()}; `baseVersion` is the setting's version when the request opened.
  */
 final readonly class ChangeRequest
 {
@@ -72,7 +70,7 @@ final readonly class ChangeRequest
     }
 
     /**
-     * Everything but the payload: a change request is safe to list and render.
+     * Everything but the payload.
      *
      * @return array<string, mixed>
      */

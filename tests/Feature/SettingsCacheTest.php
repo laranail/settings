@@ -22,7 +22,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 
 /*
- * The cache service on its own (design §7.5), over an in-memory cache store: the database side is
+ * The cache service on its own, over an in-memory cache store: the database side is
  * a closure that counts how often, and for which scopes, it is asked.
  */
 
@@ -127,7 +127,7 @@ it('invalidates a scope, a store or everything with one token each', function ()
     expect($calls)->toBe([['global', 'user:1'], ['user:1'], ['global', 'user:1'], ['global'], ['global']]);
 });
 
-it('keys every component apart, including a split that a plain join would collide on (R-63, G-37)', function (): void {
+it('keys every component apart, including a split that a plain join would collide on', function (): void {
     $cache = new SettingsCache(new Repository(new ArrayStore));
     $keys = [
         $cache->bagKey(cacheTarget('a', 'b:c'), Scope::global()),
@@ -315,5 +315,5 @@ it('reports a failing cache to the operational log', function (): void {
         ->and($failure)->toHaveCount(1)
         ->and($failure[0][0])->toBe('warning')
         ->and($failure[0][1])->toContain('(read): cache down')
-        ->and($failure[0][2])->toBe(['operation' => 'read', 'exception' => RuntimeException::class]);
+        ->and($failure[0][2])->toBe(['store' => null, 'key' => null, 'scope' => null, 'actor' => null, 'channel' => null, 'operation' => 'read', 'exception' => RuntimeException::class]);
 });

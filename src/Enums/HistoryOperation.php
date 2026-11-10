@@ -9,8 +9,8 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
 /**
- * What produced a history entry (§4.3). A `forget` entry is a tombstone: it records the version
- * that was removed and has no new value; the next write continues the version after it.
+ * What produced a history entry. A `forget` entry is a tombstone with no new value; the next
+ * write continues from its version.
  */
 enum HistoryOperation: string implements Enumerator
 {

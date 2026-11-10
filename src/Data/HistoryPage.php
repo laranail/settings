@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-/**
- * One page of history, newest version first. `nextCursor` / `previousCursor` are opaque strings
- * to pass back to `paginate()`; null at either end.
- */
+/** One page of history, newest version first, with opaque cursors for `paginate()`. */
 final readonly class HistoryPage
 {
     /** @param list<HistoryEntry> $entries */

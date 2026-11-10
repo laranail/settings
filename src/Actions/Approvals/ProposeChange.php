@@ -25,12 +25,8 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
- * Open a change request (§16.7): needs the ability of the write it proposes (`update` for a set,
- * `forget`, `lock` or `unlock`). A proposed value is validated and encoded now, exactly as a write
- * would store it, so an encrypted definition's value is encrypted at rest and an invalid value is
- * refused at once rather than at approval. The request records the setting's current version as
- * its base; applying it later checks that version. The request and its `pending` audit entry
- * commit together.
+ * Open a change request; needs the ability of the write it proposes. The value is validated and
+ * encoded now, as a write would store it, so it is encrypted at rest and refused early when invalid.
  */
 final readonly class ProposeChange
 {

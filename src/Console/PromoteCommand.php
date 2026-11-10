@@ -11,9 +11,8 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.promote`: copy the values written to a store's runtime file before the
- * database existed into its database layer, then archive the file. Shipped defaults are never
- * copied. Safe to run again: a second run finds nothing to do.
+ * Copy values written to a store's runtime file before install into its database layer, then
+ * archive the file. Shipped defaults are never copied, and a second run does nothing.
  */
 final class PromoteCommand extends Command
 {

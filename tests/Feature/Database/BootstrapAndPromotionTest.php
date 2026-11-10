@@ -44,7 +44,7 @@ it('touches no database when the application boots and resolves settings', funct
         ->and(DB::getQueryLog())->toBe([]);
 });
 
-it('raises DriverUnavailable after install when the database is down: no fallback to files (G-36)', function (): void {
+it('raises DriverUnavailable after install when the database is down: no fallback to files', function (): void {
     bootstrapWithoutDatabase(evidence: false);
     shipDefaults(['maintenance' => false]);
     app()->forgetInstance(DriverFactory::class);
@@ -97,7 +97,7 @@ it('reads installer-headless as evidence and treats no answer as none', function
         ->and(new InstallationEvidence(false, static fn (): bool => false)->holds())->toBeFalse();
 });
 
-it('promotes only runtime-written values, never shipped defaults (G-28)', function (): void {
+it('promotes only runtime-written values, never shipped defaults', function (): void {
     shipDefaults(['site.name' => 'Shipped', 'site.motto' => 'Shipped motto']);
     app()->forgetScopedInstances();
     settings()->set('site.name', 'Written at install');

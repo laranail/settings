@@ -10,11 +10,7 @@ use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\Precedence;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
-/**
- * A mutable builder for one definition; {@see register()} builds the immutable
- * {@see Definition} and adds it to the registry. Flags have paired methods
- * (`public()` / `private()`) rather than boolean parameters.
- */
+/** Builds one {@see Definition}; {@see register()} adds it to the registry. */
 final class DefinitionBuilder
 {
     private ?string $store = null;
@@ -157,10 +153,7 @@ final class DefinitionBuilder
         return $this;
     }
 
-    /**
-     * Writes need a second person's approval. Approvals arrive with the database layer; until
-     * then every write to such a setting raises ApprovalUnavailable.
-     */
+    /** Writes need a second person's approval; without a change requests table they raise ApprovalUnavailable. */
     public function requiresApproval(): self
     {
         $this->requiresApproval = true;

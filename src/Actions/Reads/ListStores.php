@@ -11,7 +11,7 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
-/** The configured stores an actor may view (every one for trusted code). */
+/** List the configured stores the actor may view. */
 final readonly class ListStores
 {
     public function __construct(

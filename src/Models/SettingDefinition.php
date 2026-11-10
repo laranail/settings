@@ -12,9 +12,8 @@ use Simtabi\Laranail\Settings\Models\Concerns\UsesSettingsSchema;
 use Simtabi\Laranail\Settings\Database\Factories\SettingDefinitionFactory;
 
 /**
- * A row of the optional definitions table (§4.4, `definitions.table`). Definitions are shared
- * by every tenant (they describe settings, they do not hold values), so this table has no tenant
- * column. `is_system` rows are synced from code and config and are never read over code.
+ * A row of the optional definitions table. Shared by every tenant, so it has no tenant column.
+ * `is_system` rows are synced from code and config.
  *
  * @property int|string $id
  * @property string $store
@@ -43,7 +42,6 @@ final class SettingDefinition extends Model
         return parent::getConnectionName() ?? ModelContext::connectionOf(ModelContext::defaultStore());
     }
 
-    /** Definitions are shared by every tenant. */
     public function usesTenantColumn(): bool
     {
         return false;

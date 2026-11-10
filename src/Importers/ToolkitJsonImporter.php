@@ -11,10 +11,8 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 
 /**
- * laranail/toolkit's JSON `SettingsStore` (G-43, D-13): reads its file (nested by dot-notation
- * keys) and flattens it, so `{"mail": {"host": "x"}}` becomes the global key `mail.host`. A list
- * (an array with keys 0, 1, …) is one value, not more keys. `$source` is the file's absolute path
- * (on the default `local` disk that is `storage/app/laranail/settings.json`).
+ * Imports laranail/toolkit's JSON settings file, flattening nested objects to dot keys. A list is
+ * one value. `$source` is the file's absolute path.
  */
 final readonly class ToolkitJsonImporter implements Importer
 {

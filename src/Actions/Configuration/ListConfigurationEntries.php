@@ -12,7 +12,7 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
-/** The valid persisted stores and layers (§16.11): needs `manage_stores`. */
+/** List the valid persisted stores and layers. */
 final readonly class ListConfigurationEntries
 {
     public function __construct(

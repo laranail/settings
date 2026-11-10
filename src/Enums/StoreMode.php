@@ -9,9 +9,7 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Attributes\Description;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
-/**
- * How a store's values table records owners (D-3, `stores.<name>.mode`).
- */
+/** How a store's values table records owners (`stores.<name>.mode`). */
 enum StoreMode: string implements Enumerator
 {
     use HasEnumeratorBehavior;

@@ -14,9 +14,7 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
- * List a store's change requests, newest first. An actor holding `approve` on the store sees
- * every request; any other actor sees only their own (so a requester can follow theirs). Trusted
- * code sees every request. Payloads never leave the request ({@see ChangeRequest::toArray()}).
+ * List a store's change requests, newest first. An actor without `approve` sees only their own.
  */
 final readonly class QueryChanges
 {

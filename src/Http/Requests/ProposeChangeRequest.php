@@ -9,8 +9,7 @@ use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Data\Http\AddressInput;
 
 /**
- * `POST /stores/{store}/changes`: propose a change to one setting, for the global value or an
- * owner (`owner.alias`, `owner.id`), as a `set` (the default), `forget`, `lock` or `unlock`.
+ * `POST /stores/{store}/changes`: propose a `set`, `forget`, `lock` or `unlock` of one setting.
  */
 final class ProposeChangeRequest extends FormRequest
 {
@@ -35,7 +34,7 @@ final class ProposeChangeRequest extends FormRequest
         ];
     }
 
-    /** The setting the change is for, as the URL and the body name it. */
+    /** The setting the change is for. */
     public function toData(): AddressInput
     {
         $alias = $this->input('owner.alias');

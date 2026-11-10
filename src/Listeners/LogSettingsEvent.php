@@ -12,13 +12,11 @@ use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
 
 /**
- * Writes every package event to the operational log (`logging.channel`), identifiers only:
- * refusals at `warning`, everything else at `info`. Off by default
- * (`listeners.log`), because the audit trail already records the actions these events announce.
+ * Writes every package event to the operational log: refusals at `warning`, the rest at `info`.
  */
 final readonly class LogSettingsEvent
 {
-    /** What is logged: every event an alert can name, plus a skipped bootstrap layer. */
+    /** Every event an alert can name, plus a skipped bootstrap layer. */
     public const array EVENTS = [...SendSettingsAlert::EVENTS, LayerSkipped::class];
 
     public function __construct(

@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Simtabi\Laranail\Settings\Data\Http\AddressInput;
 use Simtabi\Laranail\Settings\Http\Requests\Concerns\ReadsAddress;
 
-/** A read of one setting (show, explain). Authorization happens in the action, not here. */
+/** A read of one setting. Authorization happens in the action. */
 final class SettingRequest extends FormRequest
 {
     use ReadsAddress;

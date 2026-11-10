@@ -8,10 +8,8 @@ use Stringable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
 
 /**
- * A setting key: lower-case dot notation of [a-z0-9_] segments, at most 191 characters.
- *
- * Keys are lower-cased on construction so `Theme` and `theme` are one key on every database.
- * A hyphen is not allowed, which keeps the key → slug mapping (`.` → `-`) one-to-one.
+ * A setting key: lower-case dot notation of [a-z0-9_] segments, at most 191 characters. Hyphens
+ * are not allowed so the key to slug mapping (`.` to `-`) stays one-to-one.
  */
 final readonly class Key implements Stringable
 {

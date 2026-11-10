@@ -6,14 +6,12 @@ namespace Simtabi\Laranail\Settings\Services\Database;
 
 use Throwable;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 
 /**
- * What the live database on one connection holds, for `doctor` and for install's foreign-table
- * check: tables, columns, the `id` column's type, and rows whose category belongs to another
- * store. Introspection that fails reports "unknown" (null) rather than throwing: a check that
- * cannot look is not a check that found something.
+ * Inspects the live database on one connection; a failed inspection returns null instead of throwing.
  */
 final readonly class SchemaInspector
 {
@@ -45,7 +43,7 @@ final readonly class SchemaInspector
         }
     }
 
-    /** The database type of the table's `id` column; null when there is none or it cannot be read. */
+    /** The database type of the table's `id` column, or null. */
     public function idType(string $table): ?string
     {
         try {
@@ -63,7 +61,7 @@ final readonly class SchemaInspector
         return null;
     }
 
-    /** Rows of a store's values table whose category link names another store (or none). */
+    /** How many rows link to a category of another store. */
     public function crossStoreCategoryLinks(StoreName $store): int
     {
         $database = $this->database;
@@ -72,5 +70,38 @@ final readonly class SchemaInspector
             ->whereNotNull('category_id')
             ->where(static fn (Builder $query): Builder => $query->whereNull('category_store')->orWhere('category_store', '!=', $store->value))
             ->count());
+    }
+
+    /**
+     * Keys whose first segment is not the slug of the category they belong to.
+     *
+     * @return list<string> `key (category)` for each mismatched row
+     */
+    public function keysOutsideTheirCategory(StoreName $store): array
+    {
+        $database = $this->database;
+        $values = $database->tableFor($store);
+        $categories = $database->names()->categories();
+
+        $rows = $database->attempt($store, static fn (): array => $database->connection()->table($values)
+            ->join($categories, static fn (JoinClause $join): JoinClause => $join
+                ->on($categories . '.id', '=', $values . '.category_id')
+                ->on($categories . '.store', '=', $values . '.category_store'))
+            ->orderBy($values . '.key')
+            ->get([$values . '.key as key', $categories . '.slug as slug'])
+            ->all());
+
+        $mismatched = [];
+
+        foreach ($rows as $row) {
+            $key = is_object($row) && property_exists($row, 'key') && is_string($row->key) ? $row->key : '';
+            $slug = is_object($row) && property_exists($row, 'slug') && is_string($row->slug) ? $row->slug : '';
+
+            if (explode('.', $key, 2)[0] !== $slug) {
+                $mismatched[] = sprintf('%s (%s)', $key, $slug);
+            }
+        }
+
+        return array_values(array_unique($mismatched));
     }
 }

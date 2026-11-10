@@ -13,7 +13,7 @@ use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 
 /**
- * Holds records for the lifetime of this instance only. Used by tests and by the fake.
+ * Holds records in memory for the lifetime of the instance.
  */
 final class ArrayDriver implements Driver
 {

@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Stringable;
 
-/**
- * Who a value belongs to: `global` (the application) or `<alias>:<id>` for an owner.
- * Built only from {@see OwnerRef} or {@see self::global()}, so it is always well formed.
- */
+/** Who a value belongs to: `global` or `<alias>:<id>`. */
 final readonly class Scope implements Stringable
 {
     public const string GLOBAL = 'global';
@@ -37,11 +34,7 @@ final readonly class Scope implements Stringable
         return $owner instanceof OwnerRef ? self::forOwner($owner) : self::global();
     }
 
-    /**
-     * Read a stored scope (`global` or `<alias>:<id>`). Null when it has no `:`, so the caller
-     * reports the malformed row in its own words; an invalid alias or id still raises
-     * InvalidIdentifier through {@see OwnerRef}.
-     */
+    /** Parse a stored scope; null when it has no `:`. */
     public static function fromString(string $value): ?self
     {
         if ($value === self::GLOBAL) {

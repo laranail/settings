@@ -23,9 +23,8 @@ use Simtabi\Laranail\Settings\Actions\Categories\RenameCategory;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
- * The categories of one store, for the actor of the handle that returned it
- * (`$settings->store('settings')->as($user)->categories()`). Changes go through the category
- * actions (gated by `manage_categories`, audited); reads need `view`.
+ * The categories of one store, as the handle's actor. Reads need `view`; changes need
+ * `manage_categories` and are audited.
  */
 final readonly class CategoryManager
 {

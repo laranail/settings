@@ -21,15 +21,10 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 
 /**
- * Resolves a read through the cascade:
+ * Resolves a read through the cascade: owner, parents, global value, then the definition default.
  *
- *   owner → (if inheritance is allowed) each parent, in its own store → global → definition default
- *
- * The global step reads the store itself, or a dedicated store's fallback store (§7.2).
- *
- * At each step the store's layers are tried in order and the requested locale falls back to the
- * application's fallback locale and then to the unlocalised value. Absence moves on; a stored
- * null is an answer. Each store is read once per resolution, whatever the number of steps.
+ * Layers are tried in order at each step, and a stored null is an answer. Each store is read
+ * once per resolution.
  */
 #[Scoped]
 final readonly class Resolver
@@ -44,8 +39,7 @@ final readonly class Resolver
     ) {}
 
     /**
-     * Load these scopes now, one read per store and layer, and answer later reads of them from
-     * memory for the rest of the request.
+     * Load these scopes now and answer later reads of them from memory for the rest of the request.
      *
      * @param list<array{Store, list<Scope>}> $groups
      */
@@ -56,7 +50,7 @@ final readonly class Resolver
         }
     }
 
-    /** Drop what was preloaded for one scope (it was just written). */
+    /** Drop what was preloaded for one scope after a write. */
     public function forgetPreloaded(Store $store, Scope $scope): void
     {
         $this->preloaded->forget($store->name, $scope, $this->tenant());
@@ -96,7 +90,7 @@ final readonly class Resolver
     }
 
     /**
-     * Ordered (store, scope) steps to try.
+     * The store and scope steps to try, in order.
      *
      * @param list<OwnerRef> $parents
      *
@@ -127,7 +121,7 @@ final readonly class Resolver
     }
 
     /**
-     * One load per distinct store, covering every scope the plan needs from it.
+     * Load each distinct store once for every scope the plan needs from it.
      *
      * @param list<array{Store, Scope}> $plan
      *
@@ -153,7 +147,7 @@ final readonly class Resolver
     }
 
     /**
-     * One store's records for these scopes: preloaded scopes from memory, the rest in one read.
+     * One store's records for these scopes, from memory where preloaded.
      *
      * @param list<Scope> $scopes
      *
@@ -184,7 +178,7 @@ final readonly class Resolver
         return $merged;
     }
 
-    /** @return list<Locale> requested → fallback → none, without duplicates */
+    /** @return list<Locale> the requested, fallback and unlocalised locales, without duplicates */
     private function locales(Locale $requested, ?Definition $definition): array
     {
         if ($definition instanceof Definition && ! $definition->localised) {
@@ -200,7 +194,7 @@ final readonly class Resolver
         return array_values($candidates);
     }
 
-    /** The current tenant's key ('' outside any tenant), which partitions the preloaded records. */
+    /** The current tenant's key, which partitions the preloaded records. */
     private function tenant(): string
     {
         return $this->tenant?->current() ?? '';

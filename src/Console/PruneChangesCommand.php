@@ -11,9 +11,8 @@ use Simtabi\Laranail\Settings\Actions\Approvals\PruneChanges;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.prune-changes`: mark open change requests past `approvals.expire_after` as
- * expired, and delete decided ones older than `approvals.keep_days`. Runs as the system actor and
- * is audited.
+ * Expire open change requests past `approvals.expire_after` and delete decided ones older than
+ * `approvals.keep_days`.
  */
 final class PruneChangesCommand extends Command
 {

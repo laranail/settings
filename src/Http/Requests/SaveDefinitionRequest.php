@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-/**
- * `PUT /stores/{store}/definitions/{key}`: a definition's attributes, as `definitions.<key>`
- * would hold them.
- */
+/** `PUT /stores/{store}/definitions/{key}`. */
 final class SaveDefinitionRequest extends FormRequest
 {
     public function authorize(): bool

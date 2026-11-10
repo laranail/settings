@@ -25,14 +25,9 @@ use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
  *     $user->settings()->get('ui.theme');
  *     User::query()->withSettings()->paginate();    // one query per store for the page
  *
- * The owner is the model's morph alias and key, never its class name: a model without a morph
- * map entry has a class name for an alias, which the package refuses (G-6). Deleting the model
- * deletes its settings; a soft-deletable model keeps them until it is force-deleted, so a restore
- * finds them again (G-7). Bulk deletes fire no model events: run `prune-orphans` for those.
- *
- * An application convenience, like the facade it uses: the package's own classes never use it.
- * A model that already has a `settings` attribute or relation renames the method:
- * `use HasSettings { settings as preferences; }`.
+ * The owner is the model's morph alias and key; a model without a morph map entry is refused.
+ * Deleting the model deletes its settings, and a soft-deleted model keeps them until it is
+ * force-deleted. Bulk deletes fire no model events, so run `prune-orphans` after them.
  *
  * @phpstan-require-extends Model
  */
@@ -48,8 +43,7 @@ trait HasSettings
             try {
                 SettingsFacade::for(new OwnerRef($model->getMorphClass(), self::ownerKey($model)))->asSystem('owner deleted')->flush();
             } catch (OwnerNotAllowed|InvalidIdentifier) {
-                // No store holds settings for this alias (or it is a class name, which never
-                // owns any), so there is nothing to remove.
+                // No store holds settings for this alias, so there is nothing to remove.
             }
         });
     }
@@ -61,9 +55,8 @@ trait HasSettings
     }
 
     /**
-     * Owners this one may inherit from, nearest first. Override it, building the list from
-     * foreign keys rather than relations so no model is loaded:
-     * `return OwnerRef::list(['team' => $this->team_id]);`.
+     * Owners this one inherits from, nearest first. Build the list from foreign keys so no model
+     * is loaded: `return OwnerRef::list(['team' => $this->team_id]);`.
      *
      * @return list<OwnerRef>
      */
@@ -79,8 +72,7 @@ trait HasSettings
     }
 
     /**
-     * Eager-load the settings of every model the query returns (one read per store), so reading
-     * each model's settings afterwards costs no query.
+     * Eager-load the settings of every model the query returns, one read per store.
      *
      * @param Builder<static> $query
      */

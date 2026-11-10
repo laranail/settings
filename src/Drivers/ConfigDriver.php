@@ -15,8 +15,7 @@ use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 
 /**
- * A read-only view over one Laravel config prefix. Nested associative arrays become dotted
- * keys; a list (`[a, b]`) stays one value.
+ * A read-only view over one Laravel config prefix; nested arrays become dotted keys, lists stay values.
  */
 final readonly class ConfigDriver implements Driver
 {

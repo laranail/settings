@@ -12,9 +12,7 @@ use Simtabi\Laranail\Settings\Data\ChangeProposal;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 
-/**
- * Lock one scope's row against writes: needs `lock`.
- */
+/** Lock one scope's row against writes. */
 final readonly class LockSetting
 {
     public function __construct(

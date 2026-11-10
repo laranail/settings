@@ -9,8 +9,8 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
 /**
- * Where a change request (§16.7) stands. Only `pending` can still be decided; `approved` is a
- * request that has some approvals but needs more; the others are final.
+ * Where a change request stands. `pending` and `approved` (some approvals, more needed) are
+ * open; the others are final.
  */
 enum ChangeStatus: string implements Enumerator
 {

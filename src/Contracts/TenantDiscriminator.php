@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Contracts;
 
 /**
- * The current tenant, as a string of at most 64 characters, or null outside any tenant (the
- * central application). In column-mode tenancy it is written to and filtered on every row; in
- * every mode it keys what is held in memory, so one tenant's settings are never answered from
- * another tenant's reads.
+ * The current tenant (at most 64 characters), or null outside any tenant. It also keys in-memory
+ * state, so one tenant never reads another's settings.
  */
 interface TenantDiscriminator
 {

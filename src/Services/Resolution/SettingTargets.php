@@ -19,9 +19,7 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 
 /**
- * Turns a {@see SettingAddress} (how a caller outside PHP names a setting) into what the actions
- * take: the resolved store, the write target with its definition, a handle for reads, and the
- * version of the address's own row. The definition is found as a settings handle finds it.
+ * Turns a {@see SettingAddress} into the store, write target, read handle and version the actions need.
  */
 final readonly class SettingTargets
 {
@@ -59,7 +57,7 @@ final readonly class SettingTargets
         return $actor instanceof Actor ? $handle->as($actor) : $handle;
     }
 
-    /** The version of the address's own row in the store's writable layer (0 when it has none). */
+    /** The version of the address's own row in the writable layer, or 0. */
     public function version(SettingAddress $address): int
     {
         $store = $this->store($address->store);

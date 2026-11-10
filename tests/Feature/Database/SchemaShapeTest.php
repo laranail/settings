@@ -13,10 +13,8 @@ use Simtabi\Laranail\Settings\Database\StoreSchema;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Database\SchemaShapeRepository;
 
-// Writes into the testbench application shared by every process (config/, database/), so it
-// cannot run beside itself in parallel; the parallel mutation run leaves this group out.
-// mutation-excluded: Pest's parallel runner honours only the first --exclude-group, so every group
-// the mutation job leaves out also carries this one.
+// Writes into the testbench application shared by every process, so it cannot run in parallel.
+// It also carries `mutation-excluded`, because Pest's parallel runner honours one --exclude-group.
 pest()->group('shared-app', 'mutation-excluded');
 
 function shapes(): SchemaShapeRepository
@@ -45,7 +43,7 @@ it('records the configured shape in the schema file and reads it back', function
         ->and(shapes()->current()->store(new StoreName('settings'))->softDeletes)->toBeTrue();
 });
 
-it('makes the runtime read the recorded shape, not config changed after migrating (§4.0)', function (): void {
+it('makes the runtime read the recorded shape, not config changed after migrating', function (): void {
     useDatabase();
     shapes()->record();
 

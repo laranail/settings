@@ -18,7 +18,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /*
- * The Eloquent models and their factories (Amendment B): for tests, seeding and admin screens.
+ * The Eloquent models and their factories: for tests, seeding and admin screens.
  * The engine never reads through them, but what they write must be what the engine reads.
  */
 

@@ -10,11 +10,7 @@ use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
-/**
- * One setting in an export (G-42), identified by scope, key and locale, never by a numeric id. A
- * plain value is the stored JSON value as it is; an encrypted value is `redacted` (left out), its
- * `ciphertext`, or its decrypted `value`, by the export mode.
- */
+/** One setting in an export; an encrypted value is redacted, ciphertext or plaintext by export mode. */
 final readonly class ExportedSetting
 {
     public function __construct(

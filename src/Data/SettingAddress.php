@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Simtabi\Laranail\Settings\Contracts\Settable;
 
-/**
- * Where a setting is, as a caller outside PHP names it: a store, a key, an owner (or the global
- * value) and a locale ('' for none).
- */
+/** A setting's address: store, key, owner or global, and locale. */
 final readonly class SettingAddress
 {
     public function __construct(
@@ -24,7 +21,7 @@ final readonly class SettingAddress
         return $this->owner instanceof Settable ? $this->owner->settingsOwner() : $this->owner;
     }
 
-    /** `store|scope|key|locale@version`, hashed: the ETag of the setting at that version (§16.10). */
+    /** The ETag of the setting at a version. */
     public function etag(int $version): string
     {
         return '"' . sha1($this->store . '|' . Scope::of($this->ownerRef())->value . '|' . $this->key . '|' . new Locale($this->locale)->value . '@' . $version) . '"';

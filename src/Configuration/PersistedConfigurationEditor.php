@@ -18,13 +18,12 @@ use Simtabi\Laranail\Settings\Actions\Configuration\DeleteConfigurationEntry;
 use Simtabi\Laranail\Settings\Actions\Configuration\ListConfigurationEntries;
 
 /**
- * Persisted configuration (§16.11) edited as a handle's actor: stores and layers saved in the
- * `settings_stores` table, definitions in the definitions table of the handle's store. Each change
- * is validated like configuration, gated (`manage_stores`, `manage_definitions`) and audited.
+ * Edits the stores, layers and definitions kept in the database, as a handle's actor. Each change
+ * is validated, authorized and audited.
  */
 final readonly class PersistedConfigurationEditor
 {
-    /** The store and actor are set by {@see in()}; without them, the default store as trusted code. */
+    /** Without {@see in()}, edits the default store as trusted code. */
     public function __construct(
         private ListConfigurationEntries $list,
         private SaveConfigurationEntry $save,

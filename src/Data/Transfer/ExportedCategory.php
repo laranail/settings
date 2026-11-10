@@ -10,7 +10,7 @@ use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
-/** One category in an export, identified by slug; its parent by slug too (G-42). */
+/** One category in an export, with its parent by slug. */
 final readonly class ExportedCategory
 {
     /** @param array<string, string> $titles locale => title (json translations mode) */
@@ -55,7 +55,7 @@ final readonly class ExportedCategory
         }
     }
 
-    /** The category to create on import; `system` only when the import is trusted (G-10). */
+    /** The category to create on import; `system` only when the import is trusted. */
     public function toNewCategory(bool $trusted): NewCategory
     {
         return new NewCategory($this->slug->value, $this->title === '' ? $this->slug->value : $this->title, $this->parent?->value, $this->description, $this->icon, $this->sortOrder, $this->titles, $trusted && $this->system);

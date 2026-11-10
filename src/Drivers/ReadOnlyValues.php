@@ -15,8 +15,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 /**
- * Turns a flat `key => raw value` map (a shipped file, a config prefix) into global,
- * non-localised records. Shared by the read-only drivers.
+ * Turns a flat `key => value` map into global, unlocalised records for the read-only drivers.
  */
 final readonly class ReadOnlyValues
 {

@@ -7,10 +7,7 @@ namespace Simtabi\Laranail\Settings\Exceptions;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
 
-/**
- * The actor may not perform this ability on this subject. Carries the ability, store and key so
- * a caller can report it, and never a value.
- */
+/** The actor may not perform this ability on this subject. */
 final class AccessDenied extends SettingsException
 {
     public const int STATUS = 403;

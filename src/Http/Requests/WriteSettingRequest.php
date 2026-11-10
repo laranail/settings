@@ -8,10 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Simtabi\Laranail\Settings\Data\Http\WriteInput;
 use Simtabi\Laranail\Settings\Http\Requests\Concerns\ReadsAddress;
 
-/**
- * A write of one setting (update, forget, lock, unlock): `PUT` sends `{"value": …}`, and every
- * write may send `reason`. `If-Match` makes it conditional on the ETag read.
- */
+/** A write of one setting: update, forget, lock or unlock. */
 final class WriteSettingRequest extends FormRequest
 {
     use ReadsAddress;

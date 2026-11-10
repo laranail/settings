@@ -17,9 +17,8 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
- * Sweep the change requests of every connection a store uses: open requests past their expiry
- * become `expired`, and decided requests untouched for `approvals.keep_days` are deleted. Needs
- * `prune` (checked against the default store) and is audited. Returns [expired, deleted].
+ * Expire overdue open change requests and delete decided ones older than `approvals.keep_days`,
+ * on every connection. Needs `prune`.
  */
 final readonly class PruneChanges
 {

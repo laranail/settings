@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * A setting was rolled back to the value it held at `$toVersion`, written as the new version
- * `$version` through the normal write pipeline. Dispatched after commit; identifiers only.
- */
+/** A setting was rolled back to its value at `$toVersion`, written as `$version`. */
 final readonly class SettingRolledBack implements ShouldDispatchAfterCommit
 {
     public function __construct(

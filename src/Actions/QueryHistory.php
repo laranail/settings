@@ -15,12 +15,7 @@ use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 
-/**
- * Read the value history (§4.3): needs `view_history` when an actor is present (a trusted call
- * without one reads freely unless an actor is required). Returns the query for the filtered
- * store (the default store when none is named), newest version first; the entry point maps and
- * redacts its rows.
- */
+/** Build the value history query for the filtered store, or the default store. */
 final readonly class QueryHistory
 {
     public function __construct(

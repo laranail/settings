@@ -9,8 +9,8 @@ use LogicException;
 use Illuminate\Database\Migrations\Migration;
 
 /**
- * A database migration that changes settings rather than tables (G-17): renames, moves, deletions
- * and new defaults, run with the application's other migrations and in their order.
+ * A migration that changes settings rather than tables: renames, moves, deletions and new
+ * defaults, run in order with the application's other migrations.
  *
  *     return new class extends SettingsMigration
  *     {
@@ -25,8 +25,8 @@ use Illuminate\Database\Migrations\Migration;
  *         }
  *     };
  *
- * A migration is built with `new`, so nothing can be injected: the service provider hands this
- * class the migrator through {@see resolveMigratorUsing()}, as it hands the models their context.
+ * Migrations are built with `new`, so the provider supplies the migrator through
+ * {@see resolveMigratorUsing()}.
  */
 abstract class SettingsMigration extends Migration
 {

@@ -16,15 +16,10 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * The schema the migrations produced (§4.0): every schema switch, the table names and one entry
- * per database store. `install` and `make-store` record it in `database/settings-schema.php`,
- * and the runtime reads that record rather than live configuration, so changing configuration
- * after migrating can never make a query name a column that does not exist. Without a recorded
- * file (an application installed before the file existed) the shape is derived from
- * configuration, which is what those migrations used.
+ * The schema the migrations produced: every schema switch, the table names and each database store.
  *
- * `VERSION` is this release's shape version. A recorded file with a lower version means a
- * release added columns whose upgrade migration was never published; `doctor` reports it.
+ * Recorded in `database/settings-schema.php` by `install` and `make-store`; without that file it
+ * is derived from configuration. `VERSION` is this release's shape version.
  */
 final readonly class SchemaShape
 {
@@ -162,7 +157,7 @@ final readonly class SchemaShape
             TenancyMode::tryFrom(self::text($switches, 'tenancy', 'none')) ?? throw $invalid('tenancy'),
             // A file recorded before the history table existed describes a schema without it.
             ($switches['history_table'] ?? false) === true,
-            // Likewise for the change requests and persisted configuration tables (Phase 4b).
+            // Likewise for the change requests and persisted configuration tables.
             ($switches['change_requests_table'] ?? false) === true,
             ($switches['stores_table'] ?? false) === true,
         );
@@ -210,7 +205,7 @@ final readonly class SchemaShape
         return isset($this->stores[$name->value]);
     }
 
-    /** A copy with one more store entry (an existing entry is kept: it describes a table already created). */
+    /** A copy with one more store; an existing entry is kept, since its table already exists. */
     public function withStore(StoreSchema $store): self
     {
         if ($this->hasStore($store->name)) {
@@ -221,7 +216,7 @@ final readonly class SchemaShape
     }
 
     /**
-     * Every difference from another shape, one line each (`identity: slug_uid → uid_only`).
+     * Every difference from another shape, one line each.
      *
      * @return list<string>
      */

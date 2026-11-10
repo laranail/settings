@@ -19,12 +19,7 @@ use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Database\AuditRepository;
 
-/**
- * Read the audit trail (§16.8): needs `view_audit` when an actor is present (a trusted call
- * without one reads freely unless an actor is required). Entries come from the audit table on
- * the connection of the filtered store (the default store when none is named), newest first.
- * Entries never carry a value, so there is nothing to redact.
- */
+/** Read the audit trail of the filtered store, or the default store, newest first. */
 final readonly class QueryAudit
 {
     public function __construct(
@@ -50,7 +45,7 @@ final readonly class QueryAudit
         return $this->query($filter, $actor)->cursor()->map(fn (object $row): AuditEntry => $this->entry((array) $row));
     }
 
-    /** One page, newest first; pass the page's `nextCursor` back for the next one. */
+    /** One page; pass its `nextCursor` back for the next. */
     public function paginate(AuditFilter $filter, ?Actor $actor = null, int $perPage = 50, ?string $cursor = null): AuditPage
     {
         $page = $this->query($filter, $actor)->cursorPaginate(max(1, $perPage), ['*'], 'cursor', $cursor === null ? null : Cursor::fromEncoded($cursor));

@@ -54,7 +54,7 @@ it('stores a value as a row with its slug, uid, group and version', function ():
         ->and(DB::table('settings')->count())->toBe(1);
 });
 
-it('keeps one global row per key, because scope is never null (G-1)', function (): void {
+it('keeps one global row per key, because scope is never null', function (): void {
     settings()->set('site.name', 'One');
     settings()->set('site.name', 'Two');
 
@@ -62,14 +62,14 @@ it('keeps one global row per key, because scope is never null (G-1)', function (
         ->and(DB::table('settings')->where('key', 'site.name')->value('scope'))->toBe('global');
 });
 
-it('identifies a row by scope, key and locale, never by group (G-25)', function (): void {
+it('identifies a row by scope, key and locale, never by group', function (): void {
     $unique = collect(Schema::getIndexes('settings'))->filter(static fn (array $index): bool => $index['unique'] && ! $index['primary']);
 
     expect($unique->pluck('columns')->all())->toContain(['scope', 'key', 'locale'])
         ->and($unique->pluck('columns')->flatten()->all())->not->toContain('group');
 });
 
-it('keeps the identity index inside the utf8mb4 byte budget, tenant column included (G-5)', function (): void {
+it('keeps the identity index inside the utf8mb4 byte budget, tenant column included', function (): void {
     $migration = (string) file_get_contents(dirname(__DIR__, 3) . '/database/migrations/create_laranail_settings_tables.php');
     $values = substr($migration, (int) strpos($migration, 'private function createValues'), 4000);
     preg_match_all("/string\\('(tenant|scope|key|locale)', (\\d+)\\)/", $values, $matches);
@@ -80,7 +80,7 @@ it('keeps the identity index inside the utf8mb4 byte budget, tenant column inclu
         ->and(array_sum($lengths) * 4)->toBeLessThan(3072);
 });
 
-it('treats keys case-sensitively in the table and lower-cases them in the API (G-38)', function (): void {
+it('treats keys case-sensitively in the table and lower-cases them in the API', function (): void {
     $now = now();
     $row = static fn (string $key, string $uid): array => ['scope' => 'global', 'key' => $key, 'locale' => '', 'group' => 'x', 'uid' => $uid, 'value' => '1', 'version' => 1, 'created_at' => $now, 'updated_at' => $now];
 
@@ -93,7 +93,7 @@ it('treats keys case-sensitively in the table and lower-cases them in the API (G
         ->and(settings()->get('theme'))->toBe('dark');
 });
 
-it('stores owner rows by scope with the owner id as a string, and reads them back (G-26)', function (): void {
+it('stores owner rows by scope with the owner id as a string, and reads them back', function (): void {
     config()->set('laranail.settings.stores.settings.owners', ['user']);
     app()->forgetScopedInstances();
 
@@ -148,7 +148,7 @@ it('refuses a group longer than the column', function (): void {
     expect(fn () => settings()->set(str_repeat('g', 65) . '.key', 1))->toThrow(InvalidSettingValue::class, 'longer than 64');
 });
 
-it('links a setting to its category in the same store and refuses one from another store (G-33)', function (): void {
+it('links a setting to its category in the same store and refuses one from another store', function (): void {
     $now = now();
     $id = DB::table('settings_categories')->insertGetId(['store' => 'settings', 'title' => 'Mail', 'slug' => 'mail', 'created_at' => $now, 'updated_at' => $now]);
     DB::table('settings_categories')->insert(['store' => 'billing', 'title' => 'Tax', 'slug' => 'tax', 'created_at' => $now, 'updated_at' => $now]);

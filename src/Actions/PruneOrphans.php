@@ -14,12 +14,7 @@ use Simtabi\Laranail\Settings\Events\OrphansPruned;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
-/**
- * Remove the settings of owners that no longer exist (G-7), as {@see FindOrphans} finds them.
- *
- * Removing needs `prune` when an actor is present (and, per owner, the `forget` that flushing
- * needs); the run is audited as one `prune` entry besides the per-owner `forget` entries.
- */
+/** Remove the settings of owners that no longer exist, as {@see FindOrphans} finds them. */
 final readonly class PruneOrphans
 {
     public function __construct(
@@ -30,9 +25,7 @@ final readonly class PruneOrphans
         private Dispatcher $events,
     ) {}
 
-    /**
-     * Remove every orphan's settings; returns the number of rows removed.
-     */
+    /** Remove every orphan's settings; returns the number of rows removed. */
     public function handle(?Actor $actor = null): int
     {
         $subject = new Subject($this->stores->default()->name);

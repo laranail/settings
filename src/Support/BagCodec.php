@@ -13,15 +13,12 @@ use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 
 /**
- * Converts one scope's raw records (a "bag", design §7.5) to and from the plain array the cache
- * holds. Plain arrays rather than objects, so the cache never unserializes a package class (an
- * application may restrict `cache.serializable_classes`). An empty bag encodes to a non-null
- * array, which is what lets a miss be cached. A payload that does not decode, from an older
- * release or a corrupted entry, reads as no entry at all, never as an empty bag. Stateless.
+ * Converts one scope's records to and from the plain array the cache holds. A payload that does
+ * not decode reads as a cache miss, never as an empty scope.
  */
 final readonly class BagCodec
 {
-    /** Bumped when the encoded shape changes, so an entry written by another release is a miss. */
+    /** Bump when the encoded shape changes, so entries from another release are misses. */
     public const int VERSION = 1;
 
     /** @return array{v: int, r: list<array<string, mixed>>} */
@@ -43,7 +40,7 @@ final readonly class BagCodec
         ], $records->all())];
     }
 
-    /** The records an entry holds, or null when it is not an entry this release wrote. */
+    /** The records an entry holds, or null when this release did not write it. */
     public function decode(mixed $entry): ?RecordSet
     {
         if (! is_array($entry) || ($entry['v'] ?? null) !== self::VERSION || ! is_array($entry['r'] ?? null)) {

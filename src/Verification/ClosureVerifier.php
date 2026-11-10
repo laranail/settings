@@ -9,9 +9,7 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 
-/**
- * A verifier from a closure, registered at runtime with `configuration()->verifyUsing()`.
- */
+/** A verifier from a closure, registered with `configuration()->verifyUsing()`. */
 final readonly class ClosureVerifier implements Verifier
 {
     /** @param Closure(Actor, Subject): bool $callback */

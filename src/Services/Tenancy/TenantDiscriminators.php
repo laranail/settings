@@ -11,10 +11,7 @@ use Simtabi\Laranail\Settings\Tenancy\NullTenantDiscriminator;
 use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 
 /**
- * Builds the configured tenant discriminator (`tenancy.discriminator`): `auto` (stancl/tenancy,
- * then spatie/laravel-multitenancy, when installed; else none), `null`, `stancl`, `spatie`, or a
- * class implementing TenantDiscriminator. Neither tenancy package is required: both are detected
- * with `class_exists` and read through the container, so no class of theirs is referenced.
+ * Builds the tenant discriminator named by `tenancy.discriminator`.
  */
 final readonly class TenantDiscriminators
 {
@@ -64,7 +61,7 @@ final readonly class TenantDiscriminators
         return is_object($tenant) && method_exists($tenant, 'getTenantKey') ? $tenant->getTenantKey() : null;
     }
 
-    /** spatie/laravel-multitenancy's current tenant key (its container binding), or null. */
+    /** spatie/laravel-multitenancy's current tenant key, or null. */
     private function spatie(): mixed
     {
         if (! $this->container->bound($this->spatieBinding)) {

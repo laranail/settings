@@ -6,7 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Simtabi\Laranail\Settings\Stores\Store;
 
-/** The input of approving, rejecting or cancelling a change request: which one, and why. */
+/** Which change request to approve, reject or cancel, and why. */
 final readonly class ChangeDecision
 {
     public function __construct(

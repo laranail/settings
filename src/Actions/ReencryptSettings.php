@@ -18,13 +18,8 @@ use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
 /**
- * Re-encrypt every encrypted value under the current key after a key rotation (§6): live rows
- * (every tenant's, trashed ones too), the history's old and new values, and pending change
- * requests, on every connection a database store uses. Each payload is decrypted with the current
- * or a previous key (`APP_PREVIOUS_KEYS`) and encrypted again with the current one; one that no
- * key can read is counted as failed and left untouched, so the run never destroys a value. Needs
- * `manage_stores` (step-up verification applies by default) and is audited; the cached values of
- * every store it touched are forgotten.
+ * Re-encrypt every encrypted value, history payload and pending change request under the current
+ * key after a key rotation. A payload no key can read is counted as failed and left untouched.
  */
 final readonly class ReencryptSettings
 {
@@ -63,7 +58,7 @@ final readonly class ReencryptSettings
             $totals['failed'] += $failed;
             $store->forgetCachedStore();
 
-            // The history and change requests tables are per connection, so once each.
+            // The history and change requests tables are per connection.
             if (isset($connections[$database->connectionName()])) {
                 continue;
             }

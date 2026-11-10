@@ -19,9 +19,8 @@ use Simtabi\Laranail\Settings\Http\Resources\ImportReportResource;
 use Simtabi\Laranail\Settings\Http\Resources\ExportDocumentResource;
 
 /**
- * `/stores/{store}/export`, `/import` and `/diff` (G-42): the same document the console writes.
- * An import is a dry run unless `apply` is true, and is never trusted over HTTP (locks and system
- * categories in the document are ignored; that is the console's `--trusted`).
+ * `/stores/{store}/export`, `/import` and `/diff`. An import is a dry run unless `apply` is true,
+ * and is never trusted over HTTP.
  */
 final readonly class TransferController
 {

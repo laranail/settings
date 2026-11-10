@@ -12,10 +12,7 @@ use Simtabi\Laranail\Settings\Events\CategoryDeleted;
 use Simtabi\Laranail\Settings\Events\CategoryDeleting;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
-/**
- * Delete a category: needs `manage_categories`. Its children move to the top level and the
- * settings in it keep their values but lose the category.
- */
+/** Delete a category; its children move to the top level and its settings keep their values. */
 final readonly class DeleteCategory
 {
     public function __construct(

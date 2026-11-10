@@ -8,10 +8,7 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
 
-/**
- * An actor holding an ability was refused because it needs step-up verification and the actor
- * has not verified recently. Dispatched at once, like AccessWasDenied. Never carries a value.
- */
+/** An actor was refused because the ability needs step-up verification. Dispatched at once. */
 final readonly class VerificationWasRequired
 {
     public function __construct(

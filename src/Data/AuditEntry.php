@@ -11,8 +11,8 @@ use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 
 /**
- * One audited action. It records who did what to which key and how it ended, and has no field
- * for a value: an audit trail must never become a second copy of the secrets it watches.
+ * One audited action: who did what to which key, and how it ended. It has no value field, so the
+ * trail never becomes a copy of the secrets it watches.
  */
 final readonly class AuditEntry
 {

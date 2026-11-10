@@ -15,15 +15,8 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
- * RFC 9457 problem details (`application/problem+json`) for the REST API (§16.10). A package
- * exception names its own status and problem type ({@see SettingsException::STATUS} and
- * {@see SettingsException::TYPE}), and its message is the `detail` (the package's messages name
- * stores, keys and scopes, never a value). Anything the package does not know is left to the
- * application's own handler.
- *
- * Titles, and the details of problems that carry no exception message, are the
- * `laranail/settings` translations; a type without a translated title (an `http-<status>`
- * problem) keeps the title derived from its type.
+ * Renders package exceptions as RFC 9457 problem details. Other exceptions are left to the
+ * application's handler.
  */
 final readonly class Problems
 {

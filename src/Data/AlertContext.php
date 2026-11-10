@@ -11,12 +11,8 @@ use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
 
 /**
- * What an alert says about one event (§4 of the alerts plan): the event, where it happened, who
- * caused it, how it ended and when. It is built from the event's identifiers only, so it never
- * holds a setting's value, and neither does any channel rendered from it.
- *
- * `outcome` is `denied` for a refusal (AccessWasDenied, VerificationWasRequired) and `allowed`
- * for everything else, matching the audit's outcomes.
+ * What an alert says about one event: what happened, where, by whom, how it ended and when.
+ * Built from identifiers only, never a value.
  */
 final readonly class AlertContext
 {

@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Simtabi\Laranail\Settings\Enums\Verdict;
 
-/**
- * An authorizer's answer for one ability on one subject: allow, deny with a reason, allow once
- * the actor has verified, allow through approval, or abstain (no opinion).
- */
+/** An authorizer's answer: allow, deny, require verification, require approval, or abstain. */
 final readonly class Decision
 {
     private function __construct(
@@ -37,7 +34,7 @@ final readonly class Decision
         return new self(Verdict::RequiresApproval, $reason);
     }
 
-    /** No opinion: the next authorizer decides, then `authorization.undefined`. */
+    /** No opinion; the next authorizer decides. */
     public static function abstain(?string $reason = null): self
     {
         return new self(Verdict::Abstain, $reason);

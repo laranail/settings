@@ -16,9 +16,7 @@ use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 
 /**
- * The definitions table on one connection (D-6, §4.4): syncing code and config definitions in as
- * `is_system` rows, and reading the rows edited at runtime. Definitions are shared by every
- * tenant, so nothing here filters on the tenant column.
+ * Reads and writes the definitions table, which every tenant shares.
  */
 final readonly class DefinitionsRepository
 {
@@ -48,8 +46,7 @@ final readonly class DefinitionsRepository
     }
 
     /**
-     * Upsert a store's code and config definitions as system rows and remove system rows no
-     * definition covers any more; a runtime row sharing a key is a conflict and left alone.
+     * Sync a store's code and config definitions as system rows, leaving runtime rows alone.
      *
      * @param list<Definition> $definitions
      *
@@ -97,10 +94,9 @@ final readonly class DefinitionsRepository
     }
 
     /**
-     * Save a definition edited through the API (§16.11) as a runtime row. A system row (synced
-     * from code or config) for the key refuses it: code is the source of truth for those.
+     * Save a definition edited through the API as a runtime row.
      *
-     * @throws InvalidDefinition
+     * @throws InvalidDefinition when a system row already defines the key
      */
     public function save(StoreName $store, Definition $definition): void
     {
@@ -132,7 +128,7 @@ final readonly class DefinitionsRepository
         });
     }
 
-    /** Delete a runtime definition row; returns whether one was there. System rows are kept. */
+    /** Delete a runtime definition row and return whether one was there. */
     public function delete(StoreName $store, Key $key): bool
     {
         $database = $this->database;

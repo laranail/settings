@@ -10,10 +10,8 @@ use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * The tenant a closure reports: how the stancl/tenancy and spatie/laravel-multitenancy adapters
- * are built (the closure asks the tenancy package), and a way for an application to plug in its
- * own. An integer or Stringable key is turned into a string; anything else, or a key longer than
- * 64 characters, is refused rather than truncated, because two tenants must never share a key.
+ * The tenant a closure reports. Keys longer than 64 characters are refused rather than truncated,
+ * so two tenants never share a key.
  */
 final readonly class ClosureTenantDiscriminator implements TenantDiscriminator
 {

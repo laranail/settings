@@ -1,6 +1,6 @@
 # Approvals
 
-Four-eyes changes (§16.7): a write to a setting that needs approval becomes a change request, and is applied only after someone else approves it.
+Four-eyes changes: a write to a setting that needs approval becomes a change request, and is applied only after someone else approves it.
 
 ## Which writes need approval
 

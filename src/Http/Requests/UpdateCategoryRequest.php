@@ -7,8 +7,8 @@ namespace Simtabi\Laranail\Settings\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * `PATCH /stores/{store}/categories/{slug}`: a new title, a new parent, or both. Naming
- * `parent` as null moves the category to the top level; leaving it out leaves it where it is.
+ * `PATCH /stores/{store}/categories/{slug}`. A null `parent` moves the category to the top level;
+ * omitting it leaves the parent unchanged.
  */
 final class UpdateCategoryRequest extends FormRequest
 {

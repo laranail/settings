@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Contracts;
 
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 
-/**
- * Where audit entries go. Several sinks can run together (`audit.sinks`).
- */
+/** A destination for audit entries. */
 interface AuditSink
 {
     public function record(AuditEntry $entry): void;

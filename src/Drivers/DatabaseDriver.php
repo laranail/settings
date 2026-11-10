@@ -39,20 +39,11 @@ use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 
 /**
- * Records in a database table, through the query builder (no Eloquent on the hot path).
+ * Stores records in a database table through the query builder.
  *
- * Reads take every scope in one `whereIn('scope', …)` query, so the owner key type never meets
- * the column type (G-26). Writes are version-checked: an update succeeds only against the
- * version the writer read, and an insert runs in a savepoint so a unique violation (a concurrent
- * first write) does not abort the surrounding transaction on Postgres. Either conflict raises
- * {@see ConcurrentModification}. Database errors surface as {@see DriverUnavailable} when the
- * connection or table is gone, {@see DriverFailure} otherwise, never as PDO exceptions.
- *
- * The table's shape (identity columns, key type, owner columns, soft deletes) is read from the
- * recorded {@see SchemaShape}, never from live configuration (§4.0). With soft deletes a forget
- * trashes the row, reads skip trashed rows, and the next write to that identity restores the
- * row through the same version check (so a restore is never read as a conflict and the unique
- * index never collides).
+ * Writes are version-checked and raise {@see ConcurrentModification} on a conflict. Database
+ * errors surface as {@see DriverUnavailable} or {@see DriverFailure}, never as PDO exceptions.
+ * The table's shape comes from the recorded {@see SchemaShape}, not from live configuration.
  */
 final readonly class DatabaseDriver implements DatabaseBacked
 {
@@ -76,8 +67,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     ) {}
 
     /**
-     * A new primary key for a table keyed by this type: none for bigint (the database assigns
-     * it), a time-ordered UUID or a ULID otherwise.
+     * A new primary key for this key type; empty for bigint, which the database assigns.
      *
      * @return array{id?: string}
      */
@@ -98,7 +88,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         return $shape instanceof SchemaShape ? $shape : new SchemaShape(names: $this->names);
     }
 
-    /** One store's recorded entry: mode, soft deletes, owner table. */
+    /** The recorded schema of one store. */
     public function schemaOf(StoreName $store): StoreSchema
     {
         return $this->shape()->store($store);
@@ -119,7 +109,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         return $this->writable;
     }
 
-    /** The connection name this layer uses (the default connection when none is configured). */
+    /** The connection this layer uses, or the default connection. */
     public function connectionName(): string
     {
         return $this->connection ?? $this->db->getDefaultConnection();
@@ -132,10 +122,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         return $shape->names->store($store, $shape->hasStore($store) ? $shape->store($store)->table : $this->table);
     }
 
-    /**
-     * The tenant the rows of this call belong to, in column-mode tenancy: the discriminator's
-     * key, or '' (the central rows) outside any tenant. Always '' in the other modes.
-     */
+    /** The current tenant in column-mode tenancy; '' for central rows and in other modes. */
     public function tenant(): string
     {
         if (! $this->shape()->tenancy->hasColumn() || ! $this->tenant instanceof Closure) {
@@ -147,10 +134,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         return is_string($tenant) ? $tenant : '';
     }
 
-    /**
-     * Limit a query on a values, categories or audit table to the current tenant (column-mode
-     * tenancy); any other mode leaves it as it is.
-     */
+    /** Limit a query to the current tenant in column-mode tenancy. */
     public function scoped(Builder $query): Builder
     {
         return $this->shape()->tenancy->hasColumn() ? $query->where('tenant', $this->tenant()) : $query;
@@ -206,10 +190,10 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * Store a record whose version is one above the version the writer read: an update checked
-     * against that version; with soft deletes, failing that, a restore of the trashed row at that
-     * version; failing that, an insert. A row at any other version makes the insert hit the
-     * unique index, which is a concurrent change.
+     * Store a record one version above the version the writer read.
+     *
+     * Tries an update at that version, then a restore of a trashed row, then an insert; a row at
+     * any other version makes the insert hit the unique index.
      *
      * @throws ConcurrentModification
      */
@@ -229,8 +213,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
                     return;
                 }
 
-                // A trashed row at the expected version: restore it as a fresh write, so no flag,
-                // label or category of the forgotten row comes back with it.
+                // Restore as a fresh write so nothing from the forgotten row comes back.
                 if ($expected > 0 && $softDeletes && $this->trashed($store)->where('scope', $record->scope->value)->where('key', $record->key->value)->where('locale', $record->locale->value)->where('version', $expected)->update($columns + [
                     'deleted_at'  => null,
                     'label'       => null,
@@ -242,11 +225,8 @@ final readonly class DatabaseDriver implements DatabaseBacked
                     return;
                 }
 
-                // No row at the expected version: insert. If a row exists at another version
-                // (a concurrent writer), the unique index refuses the insert.
                 try {
-                    // A savepoint: on Postgres a unique violation would otherwise abort the
-                    // whole surrounding transaction, not just this statement.
+                    // A savepoint: on Postgres a unique violation would abort the whole transaction.
                     $this->connection()->transaction(fn (): bool => $this->table($store)->insert($columns + $this->identityColumns($record) + $this->tenantColumns() + [
                         'scope'      => $record->scope->value,
                         'key'        => $record->key->value,
@@ -262,10 +242,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         });
     }
 
-    /**
-     * The version of the trashed row of this identity (0 when there is none, or the store keeps
-     * no trashed rows), so a write over it continues its version rather than colliding.
-     */
+    /** The version of this identity's trashed row, or 0 when there is none. */
     public function trashedVersion(StoreName $store, Scope $scope, Key $key, Locale $locale): int
     {
         if (! $this->schemaOf($store)->softDeletes) {
@@ -278,9 +255,9 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * The live row of one identity read under a row lock (`SELECT … FOR UPDATE` where the
-     * database has one), for retrying a write after a conflict: a plain re-read under MySQL's
-     * REPEATABLE READ would see the old snapshot.
+     * Read one live row under a row lock, for retrying a write after a conflict.
+     *
+     * A plain re-read under MySQL's REPEATABLE READ would see the old snapshot.
      */
     public function lockedFind(StoreName $store, Scope $scope, Key $key, Locale $locale): ?Record
     {
@@ -291,11 +268,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         });
     }
 
-    /**
-     * The stable reference of one identity's row (live or trashed) for the history table: its
-     * `uid` when the identity mode has one, else its primary key, as a string. Null when there is
-     * no row.
-     */
+    /** The row's `uid`, or its primary key, as the history table references it. */
     public function reference(StoreName $store, Scope $scope, Key $key, Locale $locale): ?string
     {
         $column = $this->shape()->identity->hasUid() ? 'uid' : 'id';
@@ -314,7 +287,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
             : $this->identity($this->table($store), $scope, $key, $locale)->delete());
     }
 
-    /** Remove every row of one scope; returns how many went. */
+    /** Delete every row of one scope and return how many were deleted. */
     public function flushScope(StoreName $store, Scope $scope): int
     {
         $this->assertWritable($store);
@@ -325,9 +298,9 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * Every distinct owner scope of one alias in this store (`alias:<id>`) with live rows, for
-     * orphan pruning. A range on the binary-collated column rather than LIKE, whose `_` would
-     * match any character.
+     * Every distinct live owner scope of one alias.
+     *
+     * Uses a range on the binary-collated column, since `_` in a LIKE pattern matches anything.
      *
      * @return list<string>
      */
@@ -345,11 +318,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         )));
     }
 
-    /**
-     * Every distinct scope in the store, for diagnostics.
-     *
-     * @return list<string>
-     */
+    /** @return list<string> */
     public function scopes(StoreName $store): array
     {
         return $this->attempt($store, fn (): array => array_values(array_filter(
@@ -359,14 +328,11 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * Rewrite every encrypted payload of the store, every tenant's and trashed rows included
-     * (re-encryption after a key rotation), in chunks by primary key. `$rewrite` returns the new
-     * payload, or null when it could not read the old one (counted as failed, left as it was).
-     * Returns [rewritten, failed].
+     * Rewrite every encrypted payload in the store, across tenants and trashed rows.
      *
-     * @param Closure(string): ?string $rewrite
+     * @param Closure(string): ?string $rewrite returns the new payload, or null when the old one cannot be read
      *
-     * @return array{int, int}
+     * @return array{int, int} rewritten and failed counts
      */
     public function rewriteEncrypted(StoreName $store, Closure $rewrite): array
     {
@@ -400,10 +366,9 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * Rename an owner alias in the store (G-30): every scope `<from>:<id>` becomes `<to>:<id>`,
-     * with `settable_type` in a polymorphic store and the per-row slug of `slug_per_row`, for
-     * every tenant and trashed rows too, in chunks. Returns how many rows changed. A row whose new
-     * identity already exists makes the database refuse the rename (DriverFailure).
+     * Rename an owner alias across every tenant and trashed row, and return how many rows changed.
+     *
+     * @throws DriverFailure when a renamed row collides with an existing one
      */
     public function rescope(StoreName $store, string $from, string $to): int
     {
@@ -441,8 +406,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * Run a callback in one transaction on this layer's connection. The store only names the
-     * store in an outage message.
+     * Run a callback in one transaction on this layer's connection.
      *
      * @template T
      *
@@ -452,8 +416,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
      */
     public function transaction(Closure $callback, StoreName $store = new StoreName('settings')): mixed
     {
-        // Connect first, so an unreachable database is reported like any other outage rather
-        // than escaping from BEGIN as a framework exception.
+        // Connect first, so an unreachable database is reported as an outage.
         $connection = $this->attempt($store, function (): Connection {
             $connection = $this->connection();
             $connection->getPdo();
@@ -465,8 +428,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * Run a database operation, translating whatever the database throws into this package's
-     * exceptions. The package's own exceptions pass through untouched.
+     * Run a database operation, translating database errors into this package's exceptions.
      *
      * @template T
      *
@@ -489,13 +451,11 @@ final readonly class DatabaseDriver implements DatabaseBacked
         }
     }
 
-    /** Asked after a failure, so the answer is fresh; a probe that itself fails means not ready. */
     /**
-     * Whether the layer is still there after a failure. Outside a transaction the readiness probe
-     * asks the database. Inside one it cannot: PostgreSQL refuses every statement in an aborted
-     * transaction, so the probe would report a healthy table as missing. There the SQLSTATE
-     * decides instead: a missing table (42S02, 42P01, SQLite's "no such table") or a connection
-     * failure (class 08) means unavailable; anything else is a failure of a live layer.
+     * Whether the layer is still there after a failure.
+     *
+     * Inside a transaction the SQLSTATE decides, because PostgreSQL refuses every statement in an
+     * aborted transaction and a probe would report a healthy table as missing.
      */
     private function readyAfterFailure(StoreName $store, Exception $exception): bool
     {
@@ -527,13 +487,13 @@ final readonly class DatabaseDriver implements DatabaseBacked
             || str_contains($exception->getMessage(), 'no such table');
     }
 
-    /** The store's values table, limited to the current tenant (column-mode tenancy). */
+    /** The store's values table, limited to the current tenant. */
     private function table(StoreName $store): Builder
     {
         return $this->scoped($this->connection()->table($this->tableFor($store)));
     }
 
-    /** Rows that are not trashed (every row, without soft deletes). */
+    /** Rows that are not trashed. */
     private function live(StoreName $store): Builder
     {
         $query = $this->table($store);
@@ -575,9 +535,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * The owner columns of a row, per the store's mode: `settable_type` / `settable_id` (typed per
-     * `ids.owner_key`) in a polymorphic store, `owner_id` in a dedicated one, which holds owner
-     * rows only.
+     * The owner columns of a row for the store's mode.
      *
      * @return array<string, int|string|null>
      *
@@ -609,7 +567,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
         return ['owner_id' => $this->typedKey($store, $id, $schema->ownerKeyType)];
     }
 
-    /** An owner id as the typed column holds it: an integer for bigint keys. */
+    /** An owner id cast to the column's type. */
     private function typedKey(StoreName $store, string $id, IdType $type): int|string
     {
         return match ($type) {
@@ -620,8 +578,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * The columns only an insert sets: a generated primary key (uuid, ulid) and the identity
-     * columns of the identity mode (D-1).
+     * The columns only an insert sets: a generated key and the identity columns.
      *
      * @return array<string, string>
      */
@@ -638,10 +595,9 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
-     * The id of the record's category in this store (G-33). A category of that slug existing only
-     * in another store is refused; a slug no store has is left unlinked.
+     * The id of the record's category in this store, or null when no store has the slug.
      *
-     * @throws CategoryStoreMismatch
+     * @throws CategoryStoreMismatch when the slug belongs to another store only
      */
     private function categoryId(StoreName $store, Record $record): int|string|null
     {

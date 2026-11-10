@@ -21,8 +21,7 @@ use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 
 /**
- * `$settings->audit()`: an immutable query over the audit trail. Each condition returns a new
- * query; `get()`, `cursor()` and `paginate()` run it through {@see QueryAudit}, which checks
+ * An immutable query over the audit trail, returned by `$settings->audit()`. Running it checks
  * `view_audit` for the handle's actor. Entries hold actions and identifiers, never values.
  *
  *     $settings->as($admin)->audit()->for($user)->key('mail.from_address')

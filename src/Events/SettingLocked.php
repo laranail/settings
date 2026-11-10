@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * One scope's row was locked against writes. Dispatched after the surrounding transaction
- * commits; identifiers only, never the value.
- */
+/** A setting was locked against writes. */
 final readonly class SettingLocked implements ShouldDispatchAfterCommit
 {
     public function __construct(

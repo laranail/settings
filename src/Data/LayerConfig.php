@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-/**
- * One configured layer: its name, driver name and options.
- */
+/** One configured layer: its name, driver and options. */
 final readonly class LayerConfig
 {
     /** @param array<string, mixed> $options */

@@ -19,7 +19,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Simtabi\Laranail\Settings\Http\Resources\AuditEntryResource;
 
-/** `/audit` (§16.8): the audit trail, filtered, newest first. Needs `view_audit`. */
+/** `/audit`: the audit trail, filtered, newest first. */
 final readonly class AuditController
 {
     public function index(PageRequest $request, QueryAudit $audit, ApiActor $actors): AnonymousResourceCollection

@@ -17,10 +17,8 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
- * Typed settings classes over the key-value engine (Phase 5; the idea is spatie/laravel-settings'):
- * a class whose public typed properties map to keys, loaded and saved through a settings handle,
- * so the handle's store, owner, locale and actor apply, and every save goes through the same
- * write actions as `set()` (validation, encryption, locks, approvals, history, audit).
+ * A class whose public typed properties map to setting keys, loaded and saved through a settings
+ * handle. Saves go through the same write actions as `set()`.
  *
  *     #[Group('mail')]
  *     final class MailSettings extends TypedSettings
@@ -33,22 +31,20 @@ use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
  *     $mail->fromAddress = 'ops@example.com';
  *     $mail->save();
  *
- * A property keeps its declared default until a value is stored for its key. `save()` writes only
- * the properties that changed since `load()`. `register()` turns the properties into definitions
- * (type, default, encryption), so the key-value API reads them the same way.
+ * A property keeps its declared default until a value is stored. `save()` writes only the
+ * properties that changed since `load()`.
  */
 abstract class TypedSettings
 {
     private ?Settings $handle = null;
 
-    /** @var array<string, mixed> stored form of each property as loaded */
+    /** @var array<string, mixed> each property's stored form as loaded */
     private array $loaded = [];
 
     final public function __construct() {}
 
     /**
-     * Read every property's key through the handle (scoped to the class's store, when it names
-     * one); a key with no value keeps the property's default.
+     * Load every property through the handle; a key with no value keeps the property's default.
      *
      * @throws TypeMismatch when a stored value cannot be the property's type
      */
@@ -74,9 +70,8 @@ abstract class TypedSettings
     }
 
     /**
-     * Register a definition for every property: its key, the caster alias its type implies (or
-     * `#[Type]`), its declared default and `#[Encrypted]`, in the class's store. A key already
-     * defined in code or configuration is left as it is.
+     * Register a definition for every property, leaving keys already defined in code or
+     * configuration as they are.
      *
      * @return list<Definition>
      */
@@ -116,7 +111,7 @@ abstract class TypedSettings
     }
 
     /**
-     * Every mapped property, by name: the public, non-static properties the class declares.
+     * The public, non-static properties the class declares, by name.
      *
      * @return array<string, TypedProperty>
      *
@@ -137,8 +132,8 @@ abstract class TypedSettings
     }
 
     /**
-     * Write every property that changed since `load()` through the handle it was loaded with; given
-     * a handle, write every property through that one instead (copying settings to an owner).
+     * Write the properties changed since `load()`. Given a handle, write every property through it
+     * instead.
      */
     public function save(?Settings $settings = null): void
     {

@@ -21,7 +21,7 @@ use Simtabi\Laranail\Settings\Http\Requests\StoreCategoryRequest;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 use Simtabi\Laranail\Settings\Http\Requests\UpdateCategoryRequest;
 
-/** `/stores/{store}/categories` (D-11): list, create, rename or move, delete. */
+/** `/stores/{store}/categories`: list, create, rename or move, delete. */
 final readonly class CategoriesController
 {
     public function index(PageRequest $request, ListCategories $list, SettingTargets $targets, ApiActor $actors): AnonymousResourceCollection
@@ -54,7 +54,7 @@ final readonly class CategoriesController
 
         $found = array_values(array_filter($list->handle($store, $actor), static fn (Category $category): bool => $category->slug->value === $slug));
 
-        // The category is gone from the actor's view (moved out of reach): answered as no data.
+        // The category moved out of the actor's view, so there is nothing to return.
         return $found === [] ? new JsonResponse(['data' => null]) : CategoryResource::make($found[0])->response();
     }
 

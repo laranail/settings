@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Exceptions;
 
-/**
- * The change request can no longer be decided: it was applied, rejected, cancelled, went stale or
- * expired (or another approver decided it first).
- */
+/** The change request was already applied, rejected, cancelled, expired or went stale. */
 final class ChangeRequestClosed extends SettingsException
 {
     public const int STATUS = 409;

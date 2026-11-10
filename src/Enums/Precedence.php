@@ -9,9 +9,7 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Attributes\Description;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
-/**
- * Which source wins for a setting, declared on its definition.
- */
+/** Which source wins for a setting, declared on its definition. */
 enum Precedence: string implements Enumerator
 {
     use HasEnumeratorBehavior;

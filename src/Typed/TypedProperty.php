@@ -17,10 +17,8 @@ use Simtabi\Laranail\Settings\Typed\Attributes\Encrypted;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 
 /**
- * One public typed property of a typed settings class: the key it maps to, and how its value
- * crosses into storage (an enum as its backing value, a date as an ISO 8601 string) and back.
- * Supported types: string, int, float, bool, array, a backed enum and the immutable date types,
- * each nullable.
+ * A typed settings property: its key and how its value converts to and from storage. Supports
+ * string, int, float, bool, array, backed enums and immutable dates, each nullable.
  */
 final readonly class TypedProperty
 {

@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
-/**
- * A persisted store or layer entry (§16.11): its kind, name and configuration, exactly as the
- * configuration file would hold it under `stores.<name>` or `layers.<name>`.
- */
+/** A persisted store or layer entry, shaped as the configuration file holds it. */
 final readonly class ConfigurationEntry
 {
     public const string STORE = 'store';

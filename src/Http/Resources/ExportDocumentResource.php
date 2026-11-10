@@ -11,14 +11,14 @@ use Illuminate\Http\Resources\Attributes\PreserveKeys;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 
 /**
- * A store export (G-42), the same document the console writes.
+ * A store export, the same document the console writes.
  *
  * @property ExportDocument $resource
  */
 #[PreserveKeys]
 final class ExportDocumentResource extends JsonResource
 {
-    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    /** Always wrapped in `data`, whatever the application sets. */
     public static $wrap = 'data';
 
     /** @return array<string, mixed> */

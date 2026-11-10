@@ -14,15 +14,12 @@ use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Support\AuditedTransaction;
-use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Database\CategoryRepository;
 
 /**
- * What every category change does around its work: authorize `manage_categories`, then run the
- * change, its events and its audit entry in one transaction on the store's connection. A failure
- * is audited after the rollback. Categories live in the database, so a store without an active
- * database layer refuses the change with {@see StoreNotWritable}.
+ * Authorizes `manage_categories` and runs a category change, its events and its audit entry in
+ * one transaction on the store's connection.
  */
 final readonly class CategoryGuard
 {
@@ -35,7 +32,7 @@ final readonly class CategoryGuard
      * @template T
      *
      * @param Closure(CategoryRepository, DatabaseDriver): T $work
-     * @param list<object> $also more events dispatched after `$after` (what exactly changed)
+     * @param list<object> $also more events dispatched after `$after`
      *
      * @return T
      */

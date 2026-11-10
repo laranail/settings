@@ -9,10 +9,8 @@ use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
 /**
- * How an export (G-10) writes encrypted values: left out (`redacted`, the default), as the
- * ciphertext stored (`ciphertext`, importable under the same `APP_KEY` or one in
- * `APP_PREVIOUS_KEYS`), or decrypted (`plaintext`, which needs `view_sensitive` and, on the
- * console, typing the store name).
+ * How an export writes encrypted values: left out (`redacted`, the default), as stored
+ * ciphertext, or decrypted (`plaintext`, which needs `view_sensitive`).
  */
 enum ExportMode: string implements Enumerator
 {

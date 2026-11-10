@@ -8,9 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 
-/**
- * `POST /stores/{store}/diff`: an export document to compare the store with.
- */
+/** `POST /stores/{store}/diff`. */
 final class DiffStoreRequest extends FormRequest
 {
     public function authorize(): bool

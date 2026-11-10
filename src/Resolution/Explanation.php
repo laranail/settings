@@ -7,9 +7,7 @@ namespace Simtabi\Laranail\Settings\Resolution;
 use Simtabi\Laranail\Settings\Data\Lookup;
 
 /**
- * How a read was resolved: every (store, scope, locale, layer) tried, in order, and the result.
- * For an actor who may not view the value, the result is redacted rather than refused, so the
- * path stays explainable.
+ * How a read was resolved: every step tried, in order, and the result.
  */
 final readonly class Explanation
 {

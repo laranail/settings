@@ -17,7 +17,7 @@ final readonly class ChangeFilter
         public ?string $id = null,
     ) {}
 
-    /** A copy with some conditions replaced (named arguments; the rest are kept). */
+    /** A copy with the named conditions replaced. */
     public function with(?ChangeStatus $status = null, ?Scope $scope = null, ?Key $key = null, ?string $id = null): self
     {
         return new self($this->store, $status ?? $this->status, $scope ?? $this->scope, $key ?? $this->key, $id ?? $this->id);

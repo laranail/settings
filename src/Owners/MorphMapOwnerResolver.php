@@ -14,15 +14,13 @@ use Simtabi\Laranail\Settings\Exceptions\UnknownOwner;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
- * Resolves the owner a REST URL names: the alias must be in `http.owners` or the morph map. A
- * model that is {@see Settable} is loaded, so its parents take part in reads; a missing record is
- * UnknownOwner. Any other mapped class, or a model whose own morph alias differs (mapped only in
- * `http.owners`), is addressed by alias and id alone.
+ * Resolves the owner a REST URL names from `http.owners` or the morph map. A {@see Settable}
+ * model is loaded so its parents take part in reads.
  */
 #[Scoped]
 final readonly class MorphMapOwnerResolver
 {
-    /** @param array<array-key, mixed> $owners `http.owners`: alias => class, for aliases outside the morph map */
+    /** @param array<array-key, mixed> $owners alias => class, for aliases outside the morph map */
     public function __construct(
         #[Config('laranail.settings.http.owners', [])]
         private array $owners = [],
@@ -52,8 +50,7 @@ final readonly class MorphMapOwnerResolver
             throw new UnknownOwner(sprintf('No [%s] owner with id [%s].', $alias, $id));
         }
 
-        // Its parents count only when the alias is the model's own morph alias; otherwise the
-        // owner is addressed by alias and id alone, as the URL named it.
+        // Parents count only when the alias is the model's own morph alias.
         return $model->getMorphClass() === $alias ? $model : $ref;
     }
 }

@@ -8,10 +8,7 @@ use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 
-/**
- * What an audit query selects: every condition is optional and they combine with AND. `store`
- * also picks the connection whose audit table is read (the default store's when null).
- */
+/** Audit query conditions, combined with AND. `store` also picks the connection that is read. */
 final readonly class AuditFilter
 {
     public function __construct(
@@ -24,7 +21,7 @@ final readonly class AuditFilter
         public ?CarbonImmutable $until = null,
     ) {}
 
-    /** A copy with some conditions replaced (named arguments; the rest are kept). */
+    /** A copy with the named conditions replaced. */
     public function with(
         ?StoreName $store = null,
         ?Scope $scope = null,

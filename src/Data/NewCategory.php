@@ -7,11 +7,8 @@ namespace Simtabi\Laranail\Settings\Data;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
 /**
- * The input for creating a category: slug and title, optionally a parent (by slug), a
- * description, an icon name, a sort position and, for `translations.mode = json` (D-8), the
- * title per locale. Under `lang` the translations are ignored: the title is plain text or a
- * translation key. `system` marks a category shipped by code or the default seeder
- * (`is_system`), which UIs do not let anyone delete.
+ * The input for creating a category. `translations` apply only in json translations mode;
+ * `system` marks a category shipped by code.
  */
 final readonly class NewCategory
 {

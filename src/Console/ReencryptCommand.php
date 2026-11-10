@@ -11,9 +11,8 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.reencrypt`: after rotating APP_KEY (with the old key in APP_PREVIOUS_KEYS),
- * encrypt every stored secret again under the new key: live values, history and change requests.
- * Exits 1 when a value could be read with no key (it is left as it was).
+ * Encrypt every stored secret again under the current APP_KEY, reading with APP_PREVIOUS_KEYS.
+ * Exits 1 when a value cannot be read with any key.
  */
 final class ReencryptCommand extends Command
 {

@@ -12,11 +12,7 @@ use Simtabi\Laranail\Settings\Data\ChangeProposal;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 
-/**
- * Store a value: needs `update` (and `override_lock` over a locked row the store lets be
- * overridden). Shared by the PHP API and, later, the console and REST channels. A write naming
- * the version it expects is checked against it and never retried.
- */
+/** Store a value. A write naming an expected version is checked against it and never retried. */
 final readonly class SetSetting
 {
     public function __construct(

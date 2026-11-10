@@ -12,9 +12,8 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.prune-history`: apply the history retention policy, `history.keep_days`
- * and `history.keep_versions` (or `--days` / `--versions`). Runs as the system actor and is
- * audited.
+ * Apply the history retention policy, `history.keep_days` and `history.keep_versions` (or
+ * `--days` and `--versions`).
  */
 final class PruneHistoryCommand extends Command
 {

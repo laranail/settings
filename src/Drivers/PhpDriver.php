@@ -15,9 +15,7 @@ use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 
 /**
- * A read-only PHP file returning `['dotted.key' => value]`: the shipped-defaults layer.
- * Keys are flat and dotted at the top level, so a value may itself be an array. A missing file
- * is an empty layer. Opcache keeps the file cheap to read on every request.
+ * A read-only PHP file returning `['dotted.key' => value]`; a missing file is an empty layer.
  */
 final class PhpDriver implements Driver
 {

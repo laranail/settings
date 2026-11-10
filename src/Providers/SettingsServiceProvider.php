@@ -38,9 +38,11 @@ use Simtabi\Laranail\Settings\Audit\LogAuditSink;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Audit\AutoAuditSink;
 use Simtabi\Laranail\Settings\Audit\NullAuditSink;
 use Simtabi\Laranail\Settings\Console\DiffCommand;
+use Simtabi\Laranail\Settings\Console\ShowCommand;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
 use Simtabi\Laranail\Settings\Models\ModelContext;
@@ -119,18 +121,10 @@ use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 /**
  * Registers laranail/settings with the host application.
  *
- * Every name it registers is vendor-scoped: config at `laranail.settings`, publish tags
- * `laranail::settings-*`, and the install command `laranail::settings.install`. Nothing here
- * touches the database or the filesystem at boot: stores, drivers and definitions are built on
- * first use, and the encrypter is resolved only when a value is encrypted or decrypted.
- *
- * Most classes are autowired: their lifetime is a `#[Scoped]` or `#[Singleton]` attribute on the
- * class, and their configuration a `#[Config]` attribute on the parameter. What is bound here is
- * what configuration chooses or validates (drivers, sinks, authorizers, verifiers, resolvers,
- * cache stores), and the few services whose collaborators are closures on purpose. Everything
- * derived from a request is scoped, so Octane and queue workers start each request and job clean.
- * Configuration naming an unknown driver, sink or level raises InvalidConfiguration with its
- * config path on first use.
+ * Nothing here touches the database or the filesystem at boot: stores, drivers and definitions
+ * are built on first use. Most classes are autowired through `#[Scoped]`, `#[Singleton]` and
+ * `#[Config]` attributes; what is bound here is what configuration chooses or validates. A bad
+ * configuration value raises InvalidConfiguration naming its config path on first use.
  */
 final class SettingsServiceProvider extends PackageServiceProvider
 {
@@ -140,19 +134,13 @@ final class SettingsServiceProvider extends PackageServiceProvider
             ->name('laranail/settings')
             ->setPublishTagId('settings')
             ->hasConfigFile('settings')
-            // `laranail/settings::settings.*` (resources/lang) and the one view, the alert mail
-            // (`laranail/settings::mail.alert`); both publishable. The REST API's routes are
-            // loaded in packageBooted(), behind the http.enabled switch.
             ->hasTranslations()
             ->hasViews()
             ->hasMigrations(['create_laranail_settings_tables'])
-            // Runs with the host's `php artisan db:seed`; the seeder itself honours seed.enabled.
-            // Foreign keys stay checked (a child category needs its parent) and events fire (the
-            // settings API dispatches CategorySaving/Saved and writes the audit trail).
+            // Foreign keys stay checked (a child category needs its parent) and events fire.
             ->hasPackageSeeders(AutoSeederDefinition::make('laranail/settings:defaults')
                 ->seeders([DefaultCategoriesSeeder::class])
                 ->options(['disable_foreign_key_checks' => false, 'fire_events' => true]))
-            // The REST API's limit: `http.rate_limit` requests a minute per user (or IP); 0 is none.
             ->registerRateLimiter('laranail-settings', static function (Request $request): Limit {
                 $perMinute = config()->integer('laranail.settings.http.rate_limit', 60);
                 $user = $request->user()?->getAuthIdentifier();
@@ -170,6 +158,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 HistoryCommand::class,
                 MakeStoreCommand::class,
                 DoctorCommand::class,
+                ShowCommand::class,
                 SyncDefinitionsCommand::class,
                 WarmCacheCommand::class,
                 ClearCacheCommand::class,
@@ -199,51 +188,73 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $this->app->scoped(Settings::class, SettingsManager::class);
 
         $this->registerTenancy();
+        $this->registerDrivers();
         $this->registerStores();
+        $this->registerCache();
         $this->registerDefinitions();
+        $this->registerLogging();
+        $this->registerAudit();
         $this->registerAccess();
         $this->registerHttp();
+        $this->registerAlerts();
         $this->registerTyped();
     }
 
     #[Override]
     public function packageBooted(): void
     {
-        $app = $this->app;
-        $events = $app->make(Dispatcher::class);
-        $config = $app->make(Repository::class);
+        $config = $this->app->make(Repository::class);
 
-        // db-tools memoises readiness in a singleton: forget it once the schema may have changed,
-        // at the start of every queued job and Octane request, and on the tenant switches the
-        // tenancy packages announce (`readiness.flush_on`; db-tools has no hook of its own).
-        $flush = static function () use ($app): void {
-            $app->make(SchemaReadinessInterface::class)->flush();
-        };
-
-        foreach ([MigrationsEnded::class, JobProcessing::class, 'Laravel\\Octane\\Events\\RequestReceived', ...self::strings($config, 'laranail.settings.readiness.flush_on')] as $event) {
-            $events->listen($event, $flush);
-        }
-
-        // Each typed settings class `typed.classes` lists resolves loaded, through the request's handle.
-        foreach (self::strings($config, 'laranail.settings.typed.classes') as $class) {
-            if (is_subclass_of($class, TypedSettings::class)) {
-                $app->bind($class, static fn (Application $app): TypedSettings => $class::load($app->make(Settings::class)));
-            }
-        }
+        $this->bootReadinessFlush($config);
+        $this->bootTypedBindings($config);
 
         if (filter_var($config->get('laranail.settings.http.enabled', false), FILTER_VALIDATE_BOOL)) {
             $this->bootHttp($config);
         }
 
-        // The built-in listeners, registered by class: nothing is built until an event fires.
-        if ($config->get('laranail.settings.listeners.log', false) === true) {
-            $events->listen(LogSettingsEvent::EVENTS, LogSettingsEvent::class);
-        }
+        $this->bootListeners($config);
+    }
 
-        if ($config->get('laranail.settings.listeners.alerts', true) !== false && filter_var($config->get('laranail.settings.alerts.enabled', false), FILTER_VALIDATE_BOOL)) {
-            $events->listen(SendSettingsAlert::EVENTS, SendSettingsAlert::class);
+    // Install steps ------------------------------------------------------------------------
+
+    /** Refuse to install over a same-named table that is not this package's. */
+    private static function refuseForeignTables(InstallCommand $command): void
+    {
+        $foreign = $command->getLaravel()->make(FindForeignTables::class)->handle();
+
+        if ($foreign !== []) {
+            throw new InvalidConfiguration(sprintf(
+                'These tables already exist and are not laranail/settings tables: %s. Set laranail.settings.tables.prefix (or stores.<name>.table, tables.categories, tables.audit) and install again.',
+                implode(', ', $foreign),
+            ));
         }
     }
+
+    /** Record the schema the published migrations will produce; an existing record only gains new stores. */
+    private static function recordSchema(InstallCommand $command): void
+    {
+        $shapes = $command->getLaravel()->make(SchemaShapeRepository::class);
+        $shapes->record();
+        $command->info('Recorded the settings schema in ' . $shapes->path());
+    }
+
+    /** Copy code and config definitions into the definitions table, when it exists already. */
+    private static function syncDefinitions(InstallCommand $command): void
+    {
+        try {
+            $report = $command->getLaravel()->make(SyncDefinitions::class)->handle(Actor::system('laranail::settings.install'));
+        } catch (SettingsException) {
+            $command->comment('Definitions were not synced (run the migrations, then laranail::settings.sync-definitions).');
+
+            return;
+        }
+
+        if ($report['synced'] > 0) {
+            $command->info(sprintf('Synced %d definition(s) into the definitions table.', $report['synced']));
+        }
+    }
+
+    // Configuration readers ----------------------------------------------------------------
 
     /** `cache.enabled`: on unless set to a false value. */
     private static function cacheEnabled(Application $app): bool
@@ -251,7 +262,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
         return filter_var($app->make(Repository::class)->get('laranail.settings.cache.enabled', true), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? true;
     }
 
-    /** A Laravel cache repository by store name (null: the default store), or InvalidConfiguration naming `$path`. */
+    /** A Laravel cache repository by store name (null for the default store). */
     private static function cacheStore(Application $app, mixed $name, string $path): CacheRepository
     {
         if ($name !== null && (! is_string($name) || $name === '')) {
@@ -268,8 +279,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
     }
 
     /**
-     * `configuration.sources`: the merge order of `config`, `database` and `runtime` stores and
-     * layers, later wins.
+     * `configuration.sources`: the merge order of config, database and runtime entries, later wins.
      *
      * @return list<string>
      */
@@ -286,8 +296,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
     }
 
     /**
-     * `definitions.sources` (D-6): which of `code`, `config` and `database` are read. Code
-     * definitions are registered in code and are always read.
+     * `definitions.sources`: which of code, config and database are read (code always is).
      *
      * @return list<string>
      */
@@ -320,8 +329,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
     private static function auditSink(Application $app, mixed $sink, string $path): AuditSink
     {
-        // The database sink finds its store per entry, so it reaches the registry through a
-        // closure: the registry's own collaborators audit through this sink.
+        // The registry's own collaborators audit through this sink, so it reaches the registry lazily.
         $database = static fn (): DatabaseAuditSink => new DatabaseAuditSink(static fn (): StoreRegistry => $app->make(StoreRegistry::class));
 
         return match ($sink) {
@@ -334,7 +342,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
     }
 
     /**
-     * A custom implementation named by class in config: it must exist and implement the contract.
+     * A custom implementation named by class in config; it must implement the contract.
      *
      * @template T of object
      *
@@ -353,83 +361,9 @@ final class SettingsServiceProvider extends PackageServiceProvider
         return $instance instanceof $contract ? $instance : throw new InvalidConfiguration(sprintf('%s: [%s] did not build a %s.', $path, $class, $contract));
     }
 
-    /**
-     * Install refuses to publish migrations over a table of the same name that is not this
-     * package's (D-4): rename the package's tables with `tables.prefix` or `stores.<name>.table`.
-     */
-    private static function refuseForeignTables(InstallCommand $command): void
-    {
-        $foreign = $command->getLaravel()->make(FindForeignTables::class)->handle();
+    // Registration -------------------------------------------------------------------------
 
-        if ($foreign !== []) {
-            throw new InvalidConfiguration(sprintf(
-                'These tables already exist and are not laranail/settings tables: %s. Set laranail.settings.tables.prefix (or stores.<name>.table, tables.categories, tables.audit) and install again.',
-                implode(', ', $foreign),
-            ));
-        }
-    }
-
-    /**
-     * Record the schema the published migrations will produce (§4.0), so the runtime reads that
-     * record rather than live configuration. An existing record is kept and only new stores are
-     * added to it.
-     */
-    private static function recordSchema(InstallCommand $command): void
-    {
-        $shapes = $command->getLaravel()->make(SchemaShapeRepository::class);
-        $shapes->record();
-        $command->info('Recorded the settings schema in ' . $shapes->path());
-    }
-
-    /** Copy code and config definitions into the definitions table, when it exists already. */
-    private static function syncDefinitions(InstallCommand $command): void
-    {
-        try {
-            $report = $command->getLaravel()->make(SyncDefinitions::class)->handle(Actor::system('laranail::settings.install'));
-        } catch (SettingsException) {
-            $command->comment('Definitions were not synced (run the migrations, then laranail::settings.sync-definitions).');
-
-            return;
-        }
-
-        if ($report['synced'] > 0) {
-            $command->info(sprintf('Synced %d definition(s) into the definitions table.', $report['synced']));
-        }
-    }
-
-    /**
-     * The REST API (§16.10): routes/api.php under `http.prefix`/v1 (an empty prefix mounts it at
-     * /v1), and problem details for the errors its routes raise. Reads configuration only.
-     */
-    private function bootHttp(Repository $config): void
-    {
-        $middleware = $config->get('laranail.settings.http.middleware');
-        $middleware = is_array($middleware)
-            ? array_values(array_filter($middleware, is_string(...)))
-            : ['api', class_exists('Laravel\\Sanctum\\Sanctum') ? 'auth:sanctum' : 'auth'];
-        $prefix = trim($config->string('laranail.settings.http.prefix', 'api/settings'), '/');
-
-        if (! $this->app instanceof CachesRoutes || ! $this->app->routesAreCached()) {
-            Route::prefix(ltrim($prefix . '/v1', '/'))
-                ->name('laranail-settings.api.')
-                ->middleware([...$middleware, 'throttle:laranail-settings'])
-                ->where(['store' => '[a-z][a-z0-9_]*', 'key' => '[A-Za-z0-9_.]+', 'alias' => '[a-z][a-z0-9_]*', 'kind' => 'stores|layers'])
-                ->group($this->package->basePath('/routes/api.php'));
-        }
-
-        $handler = $this->app->make(ExceptionHandler::class);
-        $app = $this->app;
-
-        if (method_exists($handler, 'renderable')) {
-            $handler->renderable(static fn (Throwable $exception, Request $request): mixed => $app->make(Problems::class)->render($exception, $request));
-        }
-    }
-
-    /**
-     * Tenancy (Amendment B): who the current tenant is, and the context the Eloquent models read
-     * it from. `tenancy.discriminator`: `auto`, `null`, `stancl`, `spatie`, or a class
-     * implementing TenantDiscriminator.
-     */
+    /** The current tenant, and the context the Eloquent models read it from. */
     private function registerTenancy(): void
     {
         $this->app->scoped(TenantDiscriminator::class, static function (Application $app): TenantDiscriminator {
@@ -448,8 +382,8 @@ final class SettingsServiceProvider extends PackageServiceProvider
         );
     }
 
-    /** Drivers, the recorded schema, the stores, the runtime configuration and the cache. */
-    private function registerStores(): void
+    /** The driver factory, the recorded schema, installation evidence and the value encrypter. */
+    private function registerDrivers(): void
     {
         // A singleton, so a driver registered with extend() lasts; the scoped services it hands
         // to database drivers are closures, resolved for the request that uses them.
@@ -486,6 +420,16 @@ final class SettingsServiceProvider extends PackageServiceProvider
             );
         });
 
+        // Resolved only when a value is encrypted or decrypted, so an application without an
+        // APP_KEY yet still boots and reads its unencrypted settings.
+        $this->app->singleton(LaravelValueEncrypter::class, static fn (Application $app): LaravelValueEncrypter => new LaravelValueEncrypter(
+            static fn (): StringEncrypter => $app->make(StringEncrypter::class),
+        ));
+    }
+
+    /** The store registry, its runtime configuration and the make-store action. */
+    private function registerStores(): void
+    {
         // Its change log is a closure: the logger and the auditor read the runtime configuration.
         $this->app->scoped(RuntimeConfiguration::class, static fn (Application $app): RuntimeConfiguration => new RuntimeConfiguration(
             $app->make(DriverFactory::class),
@@ -494,7 +438,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(Repository::class)->array('laranail.settings.layers', []),
             $app->make(CasterRegistry::class),
             static function (string $change) use ($app): void {
-                $app->make(OperationalLogger::class)->info('laranail/settings runtime configuration: ' . $change);
+                $app->make(OperationalLogger::class)->info('laranail/settings runtime configuration: ' . $change, LogContext::of(extra: ['change' => $change]));
                 $app->make(Auditor::class)->record(AuditAction::Configure, AuditOutcome::Allowed, null, null, meta: ['change' => $change]);
             },
         ));
@@ -512,7 +456,17 @@ final class SettingsServiceProvider extends PackageServiceProvider
             sources: self::configurationSources($app->make(Repository::class)),
         ));
 
-        // The settings cache (§7.5): the configured cache store, null for the default one.
+        $this->app->bind(MakeStore::class, static fn (Application $app): MakeStore => new MakeStore(
+            $app->make(Filesystem::class),
+            dirname(__DIR__, 2) . '/database/migrations/' . MakeStore::MIGRATION . '.php',
+            $app->databasePath('migrations'),
+            $app->make(SchemaShapeRepository::class),
+        ));
+    }
+
+    /** The settings cache on the configured cache store, and the action that resets it. */
+    private function registerCache(): void
+    {
         $this->app->scoped(SettingsCache::class, static function (Application $app): SettingsCache {
             $config = $app->make(Repository::class);
 
@@ -531,22 +485,9 @@ final class SettingsServiceProvider extends PackageServiceProvider
             self::cacheEnabled($app) ? $app->make(SettingsCache::class) : null,
             new StoreName($app->make(Repository::class)->string('laranail.settings.default', 'settings')),
         ));
-
-        $this->app->bind(MakeStore::class, static fn (Application $app): MakeStore => new MakeStore(
-            $app->make(Filesystem::class),
-            dirname(__DIR__, 2) . '/database/migrations/' . MakeStore::MIGRATION . '.php',
-            $app->databasePath('migrations'),
-            $app->make(SchemaShapeRepository::class),
-        ));
-
-        // Resolved only when a value is encrypted or decrypted, so an application without an
-        // APP_KEY yet still boots and reads its unencrypted settings.
-        $this->app->singleton(LaravelValueEncrypter::class, static fn (Application $app): LaravelValueEncrypter => new LaravelValueEncrypter(
-            static fn (): StringEncrypter => $app->make(StringEncrypter::class),
-        ));
     }
 
-    /** Code and config definitions, the definitions table (D-6) and the approval policy (§16.7). */
+    /** Code and config definitions, the definitions table and the approval policy. */
     private function registerDefinitions(): void
     {
         $this->app->singleton(DefinitionRegistry::class, static fn (Application $app): DefinitionRegistry => new DefinitionRegistry(
@@ -565,8 +506,8 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $this->app->scoped(ApprovalPolicy::class, static fn (Application $app): ApprovalPolicy => ApprovalPolicy::fromConfig($app->make(Repository::class)->array('laranail.settings.approvals', [])));
     }
 
-    /** Actor resolution, authorization, verification, audit and the operational log. */
-    private function registerAccess(): void
+    /** The operational log, on `logging.channel` at `logging.level`. */
+    private function registerLogging(): void
     {
         $this->app->scoped(OperationalLogger::class, static function (Application $app): OperationalLogger {
             $config = $app->make(Repository::class);
@@ -578,7 +519,11 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 $app->make(RuntimeConfiguration::class),
             );
         });
+    }
 
+    /** The auditor and the sinks `audit.sinks` names. */
+    private function registerAudit(): void
+    {
         $this->app->scoped(Auditor::class, static function (Application $app): Auditor {
             $sinks = $app->make(Repository::class)->array('laranail.settings.audit.sinks', []);
 
@@ -588,7 +533,11 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 $app->make(RuntimeConfiguration::class),
             );
         });
+    }
 
+    /** Actor resolution, authorization, verification and the access guard. */
+    private function registerAccess(): void
+    {
         $this->app->scoped(Authorizer::class, static function (Application $app): Authorizer {
             $driver = $app->make(Repository::class)->get('laranail.settings.authorization.driver', 'gate');
 
@@ -646,7 +595,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
         });
     }
 
-    /** The REST API's idempotency cache, and the alert listener with its rules and throttle. */
+    /** The REST API's idempotency cache. */
     private function registerHttp(): void
     {
         $this->app->bind(IdempotentWrites::class, static fn (Application $app): IdempotentWrites => new IdempotentWrites(
@@ -654,7 +603,11 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(Repository::class)->integer('laranail.settings.http.idempotency.ttl', 86400),
             $app->make(Repository::class)->string('laranail.settings.cache.prefix', 'laranail-settings'),
         ));
+    }
 
+    /** The alert listener, with its rules and throttle. */
+    private function registerAlerts(): void
+    {
         $this->app->bind(SendSettingsAlert::class, static function (Application $app): SendSettingsAlert {
             $config = $app->make(Repository::class);
             $throttle = $config->integer('laranail.settings.alerts.throttle', 300);
@@ -680,11 +633,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
         });
     }
 
-    /**
-     * Typed settings (Phase 5): each class in `typed.classes` registers its definitions when the
-     * definition registry is first built (and is bound at boot); settings migrations get their
-     * migrator.
-     */
+    /** Each class in `typed.classes` registers its definitions; settings migrations get their migrator. */
     private function registerTyped(): void
     {
         $app = $this->app;
@@ -704,5 +653,74 @@ final class SettingsServiceProvider extends PackageServiceProvider
             new StoreName($app->make(Repository::class)->string('laranail.settings.default', 'settings')),
             Actor::system('settings migration'),
         ));
+    }
+
+    // Boot ---------------------------------------------------------------------------------
+
+    /**
+     * db-tools memoises schema readiness in a singleton and has no hook of its own: forget it after
+     * migrations, per queued job and Octane request, and on the events `readiness.flush_on` names.
+     */
+    private function bootReadinessFlush(Repository $config): void
+    {
+        $app = $this->app;
+        $events = $app->make(Dispatcher::class);
+
+        $flush = static function () use ($app): void {
+            $app->make(SchemaReadinessInterface::class)->flush();
+        };
+
+        foreach ([MigrationsEnded::class, JobProcessing::class, 'Laravel\\Octane\\Events\\RequestReceived', ...self::strings($config, 'laranail.settings.readiness.flush_on')] as $event) {
+            $events->listen($event, $flush);
+        }
+    }
+
+    /** Each typed settings class in `typed.classes` resolves loaded, through the request's handle. */
+    private function bootTypedBindings(Repository $config): void
+    {
+        foreach (self::strings($config, 'laranail.settings.typed.classes') as $class) {
+            if (is_subclass_of($class, TypedSettings::class)) {
+                $this->app->bind($class, static fn (Application $app): TypedSettings => $class::load($app->make(Settings::class)));
+            }
+        }
+    }
+
+    /** The REST API's routes under `http.prefix`/v1, and problem details for its errors. */
+    private function bootHttp(Repository $config): void
+    {
+        $middleware = $config->get('laranail.settings.http.middleware');
+        $middleware = is_array($middleware)
+            ? array_values(array_filter($middleware, is_string(...)))
+            : ['api', class_exists('Laravel\\Sanctum\\Sanctum') ? 'auth:sanctum' : 'auth'];
+        $prefix = trim($config->string('laranail.settings.http.prefix', 'api/settings'), '/');
+
+        if (! $this->app instanceof CachesRoutes || ! $this->app->routesAreCached()) {
+            Route::prefix(ltrim($prefix . '/v1', '/'))
+                ->name('laranail-settings.api.')
+                ->middleware([...$middleware, 'throttle:laranail-settings'])
+                ->where(['store' => '[a-z][a-z0-9_]*', 'key' => '[A-Za-z0-9_.]+', 'alias' => '[a-z][a-z0-9_]*', 'kind' => 'stores|layers'])
+                ->group($this->package->basePath('/routes/api.php'));
+        }
+
+        $handler = $this->app->make(ExceptionHandler::class);
+        $app = $this->app;
+
+        if (method_exists($handler, 'renderable')) {
+            $handler->renderable(static fn (Throwable $exception, Request $request): mixed => $app->make(Problems::class)->render($exception, $request));
+        }
+    }
+
+    /** The built-in listeners, registered by class so nothing is built until an event fires. */
+    private function bootListeners(Repository $config): void
+    {
+        $events = $this->app->make(Dispatcher::class);
+
+        if ($config->get('laranail.settings.listeners.log', false) === true) {
+            $events->listen(LogSettingsEvent::EVENTS, LogSettingsEvent::class);
+        }
+
+        if ($config->get('laranail.settings.listeners.alerts', true) !== false && filter_var($config->get('laranail.settings.alerts.enabled', false), FILTER_VALIDATE_BOOL)) {
+            $events->listen(SendSettingsAlert::EVENTS, SendSettingsAlert::class);
+        }
     }
 }

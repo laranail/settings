@@ -11,16 +11,9 @@ use Simtabi\Laranail\Settings\Importers\AkauntingSettingsImporter;
 | laranail/settings
 |--------------------------------------------------------------------------
 |
-| Read at `config('laranail.settings.*')` and published to
-| `config/laranail/settings.php` with:
-|
-|     php artisan laranail::settings.install
-|
-| The default store keeps its values in the database (the install command
-| above publishes the package's one migration; then run `php artisan
-| migrate`), above a JSON runtime file and the shipped PHP defaults. An
-| application without a database drops `database` from the store's
-| `layers`.
+| Read from `config('laranail.settings.*')`. Publish it to
+| `config/laranail/settings.php` with `php artisan laranail::settings.install`,
+| which also publishes the migration.
 |
 */
 
@@ -32,31 +25,26 @@ return [
     'default' => env('LARANAIL_SETTINGS_STORE', 'settings'),
 
     /*
-    | Stores. `layers` are read in order; writes go to the first writable one.
-    | `owners` lists the morph aliases this store holds values for (each alias
-    | belongs to one store). `strict` makes keys without a definition an error.
-    | `inherits` lets owners fall back to their parents and to the global value
-    | when a definition does not say otherwise. `locks.overridable` lets an
-    | actor holding `override_lock` write a locked setting; off, a lock binds
-    | everyone. `table` names the store's database table (default: the store
-    | name). `bootstrap` lets the database layer be skipped while, and only
-    | while, the application is being installed (see `bootstrap` below);
-    | otherwise an unreachable database raises DriverUnavailable.
+    | Stores, by name.
     |
-    | Schema switches per store (migration-time, recorded in the schema file):
-    | `mode` is `polymorphic` (settable_type/settable_id, any listed alias, plus
-    | global rows) or `dedicated` (one owner alias, a non-null `owner_id` foreign
-    | key to `owner.table`, owner rows only; its global values come from
-    | `fallback`, default the default store). `soft_deletes` keeps forgotten rows
-    | as trashed and restores them on the next write. `approvals.keys` lists key
-    | globs (`mail.*`) whose writes become change requests (see `approvals`).
+    | layers:        the layers read in order; writes go to the first writable one.
+    | owners:        the morph aliases this store holds values for.
+    | strict:        reject keys that have no definition.
+    | inherits:      let owners fall back to their parents and the global value.
+    | locks:         `overridable` lets an actor with `override_lock` write a
+    |                locked setting.
+    | approvals:     key globs (`mail.*`) whose writes become change requests.
+    | bootstrap:     skip the database layer while the application installs.
+    | table:         the values table name (default: the store name).
+    | mode:          `polymorphic` or `dedicated` (one owner alias, with a
+    |                foreign key to `owner.table`). Recorded at migration time.
+    | soft_deletes:  keep forgotten rows trashed and restore them on write.
     |
     |     'user_settings' => [
     |         'layers' => ['database'],
     |         'owners' => ['user'],
     |         'mode'   => 'dedicated',
     |         'owner'  => ['table' => 'users', 'key' => 'id', 'type' => null],
-    |         'soft_deletes' => false,
     |     ],
     */
     'stores' => [
@@ -74,17 +62,15 @@ return [
     ],
 
     /*
-    | Positive evidence that the application is being installed, for stores in
-    | bootstrap mode: set it for the install window only. laranail/installer-
-    | headless reporting an install in progress counts too. The absence of
-    | evidence never does.
+    | Set while the application is being installed, so stores in bootstrap
+    | mode skip their database layer. laranail/installer-headless reporting an
+    | install in progress counts too.
     */
     'bootstrap' => env('LARANAIL_SETTINGS_BOOTSTRAP', false),
 
     /*
-    | Table names (D-4). `prefix` goes in front of every table, including each
-    | store's values table. Install refuses to run over a table of the same
-    | name that is not this package's.
+    | Table names. `prefix` is prepended to every table, including each store's
+    | values table.
     */
     'tables' => [
         'prefix'          => env('LARANAIL_SETTINGS_TABLE_PREFIX', ''),
@@ -98,25 +84,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Schema switches (migration-time)
+    | Schema switches
     |--------------------------------------------------------------------------
     |
-    | Read by `install` and `make-store`, which record the shape the package
-    | migration produces in the schema file (`schema.path`, default
-    | database/settings-schema.php); the migration reads that file.
-    | The package then reads that file, not these keys, so changing a switch
-    | after migrating changes nothing until a migration says so; `doctor`
-    | reports the drift. The defaults are the recommended shape.
+    | Read by `install` and `make-store`, which record the resulting shape in
+    | the schema file (`schema.path`, default database/settings-schema.php).
+    | The package reads that file at runtime, so changing a switch after
+    | migrating has no effect until a migration applies it; `doctor` reports
+    | the drift.
     |
-    | identity.mode: `slug_uid` (a slug shared by a key's rows and a ULID per
-    | row), `slug_per_row` (a unique sha1 slug per row, no uid) or `uid_only`.
-    | ids.type: `bigint`, `uuid` or `ulid`; null follows laranail.db-tools.id_type.
-    | ids.owner_key: `string` (settable_id as string(36)) or `typed` (typed like
-    | laranail.db-tools.id_type, for owners that share one key type).
-    | translations.mode: `lang` (titles, labels and descriptions as text) or
-    | `json` (per-locale JSON maps).
-    | categories.soft_deletes: categories are trashed, and restored when the slug
-    | is created again.
+    | identity.mode:           `slug_uid`, `slug_per_row` or `uid_only`.
+    | ids.type:                `bigint`, `uuid`, `ulid`, or null to follow
+    |                          laranail.db-tools.id_type.
+    | ids.owner_key:           `string` (settable_id as string(36)) or `typed`.
+    | translations.mode:       `lang` (plain text) or `json` (per-locale maps).
+    | categories.soft_deletes: trash categories and restore them on re-create.
     */
     'schema' => [
         'path' => env('LARANAIL_SETTINGS_SCHEMA_PATH'),
@@ -144,20 +126,16 @@ return [
     | Tenancy
     |--------------------------------------------------------------------------
     |
-    | mode (migration-time, recorded in the schema file):
-    |   `none`     one set of settings for the application (the default);
-    |   `column`   one database: the values, categories and audit tables get a
-    |              `tenant` column, every row is stamped with the current tenant
-    |              and every query is limited to it ('' is the central rows);
-    |   `database` a database per tenant, switched by the tenancy package: no
-    |              tenant column; publish the migration into the tenant
-    |              migrations folder.
-    | discriminator: who the current tenant is. `auto` uses stancl/tenancy or
-    | spatie/laravel-multitenancy when installed (neither is required), else
-    | none; or `null`, `stancl`, `spatie`, or a class implementing
-    | Simtabi\Laranail\Settings\Contracts\TenantDiscriminator. In every mode
-    | the tenant also keys what is held in memory during a request or job.
-    | Definitions are shared by every tenant.
+    | mode (recorded at migration time):
+    |   `none`      one set of settings for the application.
+    |   `column`    a `tenant` column on every table, filled and filtered with
+    |               the current tenant ('' is the central partition).
+    |   `database`  a database per tenant; publish the migration into the
+    |               tenant migrations folder.
+    |
+    | discriminator: `auto` (stancl/tenancy or spatie/laravel-multitenancy when
+    | installed), `null`, `stancl`, `spatie`, or a class implementing
+    | Simtabi\Laranail\Settings\Contracts\TenantDiscriminator.
     */
     'tenancy' => [
         'mode'          => env('LARANAIL_SETTINGS_TENANCY', 'none'),
@@ -165,14 +143,10 @@ return [
     ],
 
     /*
-    | Default data, seeded with the application's `php artisan db:seed` (or
-    | `db:seed --class="Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder"`).
-    | `categories` are created as system categories in each of `stores` (empty:
-    | the default store), as the system actor, so they are validated and
-    | audited; one that already exists is left as it is, so seeding twice
-    | changes nothing. A category is `slug => title` or `slug => [title,
-    | description, icon, parent, sort_order, translations]`. No setting values
-    | and never any credentials are seeded. `enabled` false switches it off.
+    | Categories seeded by `php artisan db:seed` as system categories in each of
+    | `stores` (empty: the default store). Existing categories are left as they
+    | are. A category is `slug => title` or `slug => [title, description, icon,
+    | parent, sort_order, translations]`.
     */
     'seed' => [
         'enabled'    => env('LARANAIL_SETTINGS_SEED', true),
@@ -188,26 +162,22 @@ return [
     ],
 
     /*
-    | Writes. `retry_on_conflict` retries a plain set() once when another writer
-    | changed the row between the read and the write (re-reading it under a row
-    | lock where the database supports one). A write that names the version it
-    | expects is never retried.
+    | retry_on_conflict: retry a plain set() once when another writer changed
+    | the row first. Writes that name an expected version are never retried.
     */
     'writes' => [
         'retry_on_conflict' => true,
     ],
 
     /*
-    | The settings cache (database layers only; file layers are read directly).
-    | It holds each scope's raw rows (a "bag"), keyed by connection, database,
-    | tenant, store and scope, and is invalidated on every write by replacing a
-    | generation token, so a write is visible on the next read everywhere.
-    | `store` is a cache store from config/cache.php (null: the default one;
-    | it must exist, and a node-local store such as `array` or `file` is only
-    | right for a single server). `ttl` is how long a bag is fresh; for `stale`
-    | seconds after that it is still answered while it is refreshed in the
-    | background (Cache::flexible()); 0 turns that off. `prefix` starts every
-    | key, so two applications can share a cache store.
+    | The cache in front of database layers.
+    |
+    | store:   a cache store from config/cache.php, or null for the default.
+    |          Use a shared store when running more than one server.
+    | prefix:  prepended to every cache key.
+    | ttl:     seconds a cached scope stays fresh.
+    | stale:   seconds a stale scope is still served while it refreshes;
+    |          0 turns this off.
     */
     'cache' => [
         'enabled' => env('LARANAIL_SETTINGS_CACHE', true),
@@ -218,10 +188,9 @@ return [
     ],
 
     /*
-    | Events after which the schema readiness memo is forgotten, besides
-    | migrations, queued jobs and Octane requests: tenant switches. db-tools has
-    | no tenant hook of its own, so the tenancy packages' events are listened to
-    | by name (no dependency is added; an event that never fires costs nothing).
+    | Events that reset the schema readiness check, in addition to migrations,
+    | queued jobs and Octane requests. Listed by name, so no tenancy package is
+    | required.
     */
     'readiness' => [
         'flush_on' => [
@@ -233,9 +202,9 @@ return [
     ],
 
     /*
-    | Layers, by name. Drivers: database, json, php, config, array, or a custom
-    | one registered with DriverFactory::extend(). A JSON path must contain
-    | {store}. A database layer's `connection` is null for the default one.
+    | Layers, by name. Drivers: database, json, php, config, array, or one
+    | registered with DriverFactory::extend(). A JSON path must contain {store};
+    | a null database `connection` uses the default connection.
     */
     'layers' => [
         'database' => [
@@ -255,16 +224,12 @@ return [
     ],
 
     /*
-    | Definitions, `key => attributes`: type, default, rules, encrypted,
-    | public, locked, localised, inherits, overridable_by, precedence,
-    | label, description, category, group, store. Definitions can also be
-    | registered in code through DefinitionRegistry::define().
+    | Setting definitions are registered in code with DefinitionRegistry::define()
+    | or kept in the definitions table.
     |
-    | Three names are options, not keys (D-6): `table` creates the optional
-    | settings_definitions table (migration-time), `sources` lists where
-    | definitions come from, merged in order, later wins per field (`code`,
-    | `config`, `database`; `database` is read only when the table exists),
-    | and `allowed_rules` filters the rules of database definitions.
+    | table:         create the settings_definitions table (migration time).
+    | sources:       where definitions come from, merged in order, later wins.
+    | allowed_rules: the validation rules a database definition may use.
     */
     'definitions' => [
         'table'         => false,
@@ -274,19 +239,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Access: actors, authorization, verification, audit, logging
+    | Access
     |--------------------------------------------------------------------------
     |
     | A call made with an actor (`Settings::as($user)`) is authorized; a call
     | without one runs as trusted code and is audited as `system`.
     |
-    */
-
-    /*
-    | How `asCurrentActor()` finds the actor: `guard` (the first of `guards`
-    | with a user; empty means the default guard), `sanctum` (also reads the
-    | token's abilities; needs laravel/sanctum), or a class implementing
-    | ActorResolver.
+    | resolver: how asCurrentActor() finds the actor: `guard` (the first of
+    | `guards` with a user), `sanctum` (also reads token abilities), or a class
+    | implementing ActorResolver.
     */
     'authentication' => [
         'resolver' => env('LARANAIL_SETTINGS_ACTOR_RESOLVER', 'guard'),
@@ -294,12 +255,12 @@ return [
     ],
 
     /*
-    | `driver`: `gate` (asks `laranail-settings.<ability>`), `permissions`
-    | (asks `$user->can()` with the names below), a class implementing
-    | Authorizer, or a list of these tried in order. `undefined` decides an
-    | ability nobody defined: `deny` (fails closed) or `allow`.
-    | `require_actor` refuses calls without an actor; `asSystem()` still works.
-    | Permission names may use {ability}, {store} and {key}.
+    | driver:        `gate` (asks `laranail-settings.<ability>`), `permissions`
+    |                (asks `$user->can()` with the names below), a class
+    |                implementing Authorizer, or a list tried in order.
+    | undefined:     `deny` or `allow` an ability nobody defined.
+    | require_actor: refuse calls without an actor; asSystem() still works.
+    | permissions:   permission names; may use {ability}, {store} and {key}.
     */
     'authorization' => [
         'driver'        => env('LARANAIL_SETTINGS_AUTHORIZER', 'gate'),
@@ -328,11 +289,11 @@ return [
     ],
 
     /*
-    | Step-up verification for the abilities listed here and for definitions
-    | marked requiresVerification(). `driver`: `password_confirmation` (the
-    | session's password confirmation within auth.password_timeout, else the
-    | actor's verifiedAt), `actor` (the actor's verifiedAt within `ttl`
-    | seconds), `none`, or a class implementing Verifier.
+    | Step-up verification for these abilities and for definitions marked
+    | requiresVerification().
+    |
+    | driver: `password_confirmation`, `actor` (the actor's verifiedAt within
+    |         `ttl` seconds), `none`, or a class implementing Verifier.
     */
     'verification' => [
         'driver'    => env('LARANAIL_SETTINGS_VERIFIER', 'password_confirmation'),
@@ -341,12 +302,10 @@ return [
     ],
 
     /*
-    | Audit sinks, all of which receive every entry: `auto` (the `database`
-    | sink for a store with an active database layer, `log` otherwise),
-    | `database` (the settings_audit table), `log` (the logging channel
-    | below), `null`, or a class implementing AuditSink. Entries record actions
-    | and denials, never values. An allowed write and its database audit row
-    | commit together. `keep_days` is the retention prune-audit applies.
+    | sinks:     every sink receives every entry: `auto` (database when the
+    |            store has a database layer, else log), `database`, `log`,
+    |            `null`, or a class implementing AuditSink.
+    | keep_days: retention applied by prune-audit.
     */
     'audit' => [
         'sinks'     => ['auto'],
@@ -354,9 +313,9 @@ return [
     ],
 
     /*
-    | The operational log (denials, verification failures, configuration
-    | changes, log-sink audit entries). `channel`: null for the application's
-    | default channel, a channel name, or false to switch it off.
+    | The operational log: denials, verification failures and configuration
+    | changes. `channel` is null for the default channel, a channel name, or
+    | false to turn it off.
     */
     'logging' => [
         'channel' => null,
@@ -365,16 +324,13 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | History (§4.3)
+    | History
     |--------------------------------------------------------------------------
     |
-    | `enabled` is a schema switch: it decides whether the migration creates
-    | the settings_history table (one per connection, like the audit table),
-    | and is recorded in the schema file with the others. With it, every set,
-    | forget, lock, unlock and rollback appends the value before and after, as
-    | stored (encrypted values stay encrypted), in the same transaction as the
-    | change. `keep_days` / `keep_versions` are the retention prune-history
-    | applies; null switches that rule off.
+    | enabled:       create the settings_history table (migration time) and
+    |                record every value change in it.
+    | keep_days:     retention applied by prune-history; null to disable.
+    | keep_versions: versions kept per setting; null to disable.
     */
     'history' => [
         'enabled'       => env('LARANAIL_SETTINGS_HISTORY', true),
@@ -387,9 +343,8 @@ return [
     | Built-in listeners
     |--------------------------------------------------------------------------
     |
-    | `alerts`: send the alerts below (they still need alerts.enabled).
-    | `log`: write every settings event to the logging channel above. Off by
-    | default, because the audit trail already records the actions.
+    | alerts: send the alerts configured below (they also need alerts.enabled).
+    | log:    write every settings event to the operational log.
     */
     'listeners' => [
         'alerts' => true,
@@ -398,11 +353,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Alerts: notifications on changes
+    | Alerts
     |--------------------------------------------------------------------------
     |
-    | Laravel notifications sent when an event matches a rule. Alerts carry
-    | the store, key, scope, actor, outcome and time, never a value. Each rule:
+    | Notifications sent when an event matches a rule. Alerts never carry a
+    | value. Each rule:
     |
     |   'events'         => ['SettingSaved', 'AccessWasDenied'], // short names or classes
     |   'keys'           => ['mail.*'],          // globs; null for any
@@ -416,8 +371,8 @@ return [
     |   ],
     |   'queue'          => null,                // a queue name, or null to send at once
     |
-    | `throttle`: seconds a rule stays quiet about one key after alerting
-    | about it (0 for never), kept in `cache` (null for the default store).
+    | throttle: seconds a rule stays quiet about a key after alerting (0: never),
+    |           tracked in `cache` (null: the default store).
     */
     'alerts' => [
         'enabled'  => env('LARANAIL_SETTINGS_ALERTS', false),
@@ -428,17 +383,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Approvals: four eyes (§16.7)
+    | Approvals
     |--------------------------------------------------------------------------
     |
-    | A write to a definition marked requiresApproval(), or to a key matched by
-    | `stores.<name>.approvals.keys`, becomes a change request instead of a
-    | change. `table` is a schema switch (recorded in the schema file): it
-    | creates settings_change_requests on every connection a store uses.
-    | `min_approvals` approvals apply the change; the requester may approve
-    | their own request only with `allow_self`. A request expires after
-    | `expire_after` days; prune-changes marks expired requests and deletes
-    | decided ones older than `keep_days`.
+    | Writes to definitions marked requiresApproval(), or to keys matched by
+    | `stores.<name>.approvals.keys`, become change requests.
+    |
+    | table:         create settings_change_requests (migration time).
+    | min_approvals: approvals needed to apply a change.
+    | allow_self:    let the requester approve their own request.
+    | expire_after:  days before an open request expires.
+    | keep_days:     days decided requests are kept by prune-changes.
     */
     'approvals' => [
         'table'         => true,
@@ -450,15 +405,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Persisted configuration (§16.11)
+    | Persisted configuration
     |--------------------------------------------------------------------------
     |
-    | `persisted` (a schema switch) creates settings_stores, where stores and
-    | layers saved through the API are kept; definitions saved through the API
-    | go to the definitions table (definitions.table). `sources` is the merge
-    | order, later wins: `config` (this file), `database` (persisted entries,
-    | read on first use, never at boot; an invalid entry is logged and skipped)
-    | and `runtime` (changes made in code for one request).
+    | persisted: create settings_stores (migration time) to hold stores and
+    |            layers saved through the API.
+    | sources:   merge order, later wins: `config`, `database`, `runtime`.
     */
     'configuration' => [
         'persisted' => env('LARANAIL_SETTINGS_PERSISTED_CONFIGURATION', false),
@@ -467,12 +419,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Import and export (G-42, G-43)
+    | Importers
     |--------------------------------------------------------------------------
     |
-    | Importers that `laranail::settings.import --from=<name>` can read, by
-    | name: a class implementing Simtabi\Laranail\Settings\Contracts\Importer.
-    | The three shipped ones need none of the packages they read.
+    | Sources for `laranail::settings.import --from=<name>`: classes implementing
+    | Simtabi\Laranail\Settings\Contracts\Importer. None needs the package it
+    | reads.
     */
     'importers' => [
         'spatie'    => SpatieSettingsImporter::class,
@@ -482,33 +434,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | REST API (§16.10)
-    |--------------------------------------------------------------------------
-    |
-    | Off by default; no route is registered until `enabled` is true. Routes
-    | live under `prefix`/v1, are named `laranail-settings.api.*`, and run
-    | through `middleware` (null: ['api', 'auth:sanctum'] when Sanctum is
-    | installed, else ['api', 'auth']) and the `laranail-settings` rate
-    | limiter (`rate_limit` requests per minute per actor, 0 for none).
-    | `routes` switches groups off. `idempotency` keeps the response to a
-    | write sent with an Idempotency-Key header for `ttl` seconds in `cache`
-    | (null: the default cache store), so a retried request is answered from
-    | there instead of applying twice. `owners` maps owner aliases the URL may
-    | name; null uses the morph map.
-    */
-    /*
-    |--------------------------------------------------------------------------
-    | Typed settings classes (Phase 5)
+    | Typed settings
     |--------------------------------------------------------------------------
     |
     | Classes extending Simtabi\Laranail\Settings\Typed\TypedSettings whose
-    | properties are registered as definitions (type, default, encryption)
-    | when definitions are first read, so the key-value API casts them alike.
+    | properties are registered as definitions.
     */
     'typed' => [
         'classes' => [],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | REST API
+    |--------------------------------------------------------------------------
+    |
+    | enabled:     register the routes (off by default).
+    | prefix:      routes live under `prefix`/v1, named laranail-settings.api.*.
+    | middleware:  null for ['api', 'auth:sanctum'] when Sanctum is installed,
+    |              else ['api', 'auth'].
+    | rate_limit:  requests per minute per actor; 0 for none.
+    | routes:      switch route groups off.
+    | idempotency: how long (`ttl`) and where (`cache`) responses to writes
+    |              sent with an Idempotency-Key header are kept.
+    | page_size:   items per page in listings.
+    |
+    | An optional `owners` key maps owner aliases a URL may name to model
+    | classes; unset, the morph map is used.
+    */
     'http' => [
         'enabled'    => env('LARANAIL_SETTINGS_HTTP', false),
         'prefix'     => env('LARANAIL_SETTINGS_HTTP_PREFIX', 'api/settings'),

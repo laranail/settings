@@ -10,14 +10,11 @@ use Simtabi\Laranail\Settings\Contracts\Importer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * The importers `import --from=<name>` can use (`importers`, name => class), built on first use.
- * A name that is not configured, or a class that is not an {@see Importer}, raises
- * InvalidConfiguration naming the config path.
+ * The configured importers `import --from=<name>` can use, built on first use.
  */
 final readonly class Importers
 {
     /**
-     * @param Container $container builds a configured importer with its dependencies
      * @param array<array-key, mixed> $classes `laranail.settings.importers`
      */
     public function __construct(

@@ -18,12 +18,8 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Services\Database\HistoryRepository;
 
 /**
- * Return a setting to the value it held at an earlier version: needs `rollback` (step-up
- * verification applies when `verification.abilities` lists it, which it does by default), and
- * `override_lock` over a locked row the store lets be overridden. The old value is read back from
- * the history, decrypted and decoded, and written as a new version through the normal write
- * pipeline (validation, casting, encryption, the version check against the current row, history
- * and audit), so a rollback is itself a change that can be rolled back. Returns the new version.
+ * Write a setting's value from an earlier version as a new version, through the normal write
+ * pipeline. Returns the new version.
  */
 final readonly class RollbackSetting
 {

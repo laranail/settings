@@ -14,13 +14,8 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
- * The one way a change and its audit entry are committed: the work and an `allowed` audit entry
- * run in one transaction on the store's database connection (when it has one), so a failed audit
- * insert rolls the change back; on any SettingsException the transaction rolls back, a `failed`
- * entry is recorded outside it, and the original exception is rethrown (if recording the failure
- * fails too, the original still wins). Authorization happens before this, in the caller.
- *
- * Used by every write action, every category change and promotion, so all three audit alike.
+ * Commits a change and its `allowed` audit entry in one transaction. On failure it rolls back,
+ * records a `failed` entry outside the transaction and rethrows the original exception.
  */
 final readonly class AuditedTransaction
 {
@@ -31,10 +26,10 @@ final readonly class AuditedTransaction
     /**
      * @template T
      *
-     * @param Closure(): T $work the change
-     * @param (Closure(T): array{from?: ?int, to?: ?int, meta?: array<string, scalar|null>})|null $allowed audit details from the change's result
-     * @param (Closure(T): void)|null $then runs after the allowed entry, still inside the transaction (events)
-     * @param array<string, scalar|null> $meta meta on both the allowed and the failed entry
+     * @param Closure(): T $work
+     * @param (Closure(T): array{from?: ?int, to?: ?int, meta?: array<string, scalar|null>})|null $allowed audit details from the result
+     * @param (Closure(T): void)|null $then runs inside the transaction after the audit entry
+     * @param array<string, scalar|null> $meta
      *
      * @return T
      */

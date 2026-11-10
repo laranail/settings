@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * An approved change request was not applied: its setting changed after the request was opened, so it is stale. Dispatched after commit; identifiers only, never the proposed value.
- */
+/** An approved change request was not applied because its setting changed since it was opened. */
 final readonly class ChangeStale implements ShouldDispatchAfterCommit
 {
     public function __construct(

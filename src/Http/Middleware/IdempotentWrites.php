@@ -11,10 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Http\Response as IlluminateResponse;
 
 /**
- * `Idempotency-Key` on REST writes (§16.12): the first response to a key is kept for
- * `http.idempotency.ttl` seconds (24 hours by default), and a retry with the same key, from the
- * same user, to the same method and path, gets that response again (`Idempotent-Replayed: true`)
- * instead of applying twice. Server errors are not kept, so they can be retried.
+ * Replays the stored response to a REST write retried with the same `Idempotency-Key`, user,
+ * method and path. Server errors are not stored, so they can be retried.
  */
 final readonly class IdempotentWrites
 {

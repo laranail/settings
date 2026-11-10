@@ -17,7 +17,7 @@ use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
- * §6 and G-30: reencrypt reads every secret with the current or a previous key and writes it
+ * Reencrypt reads every secret with the current or a previous key and writes it
  * under the current one (values, history, change requests); rescope renames an owner alias
  * everywhere it is stored; doctor reports what neither has fixed yet.
  */
@@ -103,7 +103,7 @@ it('renames an owner alias in values, history and change requests, and doctor st
         ->and(DB::table('settings_history')->where('scope', 'member:4')->count())->toBe(1)
         ->and(DB::table('settings_change_requests')->where('scope', 'member:4')->count())->toBe(1);
 
-    // A class name from before the alias allow-list (G-6) is renamed the same way.
+    // A class name stored before the alias allow-list is renamed the same way.
     app(RescopeOwners::class)->handle('App\\Models\\Legacy', 'member');
     Artisan::call('laranail::settings.doctor', ['--json' => true]);
 

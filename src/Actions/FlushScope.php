@@ -19,12 +19,7 @@ use Simtabi\Laranail\Settings\Events\ScopeFlushing;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 
-/**
- * Remove every value an owner holds in a store, from every writable layer: needs `forget`. Used
- * when an owner is deleted (G-7) and by `prune-orphans`. The removal and its audit entry share
- * one transaction on the store's connection; the scope's cached bag is forgotten when it commits.
- * Returns how many rows went.
- */
+/** Remove every value an owner holds in a store; returns the number of rows removed. */
 final readonly class FlushScope
 {
     public function __construct(
@@ -53,8 +48,7 @@ final readonly class FlushScope
                     : $this->forgetEach($store, $layer->driver, $scope);
             }
 
-            // The rows went straight to the database, past the cache: forget the scope's bag
-            // once this transaction commits.
+            // The delete bypassed the cache, so drop the scope's bag after commit.
             $store->forgetCached($scope);
 
             $this->access->auditor()->record(AuditAction::Forget, AuditOutcome::Allowed, $subject, $actor, meta: ['flushed' => $removed]);

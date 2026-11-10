@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * Audit entries older than the retention period were deleted: how many, and the period.
- */
+/** Audit entries older than the retention period were deleted. */
 final readonly class AuditPruned implements ShouldDispatchAfterCommit
 {
     public function __construct(

@@ -21,14 +21,7 @@ use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 
 /**
- * The categories of one store, in the categories table on the store's connection. Every lookup is
- * by (store, slug), so a store can never reach another store's category by accident; naming one
- * that exists only in another store raises {@see CategoryStoreMismatch} (G-33).
- *
- * The recorded schema shape decides the rest: generated uuid / ulid keys (D-5), titles as
- * per-locale JSON (D-8), and soft deletes (`categories.soft_deletes`), under which a deleted
- * category is trashed and creating its slug again restores that row, so `unique(store, slug)`
- * never collides.
+ * The categories of one store, looked up by store and slug.
  */
 final readonly class CategoryRepository
 {
@@ -40,7 +33,7 @@ final readonly class CategoryRepository
     /**
      * The categories of a store, on its active database layer.
      *
-     * @throws StoreNotWritable when the store has none: categories are kept in the database
+     * @throws StoreNotWritable when the store has no active database layer
      */
     public static function of(Store $store): self
     {
@@ -132,8 +125,7 @@ final readonly class CategoryRepository
     }
 
     /**
-     * Put a category under another (or at the top, with null). Moving it under itself or one
-     * of its descendants is refused.
+     * Move a category under another, or to the top level with null.
      *
      * @throws CategoryCycle
      * @throws CategoryStoreMismatch
@@ -152,9 +144,9 @@ final readonly class CategoryRepository
     }
 
     /**
-     * Delete a category. Its children move to the top level and settings in it lose their
-     * category, explicitly as well as through the foreign keys (SQLite may not enforce them).
-     * With soft deletes the row is trashed rather than removed.
+     * Delete a category, moving its children to the top level and unlinking its settings.
+     *
+     * Unlinks explicitly because SQLite may not enforce the foreign keys.
      *
      * @throws UnknownCategory
      */
@@ -200,7 +192,7 @@ final readonly class CategoryRepository
         $ancestors = [];
         $current = $id;
 
-        // Bounded by the number of categories, so a cycle already in the data cannot loop forever.
+        // Bounded, so a cycle already in the data cannot loop forever.
         for ($guard = 0; $guard < 10_000; $guard++) {
             $parent = $this->database->attempt($this->store, fn (): mixed => $this->query()->where('id', $current)->value('parent_id'));
 
@@ -255,13 +247,13 @@ final readonly class CategoryRepository
         return $this->database->shape()->categoriesSoftDeletes;
     }
 
-    /** Titles and descriptions as `translations.mode` stores them (D-8). */
+    /** Titles and descriptions as `translations.mode` stores them. */
     private function translations(): Translations
     {
         return new Translations($this->database->shape()->translations);
     }
 
-    /** The categories table, limited to the current tenant (column-mode tenancy). */
+    /** The categories table, limited to the current tenant. */
     private function table(): Builder
     {
         return $this->database->scoped($this->database->connection()->table($this->database->names()->categories()));

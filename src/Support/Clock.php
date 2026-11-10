@@ -8,8 +8,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 
 /**
- * The current time, through Laravel's date seam, so `$this->travelTo()` and `Date::use()` reach
- * every timestamp the package writes. The one place the package reads the clock.
+ * The current time through Laravel's date seam, so `travelTo()` and `Date::use()` apply.
  */
 final readonly class Clock
 {

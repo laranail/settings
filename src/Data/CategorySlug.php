@@ -7,10 +7,7 @@ namespace Simtabi\Laranail\Settings\Data;
 use Stringable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
-/**
- * A category slug: lower-case letters, digits and hyphens, at most 128 characters, unique within
- * its store.
- */
+/** A category slug: lower-case letters, digits and hyphens, at most 128 characters. */
 final readonly class CategorySlug implements Stringable
 {
     public string $value;

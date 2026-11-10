@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Typed\Attributes;
 
 use Attribute;
 
-/**
- * The caster alias `register()` gives the property's definition, instead of the one its PHP type
- * implies (`enum:plan`, `money`).
- */
+/** The caster alias for the property's definition, instead of the one its PHP type implies. */
 #[Attribute(Attribute::TARGET_PROPERTY)]
 final readonly class Type
 {

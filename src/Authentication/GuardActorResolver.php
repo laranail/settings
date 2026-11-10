@@ -13,8 +13,8 @@ use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 
 /**
- * The default resolver: the first configured guard (`authentication.guards`, in order; empty
- * means the application's default guard) that has a user. The host's middleware authenticates.
+ * Resolves the user of the first guard in `authentication.guards` that has one, or of the
+ * default guard when the list is empty.
  */
 final readonly class GuardActorResolver implements ActorResolver
 {

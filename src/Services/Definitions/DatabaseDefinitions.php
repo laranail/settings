@@ -17,18 +17,10 @@ use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
 use Simtabi\Laranail\Settings\Services\Database\DefinitionsRepository;
 
 /**
- * The `database` definition source (D-6): rows of the optional definitions table that are not
- * `is_system`. `is_system` rows are copies of code and config definitions, kept for UIs, and are
- * skipped: code is the source of truth for those, so an older synced copy can never override a
- * release's new default (§4.4). A row only answers for a key that no code or config definition
- * covers, so it can never loosen a coded setting.
+ * The `database` definition source: runtime rows of the definitions table.
  *
- * Rules stored in a row are filtered through `definitions.allowed_rules`, and a row's type must
- * be a registered caster alias, so a row can never make the package run arbitrary code. Read on
- * first use per store and request (one query), never at boot, and not while the store's
- * database layer is skipped (bootstrap mode).
- *
- * Bound `scoped`.
+ * System rows are skipped, since code is the source of truth for them. Stored rules are filtered
+ * through `definitions.allowed_rules`, so a row cannot make the package run arbitrary code.
  */
 final class DatabaseDefinitions
 {
@@ -43,7 +35,7 @@ final class DatabaseDefinitions
         private readonly bool $enabled = true,
     ) {}
 
-    /** Forget the store's loaded rows, so the next read sees a definition just saved or deleted. */
+    /** Forget the store's loaded rows so the next read sees the latest change. */
     public function forget(Store $store): void
     {
         unset($this->loaded[$store->name->value]);

@@ -8,9 +8,7 @@ use Simtabi\Laranail\Enumerator\Attributes\Label;
 use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
-/**
- * How an audited action ended. Values are never part of an audit entry.
- */
+/** How an audited action ended. */
 enum AuditOutcome: string implements Enumerator
 {
     use HasEnumeratorBehavior;

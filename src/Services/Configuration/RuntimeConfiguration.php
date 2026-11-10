@@ -32,12 +32,10 @@ use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
- * Configuration changed in code, for the current request or job only.
+ * Configuration changed in code for the current request or job only.
  *
- * It is bound `scoped`, so Octane and queue workers flush it between requests: nothing set here
- * outlives the request that set it. Store and layer changes are validated exactly like config
- * (by building the stores) before they are accepted, so a bad change fails where it is made.
- * Store and layer entries are merged over `laranail.settings.stores` / `.layers`; later wins.
+ * Store and layer changes are validated by building the stores, so a bad change fails where it
+ * is made.
  */
 final class RuntimeConfiguration
 {
@@ -70,7 +68,7 @@ final class RuntimeConfiguration
     /**
      * @param array<array-key, mixed> $storeConfig `laranail.settings.stores`
      * @param array<array-key, mixed> $layerConfig `laranail.settings.layers`
-     * @param (Closure(string): void)|null $onChange told about each accepted change (audit and log)
+     * @param (Closure(string): void)|null $onChange called with each accepted change
      */
     public function __construct(
         private readonly DriverFactory $driverFactory,
@@ -209,8 +207,7 @@ final class RuntimeConfiguration
     }
 
     /**
-     * Apply `$change`, run `$run`, then restore everything `$change` altered, even when `$run`
-     * throws.
+     * Apply `$change`, run `$run`, then restore the previous configuration even when `$run` throws.
      *
      * @template TResult
      *
@@ -288,13 +285,13 @@ final class RuntimeConfiguration
         return $this->logger;
     }
 
-    /** True or false when set for this request; null defers to `authorization.require_actor`. */
+    /** The actor requirement set for this request, or null to use the config. */
     public function actorRequirement(): ?bool
     {
         return $this->requireActor;
     }
 
-    /** Bumped on every change, so the store registry knows to rebuild. */
+    /** Bumped on every change so the store registry knows to rebuild. */
     public function generation(): int
     {
         return $this->generation;

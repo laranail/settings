@@ -9,11 +9,8 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 
 /**
- * The tables `install` would create that already exist and are not this package's (D-4). A bare
- * `settings` table is a plausible collision with an application's own; installing over it would
- * fail half-way or, worse, write into it. A table is recognised as the package's by the columns
- * only it has. A database that cannot be reached is not reported: there is nothing to collide
- * with yet.
+ * Find the tables `install` would create that already exist and are not this package's,
+ * recognised by columns only the package's tables have.
  */
 final readonly class FindForeignTables
 {
@@ -48,7 +45,7 @@ final readonly class FindForeignTables
                 $inspector = new SchemaInspector($database);
 
                 foreach ($tables as $table => $signature) {
-                    // Unreachable (null): nothing exists to collide with.
+                    // An unreachable database has nothing to collide with.
                     $columns = $inspector->hasTable($table) === true ? $inspector->columns($table) : null;
 
                     if ($columns !== null && array_diff($signature, $columns) !== []) {

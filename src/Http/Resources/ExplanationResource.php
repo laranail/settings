@@ -18,7 +18,7 @@ use Illuminate\Http\Resources\Attributes\PreserveKeys;
 #[PreserveKeys]
 final class ExplanationResource extends JsonResource
 {
-    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    /** Always wrapped in `data`, whatever the application sets. */
     public static $wrap = 'data';
 
     /** @return array<string, mixed> */

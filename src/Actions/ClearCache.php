@@ -16,13 +16,8 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 
 /**
- * Reset cached settings (design §7.5, `laranail::settings.clear-cache`): every bag, one store's,
- * or one owner's in one store. Needs `manage_stores` when an actor is present, and is audited as
- * a `manage_stores` entry naming what was reset. Values are never touched, only cached copies,
- * so the next read of anything reset costs one query per store again.
- *
- * Resetting replaces generation tokens; nothing is deleted from the cache store, and the
- * application's other cache entries are never touched. Returns false when caching is off.
+ * Reset cached settings for every store, one store, or one owner in a store. Returns false when
+ * caching is off.
  */
 final readonly class ClearCache
 {

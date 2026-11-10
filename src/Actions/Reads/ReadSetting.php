@@ -12,10 +12,8 @@ use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 
 /**
- * Read one setting for a channel other than PHP (§16.2): through the same settings handle the PHP
- * API uses, so `view` and `view_sensitive` apply exactly as they do there, plus the version of the
- * address's own row for the ETag. A sensitive value the actor may not see is redacted, not
- * refused, when the actor may still view the key.
+ * Read one setting through the settings handle, with its row version for the ETag. A sensitive
+ * value the actor may not see is redacted rather than refused.
  */
 final readonly class ReadSetting
 {

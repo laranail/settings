@@ -16,8 +16,7 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.diff {path}`: compare a store with an export file (G-42), by identity only,
- * never printing a value. Exits 1 when they differ, so it can gate a deploy.
+ * Compare a store with an export file by identity, never printing a value. Exits 1 when they differ.
  */
 final class DiffCommand extends Command
 {

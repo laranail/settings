@@ -11,14 +11,14 @@ use Illuminate\Http\Resources\Attributes\PreserveKeys;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 
 /**
- * How a store differs from an export (G-42), by setting identity.
+ * How a store differs from an export, by setting identity.
  *
  * @property StoreDiff $resource
  */
 #[PreserveKeys]
 final class StoreDiffResource extends JsonResource
 {
-    /** Always wrapped in `data`, whatever the application sets for its own resources. */
+    /** Always wrapped in `data`, whatever the application sets. */
     public static $wrap = 'data';
 
     /** @return array<string, mixed> */

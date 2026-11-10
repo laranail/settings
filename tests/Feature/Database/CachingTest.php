@@ -31,12 +31,9 @@ use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 
 /*
- * Phase 3 (design §7.5, §11): the cache holds raw per-scope bags, keyed by connection, database,
- * tenant, store and scope, invalidated by generation tokens on every write path.
- *
- * "A new request" is simulated with forgetScopedInstances(): every scoped service (the registry,
- * the resolver, the cache's in-request memory) is rebuilt, while the cache store itself, a
- * singleton, keeps its entries, exactly as a second request or a second node would see it.
+ * The cache holds raw per-scope bags, keyed by connection, database, tenant, store and scope, and
+ * invalidated by generation tokens on every write path. forgetScopedInstances() stands in for a new
+ * request: scoped services are rebuilt while the cache store keeps its entries.
  */
 
 /** Start a new request: scoped services rebuilt, the cache store kept. */
@@ -213,7 +210,7 @@ it('reads its own uncommitted write inside a transaction and caches nothing a ro
     expect(settings()->get('site.name'))->toBe('Committed');
 });
 
-it('keeps two connections apart even where every other key component is equal (G-37)', function (): void {
+it('keeps two connections apart even where every other key component is equal', function (): void {
     // A second in-memory SQLite connection: same database name (`:memory:`), store, table and
     // scope as the default one under SQLite, so only the connection name tells them apart.
     config()->set('database.connections.other', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);

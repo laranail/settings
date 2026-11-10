@@ -24,13 +24,9 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 
 /**
- * Run one settings migration step (G-17): rename or move a key across every owner and locale,
- * delete it everywhere, or add a global value. Values are read and written through the value
- * pipeline (so a value is re-validated, re-cast and re-encrypted under the destination's
- * definition), with history; locks move with them. A migration is deploy-time code, so it writes
- * past approvals the way trusted code does, needs `manage_definitions` when given an actor, and is
- * audited once per step. On a database store every scope is migrated; on a file-only store, the
- * global value. Returns how many values it touched.
+ * Run one settings migration step: rename, move or delete a key across every owner and locale,
+ * or add a global value. Values are re-validated and re-encrypted under the destination's
+ * definition. Returns how many values it touched.
  */
 final readonly class MigrateSettings
 {

@@ -12,12 +12,9 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 
 /**
- * spatie/laravel-settings (G-43): reads its `settings` table (`group`, `name`, `payload`,
- * `locked`) on a connection; each row becomes the global key `<group>.<name>` with its JSON
- * payload decoded, and `locked` kept (applied only by a trusted import). `$source` is
- * `<connection>` or `<connection>:<table>` (default table `settings`; an empty connection is the
- * default one). Values spatie stored encrypted arrive as the ciphertext spatie wrote: define those
- * keys encrypted here and set them again.
+ * Imports spatie/laravel-settings' table: each row becomes the global key `<group>.<name>`.
+ * Encrypted values arrive as spatie's ciphertext and must be set again. `$source` is
+ * `<connection>` or `<connection>:<table>` (default table `settings`).
  */
 final readonly class SpatieSettingsImporter implements Importer
 {

@@ -9,10 +9,8 @@ use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Enums\HistoryOperation;
 
 /**
- * One version of one setting (§4.3). `oldValue` and `newValue` are the stored payloads exactly as
- * the values table held them: encoded, and still encrypted when `oldEncrypted` / `newEncrypted`
- * say so. Nothing here is decrypted; {@see HistoryDiff} is where a value is shown, and only to an
- * actor allowed to see it. A null payload is "no value" (a tombstone, or a lock row without one).
+ * One version of one setting. The payloads are stored exactly as the values table held them, still
+ * encrypted where flagged; a null payload means no value.
  */
 final readonly class HistoryEntry
 {
@@ -45,8 +43,7 @@ final readonly class HistoryEntry
     }
 
     /**
-     * The entry without its payloads where they are encrypted: what may be shown to anyone who
-     * may read the history (`view_history`) but not the values (`view_sensitive`).
+     * The entry with encrypted payloads left out.
      *
      * @return array<string, mixed>
      */

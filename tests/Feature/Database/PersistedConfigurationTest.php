@@ -18,7 +18,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
- * §16.11: stores, layers and definitions saved through the API, validated like configuration,
+ * Stores, layers and definitions saved through the API, validated like configuration,
  * gated and audited, merged in configuration.sources order, read lazily, and an invalid row is
  * skipped and reported rather than breaking the application.
  */

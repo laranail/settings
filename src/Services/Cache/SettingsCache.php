@@ -13,47 +13,28 @@ use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\CacheTarget;
 use Simtabi\Laranail\Settings\Support\BagCodec;
+use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * The settings cache (design §7.5): raw per-scope bags, never resolved values.
+ * Caches each scope's raw rows per store ("bags"), never resolved values.
  *
- * A bag holds every row (every locale) one scope has in one store's table, so a write to `team:7`
- * invalidates exactly one entry and every owner inheriting from team 7 sees it on the next read
- * (G-32). Its key hashes connection, database, tenant, store, table and scope as a
- * length-prefixed tuple (R-63: `scope` contains `:`), so no two tenants or databases share an
- * entry (G-37).
- *
- * Invalidation replaces a **generation token** (a fresh ULID) rather than deleting the entry. The
- * bag key carries three of them: the scope's, the store's and a global epoch, so one scope, one
- * store or everything can be reset with one cache write. A stale-while-revalidate refresh
- * computed before a write lands under the old token, where nothing reads any more, so it can
- * never restore a value after its invalidation (R-23). An evicted token yields a new random one
- * and a miss, where a counter would restart and could revive an old entry (R-41).
- *
- * Reads go through `Cache::flexible()` once an entry is past its fresh window: the stale bag is
- * answered and a refresh is deferred. A scope with no rows is cached as an empty bag. Bags and
- * tokens read in a request are held in memory for the rest of it (this service is bound
- * `scoped`, so Octane and queue workers start each request and job empty).
- *
- * A failing cache never fails a read: the bag is read from the database and the failure is
- * reported to the operational log. A failing invalidation is reported the same way.
+ * Invalidation replaces a generation token instead of deleting entries. A cache failure falls
+ * back to the database and is reported to the operational log.
  */
 final class SettingsCache
 {
-    /** @var array<string, string> token key => token, read or written in this request */
+    /** @var array<string, string> token key => token */
     private array $tokens = [];
 
-    /** @var array<string, RecordSet> bag key => records, read in this request */
+    /** @var array<string, RecordSet> bag key => records */
     private array $bags = [];
 
     /**
      * @param int $ttl seconds a bag is fresh
      * @param int $stale seconds after that a stale bag is still answered while it is refreshed
-     * @param ?TenantDiscriminator $tenant the current tenant, none outside any tenant
-     * @param ?OperationalLogger $log told when the cache fails
      */
     public function __construct(
         private readonly Repository $cache,
@@ -70,8 +51,7 @@ final class SettingsCache
     }
 
     /**
-     * These scopes' records: from this request's memory, then the cache, and the rest from
-     * `$load` in **one** call, whose bags are then cached (an empty one included).
+     * Load these scopes' records from memory, then the cache, then one call to `$load`.
      *
      * @param list<Scope> $scopes
      * @param Closure(list<Scope>): RecordSet $load reads scopes from the store itself
@@ -125,7 +105,7 @@ final class SettingsCache
         $this->rotate('all', $this->epochKey(), null);
     }
 
-    /** The key one scope's bag is cached under right now (tokens included). */
+    /** The key one scope's bag is cached under now. */
     public function bagKey(CacheTarget $target, Scope $scope): string
     {
         $tenant = $this->currentTenant();
@@ -134,8 +114,7 @@ final class SettingsCache
     }
 
     /**
-     * The bag key of every scope, and the bags already cached (fresh, or stale and being
-     * refreshed), by scope.
+     * The bag key of every scope, and the bags already cached, by scope.
      *
      * @param non-empty-list<Scope> $scopes
      * @param Closure(list<Scope>): RecordSet $load
@@ -178,8 +157,7 @@ final class SettingsCache
                 continue;
             }
 
-            // Past its fresh window: flexible() answers the stale bag and defers a refresh, which
-            // lands under this key's tokens (so never over a newer write).
+            // Stale: flexible() answers it and refreshes under this key's tokens, never over a newer write.
             if ($created + $this->ttl <= now()->getTimestamp()) {
                 $entry = $this->cache->flexible($key, [$this->ttl, $this->lifetime()], fn (): array => $this->codec->encode($this->only($load([$scope]), $scope)));
             }
@@ -195,7 +173,7 @@ final class SettingsCache
     }
 
     /**
-     * Cache freshly loaded bags in the shape flexible() reads (entry plus its creation time).
+     * Cache freshly loaded bags in the shape flexible() reads.
      *
      * @param list<string> $keys
      * @param list<RecordSet> $bags
@@ -219,8 +197,7 @@ final class SettingsCache
     }
 
     /**
-     * The (epoch, store, scope) tokens of each scope, as one generation string per scope. Missing
-     * tokens are created; every token is read in one cache call.
+     * The epoch, store and scope tokens of each scope as one generation string, created when missing.
      *
      * @param non-empty-list<Scope> $scopes
      *
@@ -292,7 +269,7 @@ final class SettingsCache
         return $this->prefix . ':epoch';
     }
 
-    /** Per store and database, not per tenant: a store reset reaches every tenant's bags. */
+    /** Not per tenant, so a store reset reaches every tenant's bags. */
     private function storeTokenKey(CacheTarget $target): string
     {
         return $this->prefix . ':store:' . $this->hash($target->parts());
@@ -304,7 +281,7 @@ final class SettingsCache
     }
 
     /**
-     * A length-prefixed tuple, hashed: `a` + `b:c` and `a:b` + `c` stay different (R-63).
+     * Hash a length-prefixed tuple, so `a` + `b:c` and `a:b` + `c` stay different.
      *
      * @param list<string> $parts
      */
@@ -318,7 +295,7 @@ final class SettingsCache
         return $this->tenant?->current() ?? '';
     }
 
-    /** Seconds a bag (and a scope token) is kept: fresh plus stale. */
+    /** Seconds a bag and a scope token are kept: fresh plus stale. */
     private function lifetime(): int
     {
         return $this->ttl + $this->stale;
@@ -347,9 +324,9 @@ final class SettingsCache
 
     private function failed(string $operation, Throwable $exception): void
     {
-        $this->log?->warning(sprintf('laranail/settings: the settings cache failed (%s): %s. Reads fall back to the database; a failed invalidation leaves bags stale until they expire or clear-cache runs.', $operation, $exception->getMessage()), [
+        $this->log?->warning(sprintf('laranail/settings: the settings cache failed (%s): %s. Reads fall back to the database; a failed invalidation leaves bags stale until they expire or clear-cache runs.', $operation, $exception->getMessage()), LogContext::of(extra: [
             'operation' => $operation,
             'exception' => $exception::class,
-        ]);
+        ]));
     }
 }

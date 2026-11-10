@@ -33,12 +33,8 @@ use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
- * Installed by `Settings::fake()`: the real engine over in-memory layers, recording writes and
- * every audit entry (allowed, denied and failed) so tests can assert on access as well as values.
- * Actors, authorizers and verifiers behave exactly as in the real engine.
- *
- * It replaces the container binding, so it must be installed before the code under test
- * resolves `Settings`; anything resolved earlier keeps the real instance.
+ * The real engine over in-memory layers, recording writes and audit entries for assertions.
+ * Installed by `Settings::fake()`, before the code under test resolves `Settings`.
  */
 final readonly class SettingsFake implements Settings
 {
@@ -175,7 +171,7 @@ final readonly class SettingsFake implements Settings
         $this->log->forgotten[] = $key;
     }
 
-    /** Each write goes through this fake's own set(), so assertSaved() sees every key. */
+    /** Routed through set() so assertSaved() sees every key. */
     public function setMany(array $values): void
     {
         foreach ($values as $key => $value) {
@@ -183,7 +179,7 @@ final readonly class SettingsFake implements Settings
         }
     }
 
-    /** Each key goes through this fake's own forget(), so assertForgotten() sees every key. */
+    /** Routed through forget() so assertForgotten() sees every key. */
     public function forgetMany(iterable $keys): void
     {
         foreach ($keys as $key) {
@@ -191,7 +187,7 @@ final readonly class SettingsFake implements Settings
         }
     }
 
-    /** The write, when one is made, goes through this fake's own set(), so assertSaved() sees it. */
+    /** Routed through set() so assertSaved() sees the write. */
     public function remember(string $key, callable $value): mixed
     {
         $lookup = $this->inner->lookup($key);

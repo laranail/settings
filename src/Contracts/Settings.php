@@ -40,35 +40,31 @@ use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
- * Read and write settings. `store()`, `for()`, `locale()`, `as()`, `asSystem()` and `because()`
- * return a new handle; the shared instance never changes, so a scoped handle cannot leak into
- * another request.
+ * Read and write settings.
  *
- * A handle with an actor checks every operation, reads included, through the configured
- * authorizer. A handle without one runs as trusted code and is audited as `system`, unless
- * `authorization.require_actor` is on.
+ * The scoping methods (`store()`, `for()`, `locale()`, `as()`, `asSystem()`, `because()`) return a
+ * new handle, so a scoped handle never leaks into another request. A handle with an actor
+ * authorizes every operation; one without runs as trusted code, audited as `system`.
  */
 interface Settings
 {
     /** A handle on another store. */
     public function store(string $name): static;
 
-    /** A handle for an owner; without an explicit store it routes to the store that accepts the owner's alias. */
+    /** A handle for an owner, routed to the store that accepts its alias unless a store was named. */
     public function for(Settable|OwnerRef $owner): static;
 
     /** A handle reading and writing one locale. */
     public function locale(string $locale): static;
 
-    /**
-     * A handle acting as this user or actor: every operation is authorized and audited.
-     */
+    /** A handle acting as this user or actor; every operation is authorized and audited. */
     public function as(Authenticatable|Actor $actor): static;
 
-    /** A handle acting as trusted system code, explicitly; allowed even when an actor is required. */
+    /** A handle acting as trusted system code, allowed even when an actor is required. */
     public function asSystem(?string $reason = null): static;
 
     /**
-     * A handle acting as whoever the configured actor resolver finds for the request.
+     * A handle acting as the actor the configured resolver finds for the request.
      *
      * @throws ActorRequired when nobody is authenticated
      */
@@ -80,11 +76,11 @@ interface Settings
     /** The actor this handle acts as, or null for trusted code. */
     public function actor(): ?Actor;
 
-    /** Configuration changed in code for the current request only. */
+    /** Configuration overrides that last for the current request. */
     public function configuration(): RuntimeConfiguration;
 
     /**
-     * Apply configuration changes for the duration of `$run` only, then restore them.
+     * Apply configuration changes while `$run` runs, then restore them.
      *
      * @template TResult
      *
@@ -99,7 +95,7 @@ interface Settings
     public function get(string $key, mixed $default = null): mixed;
 
     /**
-     * Presence-aware read: found (value possibly null) or missing.
+     * Read a value, telling a stored null apart from a missing key.
      *
      * @throws AccessDenied when the actor may not view the key (or, for a sensitive key, its value)
      * @throws UnknownSetting when the store is strict and has no definition for the key
@@ -108,13 +104,12 @@ interface Settings
 
     public function has(string $key): bool;
 
-    /** The opposite of {@see has()}: true when nothing is stored and the definition has no default. */
+    /** Whether nothing is stored and the definition has no default. */
     public function missing(string $key): bool;
 
     /**
-     * Several values at once, keyed as asked. Pass a list of keys, or `key => default` pairs, or
-     * both: `many(['site.name', 'site.tagline' => 'Welcome'])`. Each key is read (and authorized)
-     * exactly as {@see get()} reads it.
+     * Several values, keyed as asked: a list of keys, `key => default` pairs, or both. Each key is
+     * read as {@see get()} reads it.
      *
      * @param array<array-key, mixed> $keys
      *
@@ -126,18 +121,15 @@ interface Settings
     public function many(array $keys): array;
 
     /**
-     * Every value this handle can see in its store and scope, by key, in key order: each key the
-     * scope holds in any layer, and each key a code or config definition of the store names. A key
-     * the actor may not view (or, when sensitive, may not read) is left out, not masked, as the
-     * REST API's listing leaves it out. `$prefix` keeps only `prefix` itself and the keys below it.
+     * Every value this handle can see, in key order. Keys the actor may not read are left out, not
+     * masked. `$prefix` keeps that key and the keys below it.
      *
      * @return array<string, mixed>
      */
     public function all(?string $prefix = null): array;
 
     /**
-     * The definitions of this handle's store (code, configuration and the definitions table), in
-     * key order: what a UI renders a form from. Needs `view` on the store.
+     * The definitions of this handle's store, in key order. Needs `view`.
      *
      * @return list<Definition>
      *
@@ -164,7 +156,7 @@ interface Settings
      */
     public function array(string $key): array;
 
-    /** How a read resolves: every step tried, and the answer, redacted when the actor may not view it. */
+    /** Every step a read tries and the answer, redacted when the actor may not view it. */
     public function explain(string $key): Explanation;
 
     /**
@@ -180,28 +172,27 @@ interface Settings
      */
     public function set(string $key, mixed $value): void;
 
-    /** Remove this handle's own value, so reads fall through again. */
+    /** Remove this handle's own value, so reads fall through to the next layer. */
     public function forget(string $key): void;
 
     /**
-     * Write several values, one {@see set()} each, in the order given. Not atomic: each write is
-     * its own transaction, and the first refusal stops the rest (earlier writes stay).
+     * Write several values with {@see set()}, in order. Not atomic: the first refusal stops the
+     * rest, and earlier writes stay.
      *
      * @param array<string, mixed> $values
      */
     public function setMany(array $values): void;
 
     /**
-     * Remove several of this handle's own values, one {@see forget()} each, in the order given.
+     * Remove several of this handle's own values with {@see forget()}, in order.
      *
      * @param iterable<string> $keys
      */
     public function forgetMany(iterable $keys): void;
 
     /**
-     * The stored value, or, when nothing is found, `$value()` written with {@see set()} and read
-     * back (so the answer is cast exactly as a later read would be). A write that opens a change
-     * request leaves the value unwritten; the read then falls back to the computed value.
+     * The stored value, or `$value()` written with {@see set()} and read back when nothing is
+     * stored. When the write opens a change request instead, the computed value is returned.
      *
      * @param callable(): mixed $value
      */
@@ -212,7 +203,7 @@ interface Settings
     public function unlock(string $key): void;
 
     /**
-     * Remove every value this handle's owner holds in its store (an owner being deleted).
+     * Remove every value this handle's owner holds in its store.
      *
      * @throws AccessDenied
      * @throws StoreNotWritable
@@ -220,28 +211,24 @@ interface Settings
     public function flush(): void;
 
     /**
-     * Reset the cached settings this handle names (design §7.5): with `for($owner)`, that owner's
-     * cached values in its store; otherwise every cached value of the handle's store, for every
-     * tenant. Stored values are untouched. Needs `manage_stores` when the handle carries an actor.
-     * Does nothing when caching is off.
+     * Clear the cached values of this handle's owner, or of the whole store when it has no owner.
+     * Stored values are untouched. Needs `manage_stores`.
      *
      * @throws AccessDenied
      */
     public function clearCache(): void;
 
     /**
-     * Load this handle's scope (its owner's, or the global scope) into the cache now, so the
-     * first read costs no query. Needs `manage_stores` when the handle carries an actor. Returns
-     * how many records were cached (0 when the store is not cached).
+     * Load this handle's scope into the cache and return how many records were cached (0 when
+     * the store is not cached). Needs `manage_stores`.
      *
      * @throws AccessDenied
      */
     public function warmCache(): int;
 
     /**
-     * Load the settings of many owners now, one read per store, so reading each of them later in
-     * the request costs no further query (eager loading, G-9). Includes the global scope and the
-     * owners' parents.
+     * Eager-load the settings of many owners, their parents and the global scope, one read per
+     * store.
      *
      * @param iterable<Settable|OwnerRef> $owners
      */
@@ -251,8 +238,8 @@ interface Settings
     public function categories(): CategoryManager;
 
     /**
-     * Copy the values written to the store's runtime file before the database existed into its
-     * database layer; shipped defaults are never copied. Idempotent.
+     * Copy values from the store's runtime file into its database layer; shipped defaults are
+     * never copied. Idempotent.
      *
      * @throws AccessDenied
      * @throws PromotionLocked
@@ -261,25 +248,19 @@ interface Settings
     public function promote(?PromotionRequest $request = null): PromotionReport;
 
     /**
-     * Query the audit trail (§16.8): `->for($owner)`, `->store()`, `->key()`, `->action()`,
-     * `->outcome()`, `->since()`, `->until()`, then `->get()`, `->cursor()` or `->paginate()`.
-     * Needs `view_audit` when the handle carries an actor. Entries never hold values.
+     * Query the audit trail. Needs `view_audit`. Entries never hold values.
      */
     public function audit(): AuditQuery;
 
     /**
-     * Query the value history (§4.3) of this handle's store (and owner and locale, when set):
-     * `->key()`, `->for($owner)`, `->global()`, `->since()`, `->until()`, `->versions()`, then
-     * `->get()`, `->cursor()` or `->paginate()`. Needs `view_history` when the handle carries an
-     * actor. Payloads stay as stored (encrypted values encrypted), and are removed for an actor
-     * who may not view the setting's sensitive values.
+     * Query the value history of this handle's store. Needs `view_history`. Payloads stay as
+     * stored, and are removed for an actor who may not view sensitive values.
      */
     public function history(): HistoryQuery;
 
     /**
-     * Return a setting to the value it held at `$toVersion`, written as a new version through
-     * the normal write pipeline; returns that new version. Needs `rollback` (and step-up
-     * verification when `verification.abilities` lists it, as it does by default).
+     * Write the value a setting held at `$toVersion` as a new version, and return that version.
+     * Needs `rollback`, and step-up verification by default.
      *
      * @throws HistoryUnavailable when the store keeps no history or has no value at that version
      * @throws AccessDenied
@@ -289,8 +270,7 @@ interface Settings
     public function rollback(string $key, int $toVersion): int;
 
     /**
-     * Open a change request for this value instead of writing it (§16.7), whether or not the
-     * setting needs approval; returns the request. Needs `update`.
+     * Open a change request for this value instead of writing it. Needs `update`.
      *
      * @throws ApprovalUnavailable when the store cannot hold change requests
      * @throws InvalidSettingValue
@@ -298,25 +278,21 @@ interface Settings
     public function propose(string $key, mixed $value): ChangeRequest;
 
     /**
-     * The change requests of this handle's store (§16.7), decided as this handle's actor: list
-     * them, approve, reject or cancel one. A write to a setting that needs approval opens one
-     * automatically; `set()` still returns nothing.
+     * The change requests of this handle's store, decided as this handle's actor.
      */
     public function approvals(): Approvals;
 
     /**
-     * This handle's store as a portable document (G-42): categories by slug, settings by scope,
-     * key and locale. Encrypted values are left out unless the mode asks for their ciphertext or
-     * (with `view_sensitive`) their plaintext. Needs `export`.
+     * This handle's store as a portable document. Encrypted values are left out unless the mode
+     * asks for their ciphertext or, with `view_sensitive`, their plaintext. Needs `export`.
      *
      * @throws AccessDenied
      */
     public function export(ExportMode $mode = ExportMode::Redacted): ExportDocument;
 
     /**
-     * Write a document into this handle's store through the write pipeline, categories first, in
-     * one transaction (G-42). Locks and system categories in the document are ignored here; a
-     * trusted import is the console's `--trusted`. Needs `import`.
+     * Write a document into this handle's store in one transaction. Locks and system categories
+     * in the document are ignored; the console's `--trusted` applies them. Needs `import`.
      *
      * @throws AccessDenied
      * @throws VerificationRequired
@@ -330,16 +306,14 @@ interface Settings
     public function compare(ExportDocument $document): StoreDiff;
 
     /**
-     * Persisted configuration (§16.11): stores and layers kept in the database, and definitions
-     * kept in this handle's store's definitions table, edited as this handle's actor. Needs
-     * `manage_stores` or `manage_definitions`; on only with `configuration.persisted`.
+     * Edit the stores, layers and definitions kept in the database, as this handle's actor.
+     * Requires `configuration.persisted`.
      */
     public function persistedConfiguration(): PersistedConfigurationEditor;
 
     /**
-     * The value at two versions of a setting. Needs `view_history`; an encrypted or sensitive
-     * value is decrypted only for an actor holding `view_sensitive` (or a trusted call), and is
-     * otherwise redacted to "changed or not".
+     * Compare a setting at two versions. Needs `view_history`; sensitive values are shown only
+     * with `view_sensitive`, otherwise only whether they changed.
      *
      * @throws HistoryUnavailable when the store keeps no history or lacks either version
      */

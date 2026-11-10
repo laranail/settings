@@ -7,14 +7,14 @@ namespace Simtabi\Laranail\Settings\Stores;
 use Closure;
 
 /**
- * Bootstrap evidence from the operator's flag (`laranail.settings.bootstrap`, set for the install
- * window) or from laranail/installer-headless reporting an install in progress. Its
- * `isInstalled()` is deliberately not used: with its marker missing it probes the live database,
- * which answers "not installed" during an outage.
+ * Whether an install is in progress, from the `laranail.settings.bootstrap` flag or installer-headless.
+ *
+ * Installer-headless' `isInstalled()` is not used: it probes the database, which reads as "not
+ * installed" during an outage.
  */
 final readonly class InstallationEvidence
 {
-    /** @param (Closure(): bool)|null $installing installer-headless' `isInstalling()`, when that package is present */
+    /** @param (Closure(): bool)|null $installing installer-headless' `isInstalling()` */
     public function __construct(
         private bool $flag,
         private ?Closure $installing = null,

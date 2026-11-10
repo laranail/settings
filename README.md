@@ -1,7 +1,10 @@
 # laranail/settings
 
-No badges yet: the package is not on a registry and its CI history is only days old.
-They are added once each claim is true.
+[![Tests](https://github.com/laranail/settings/actions/workflows/tests.yml/badge.svg)](https://github.com/laranail/settings/actions/workflows/tests.yml)
+[![Static analysis](https://github.com/laranail/settings/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/laranail/settings/actions/workflows/static-analysis.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+`laranail/settings` is not published to Packagist, so there is no registry-version badge to show: see [Install](#install).
 
 > Key-value settings for any Laravel owner (the application, a user, a tenant, a product), stored in layered stores that work before the database exists.
 

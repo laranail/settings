@@ -1,6 +1,6 @@
 # Typed settings
 
-Classes whose typed properties are settings, loaded and saved through the key-value engine (Phase 5). The idea comes from [spatie/laravel-settings](https://github.com/spatie/laravel-settings), credited with thanks; here a typed class is a view over keys, not a store of its own.
+Classes whose typed properties are settings, loaded and saved through the key-value engine. The idea comes from [spatie/laravel-settings](https://github.com/spatie/laravel-settings), credited with thanks; here a typed class is a view over keys, not a store of its own.
 
 ## A typed class
 
@@ -50,7 +50,7 @@ Resolving a class listed in `typed.classes` from the container loads it through 
 
 Register a class with an `#[Encrypted]` property before saving it, or the value is stored like any other.
 
-## Settings migrations (G-17)
+## Settings migrations
 
 Rename, move, add and delete keys in a migration, in order with the application's other migrations:
 

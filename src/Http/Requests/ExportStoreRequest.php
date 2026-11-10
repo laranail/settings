@@ -7,9 +7,7 @@ namespace Simtabi\Laranail\Settings\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
 
-/**
- * `POST /stores/{store}/export`: how secrets are written (`mode`), redacted by default.
- */
+/** `POST /stores/{store}/export`. */
 final class ExportStoreRequest extends FormRequest
 {
     public function authorize(): bool

@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-/**
- * What a promotion did, per (scope | key | locale): promoted, or skipped with a reason
- * (`exists`: a database row was already there; `undefined`: a strict store no longer defines
- * the key). Never carries a value.
- */
+/** What a promotion did per identity: promoted, or skipped as `exists` or `undefined`. */
 final readonly class PromotionReport
 {
     /**

@@ -10,7 +10,7 @@ use Simtabi\Laranail\Settings\Data\SettingAddress;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 
-/** How a read resolves (§7.2), for a channel other than PHP: the same handle's `explain()`. */
+/** Explain how a read resolves, through the handle's `explain()`. */
 final readonly class ExplainSetting
 {
     public function __construct(

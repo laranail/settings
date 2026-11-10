@@ -12,9 +12,8 @@ use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 
 /**
- * Asks Laravel's gate for `laranail-settings.<ability>`, passing the {@see Subject}. The host
- * defines those gates (or a `Gate::before` callback). An ability with no gate abstains, so
- * `authorization.undefined` decides it (deny by default).
+ * Asks Laravel's gate for `laranail-settings.<ability>` with the {@see Subject}. An ability
+ * with no gate defined abstains.
  */
 final readonly class GateAuthorizer implements Authorizer
 {

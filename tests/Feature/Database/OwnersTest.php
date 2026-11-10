@@ -50,13 +50,13 @@ it('gives a model a settings handle keyed by its morph alias', function (): void
         ->and($owner->settingsOwner()->alias)->toBe('owner');
 });
 
-it('refuses a model without a morph map entry, whose alias would be a class name (G-6)', function (): void {
+it('refuses a model without a morph map entry, whose alias would be a class name', function (): void {
     Relation::morphMap([], false);
 
     expect(fn () => SettingsOwner::query()->create()->settingsOwner())->toThrow(InvalidIdentifier::class);
 });
 
-it('deletes an owner\'s settings with the owner, and keeps them through a soft delete (G-7)', function (): void {
+it('deletes an owner\'s settings with the owner, and keeps them through a soft delete', function (): void {
     $owner = SettingsOwner::query()->create();
     $owner->settings()->set('ui.theme', 'dark');
     $soft = SoftDeletingOwner::query()->create();
@@ -79,7 +79,7 @@ it('ignores deleting a model whose alias no store holds', function (): void {
     expect($owner->delete())->toBeTrue();
 });
 
-it('eager-loads a page of owners in one query per store, then reads them with none (G-9)', function (): void {
+it('eager-loads a page of owners in one query per store, then reads them with none', function (): void {
     config()->set('laranail.settings.stores.settings.inherits', true);
     app()->forgetScopedInstances();
     $owners = collect(range(1, 5))->map(static fn (int $i): SettingsOwner => SettingsOwner::query()->create(['team_id' => 7]));

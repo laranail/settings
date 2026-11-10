@@ -10,11 +10,7 @@ use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Data\SettingAddress;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 
-/**
- * A page of one setting's history (§4.3), for a channel other than PHP: the same handle's
- * `history()`, so `view_history` applies and a sensitive value is removed for an actor who may not
- * see it, as in PHP.
- */
+/** Read a page of one setting's history through the handle's `history()`. */
 final readonly class ReadHistory
 {
     public function __construct(

@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-/**
- * A request whose body carries at most a `reason`: reading a change request, deciding one
- * (approve, reject, cancel), and deleting a category, a persisted entry or a definition.
- */
+/** A request whose body carries at most a `reason`. */
 final class ReasonRequest extends FormRequest
 {
     public function authorize(): bool

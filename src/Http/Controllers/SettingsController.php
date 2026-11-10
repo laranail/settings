@@ -30,9 +30,8 @@ use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 use Simtabi\Laranail\Settings\Http\Resources\ChangeRequestResource;
 
 /**
- * `/stores/{store}/settings` and `/stores/{store}/owners/{alias}/{id}/settings` (§16.10): resolve
- * the actor and the address, delegate to the action the PHP API uses, render. A write needing
- * approval answers 202 with the change request; `If-Match` makes a write conditional on the ETag.
+ * `/stores/{store}/settings` and `/stores/{store}/owners/{alias}/{id}/settings`. A write that
+ * needs approval answers 202 with the change request.
  */
 final readonly class SettingsController
 {
@@ -99,8 +98,8 @@ final readonly class SettingsController
     }
 
     /**
-     * `If-Match` against the address's current ETag: a mismatch is 412, a match makes the write
-     * conditional on that version (the version-checked update, §6). `*` matches any version.
+     * Check `If-Match` against the current ETag: a mismatch is 412, a match makes the write
+     * conditional on that version. `*` matches any version.
      *
      * @throws ConcurrentModification
      */

@@ -6,10 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * History entries were deleted by retention: how many, and the policy that removed them
- * (`keep_days` and/or `keep_versions`; null where that rule was not applied).
- */
+/** History entries were deleted by retention; a null rule was not applied. */
 final readonly class HistoryPruned implements ShouldDispatchAfterCommit
 {
     public function __construct(

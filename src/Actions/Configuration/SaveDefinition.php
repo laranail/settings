@@ -22,10 +22,8 @@ use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 
 /**
- * Save a definition through the API (§16.11, D-6) into the definitions table, from the same
- * attributes the configuration file takes (`type`, `default`, `rules`, `encrypted`, …): needs
- * `manage_definitions`; validated by the definition builder (a type must be a registered caster),
- * refused for a key code or configuration defines, audited. Reads see it at once.
+ * Save a definition into the definitions table from the attributes the configuration file takes.
+ * A key already defined in code or configuration is refused.
  */
 final readonly class SaveDefinition
 {

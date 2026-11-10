@@ -15,11 +15,7 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Services\Transfer\StoreSnapshots;
 
-/**
- * Export a store's settings and categories (G-10, G-42): needs `export`, and `view_sensitive` too
- * for decrypted values. Encrypted values are redacted unless the request asks for their
- * ciphertext or plaintext. Audited (the mode and how many settings, never a value).
- */
+/** Export a store's settings and categories; encrypted values are redacted unless asked for. */
 final readonly class ExportStore
 {
     public function __construct(

@@ -14,10 +14,8 @@ use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
- * A page of an owner's (or the global) settings, for a channel other than PHP: every key the
- * scope holds in any layer of the store, or that a definition of the store names, in key order,
- * each read through the settings handle. A key the actor may not view is left out, not masked
- * (§16.10). `$after` is the last key of the previous page.
+ * Read a page of a scope's settings in key order, leaving out keys the actor may not view.
+ * `$after` is the last key of the previous page.
  */
 final readonly class ReadSettings
 {

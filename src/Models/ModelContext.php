@@ -10,14 +10,10 @@ use Simtabi\Laranail\Settings\Database\SchemaShape;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
- * What the Eloquent models need to know and cannot ask for themselves (Eloquent builds models
- * with `new static`, so nothing is injected): the recorded schema shape (table names, key type,
- * soft deletes, tenancy mode), the current tenant and the default store. The service provider
- * sets it once with closures that resolve the scoped services on every call, so nothing derived
- * from one request or tenant is held here.
+ * The schema shape, current tenant and default store the Eloquent models read.
  *
- * The models are for factories, seeders, admin screens and tests. The settings engine never uses
- * them: reads and writes go through the drivers on the query builder.
+ * Eloquent builds models with `new static`, so nothing can be injected. The provider sets closures
+ * here that resolve the scoped services on each call, so no request or tenant state is held.
  */
 final class ModelContext
 {
@@ -31,9 +27,9 @@ final class ModelContext
     private static ?Closure $defaultStore = null;
 
     /**
-     * @param Closure(): SchemaShape $shape the recorded shape (tables, keys, tenancy mode)
-     * @param Closure(): ?string $tenant the current tenant
-     * @param Closure(): string $defaultStore `laranail.settings.default`
+     * @param Closure(): SchemaShape $shape
+     * @param Closure(): ?string $tenant
+     * @param Closure(): string $defaultStore
      */
     public static function use(Closure $shape, Closure $tenant, Closure $defaultStore): void
     {
@@ -49,7 +45,7 @@ final class ModelContext
             : throw new InvalidConfiguration('The settings models are used before SettingsServiceProvider registered them.');
     }
 
-    /** The tenant column value: '' outside any tenant, or when tenancy is not column mode. */
+    /** The tenant column value; '' outside a tenant or when tenancy is not column mode. */
     public static function tenant(): string
     {
         return self::hasTenantColumn() && self::$tenant instanceof Closure ? ((self::$tenant)() ?? '') : '';

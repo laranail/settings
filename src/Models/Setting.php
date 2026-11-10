@@ -14,13 +14,11 @@ use Simtabi\Laranail\Settings\Database\Factories\SettingFactory;
 use Simtabi\Laranail\Settings\Models\Concerns\UsesSettingsSchema;
 
 /**
- * A row of one store's values table (§4.2), for factories, admin screens and tests. Each store
- * has its own table, so a model instance belongs to one store: the default store unless
- * {@see inStore()} or {@see forStore()} names another.
+ * A row of a store's values table, for factories, admin screens and tests. Belongs to the default
+ * store unless {@see inStore()} or {@see forStore()} names another.
  *
- * `value` is the **encoded payload** (the value pipeline's JSON, encrypted when `is_encrypted`).
- * Writing it here bypasses validation, casting, encryption, locks, authorization and audit, so
- * application code sets values with `Settings::set()`; the engine never reads through this model.
+ * `value` is the encoded payload. Writing it here bypasses validation, encryption, locks,
+ * authorization and audit; application code uses `Settings::set()`.
  *
  * @property int|string $id
  * @property string $scope
@@ -40,7 +38,7 @@ final class Setting extends Model
 
     private ?string $store = null;
 
-    /** @return Builder<self> a query on a store's values table */
+    /** @return Builder<self> */
     public static function forStore(string $store): Builder
     {
         return new self()->inStore($store)->newQuery();
@@ -74,7 +72,7 @@ final class Setting extends Model
     }
 
     /**
-     * Copies keep the store, so rows read from a store's table stay in that store.
+     * Copies keep the store.
      *
      * @param array<string, mixed> $attributes
      */

@@ -6,9 +6,7 @@ namespace Simtabi\Laranail\Settings\Events;
 
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
-/**
- * A category was created, renamed or moved (after the transaction commits).
- */
+/** A category was created, renamed or moved. */
 final readonly class CategorySaved implements ShouldDispatchAfterCommit
 {
     public function __construct(

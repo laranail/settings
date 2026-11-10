@@ -22,9 +22,7 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
 use Simtabi\Laranail\Settings\Services\Database\ChangeRequestRepository;
 
-/**
- * Withdraw a change request: only its requester (or trusted code) may. Nothing is written.
- */
+/** Withdraw a change request; only its requester or trusted code may. */
 final readonly class CancelChange
 {
     public function __construct(

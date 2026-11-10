@@ -8,9 +8,7 @@ use Simtabi\Laranail\Enumerator\Attributes\Label;
 use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
-/**
- * The surface a call arrived through. Recorded in the audit trail.
- */
+/** The surface a call arrived through, recorded in the audit trail. */
 enum Channel: string implements Enumerator
 {
     use HasEnumeratorBehavior;

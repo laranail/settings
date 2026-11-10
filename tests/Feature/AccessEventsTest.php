@@ -22,7 +22,7 @@ use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
 
 /*
- * Phase 4 events: locks, refusals and maintenance. None carries a value.
+ * Lock, refusal and maintenance events. None carries a value.
  */
 
 it('announces a lock and an unlock with identifiers and the new version', function (): void {

@@ -11,8 +11,8 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * `laranail::settings.rescope {from} {to}`: rename an owner alias in stored settings, history and
- * change requests (G-30), after renaming it in the morph map. `from` may be a class name.
+ * Rename an owner alias in stored values, history and change requests, after renaming it in the
+ * morph map. `from` may be a class name.
  */
 final class RescopeCommand extends Command
 {

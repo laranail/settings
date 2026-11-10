@@ -17,8 +17,7 @@ use Simtabi\Laranail\Settings\Casting\DateTimeCaster;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 
 /**
- * Maps type aliases (`string`, `bool`, `enum:plan`) to casters. A stored `type` is always an
- * alias resolved here, so data can never make the package instantiate an arbitrary class.
+ * Maps type aliases such as `string`, `bool` or `enum:plan` to casters, never to class names.
  */
 #[Singleton]
 final class CasterRegistry

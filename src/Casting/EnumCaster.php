@@ -9,7 +9,7 @@ use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
-/** A backed enum, stored as its backing value. Registered under `enum:<alias>`, never a class name. */
+/** A backed enum, stored as its backing value and registered under `enum:<alias>`. */
 final readonly class EnumCaster implements Caster
 {
     /** @param class-string<BackedEnum> $enum */

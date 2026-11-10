@@ -12,10 +12,7 @@ use Simtabi\Laranail\Settings\Models\Concerns\UsesSettingsSchema;
 use Simtabi\Laranail\Settings\Database\Factories\SettingAuditEntryFactory;
 
 /**
- * A row of the audit table (§16.8): an action or a denial, who, when and through which channel,
- * never a value. Its key is always a ULID, whatever `ids.type` says. The trail is append-only:
- * the engine writes it through its audit sinks and reads it with `Settings::audit()`; this model
- * exists for factories and tests.
+ * A row of the append-only audit table, for factories and tests. Never holds a value.
  *
  * @property string $id
  * @property string $action

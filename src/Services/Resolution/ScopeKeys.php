@@ -9,9 +9,7 @@ use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
- * The keys a listing of one scope walks: every key the scope holds in any layer of the store, and
- * every key a code or config definition of the store names, in key order. Shared by the PHP
- * handle's `all()` and the REST API's `GET …/settings`, so the two list the same keys.
+ * The keys one scope lists: every stored key and every defined key of the store, in key order.
  */
 final readonly class ScopeKeys
 {
