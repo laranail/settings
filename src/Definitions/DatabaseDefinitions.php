@@ -15,6 +15,7 @@ use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Enums\TranslationsMode;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
+use Simtabi\Laranail\Settings\Database\DefinitionsRepository;
 
 /**
  * The `database` definition source (D-6): rows of the optional definitions table that are not
@@ -71,15 +72,7 @@ final class DatabaseDefinitions
     /** @return array<string, Definition> */
     private function load(Store $store, DatabaseDriver $database): array
     {
-        $names = $database->names();
-        $rows = $database->attempt($store->name, static fn (): array => $database->connection()
-            ->table($names->definitions() . ' as d')
-            ->leftJoin($names->categories() . ' as c', 'c.id', '=', 'd.category_id')
-            ->where('d.store', $store->name->value)
-            ->where('d.is_system', false)
-            ->get(['d.*', 'c.slug as category_slug'])
-            ->map(static fn (object $row): array => (array) $row)
-            ->all());
+        $rows = new DefinitionsRepository($database, $this->encoder)->runtimeRows($store->name);
         $translations = new Translations($database->shape()->translations);
         $definitions = [];
 

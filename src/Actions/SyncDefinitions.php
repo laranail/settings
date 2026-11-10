@@ -4,21 +4,17 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Authorization\AccessGuard;
+use Simtabi\Laranail\Settings\Database\DefinitionsRepository;
 use Simtabi\Laranail\Settings\Definitions\DefinitionRegistry;
 
 /**
@@ -62,7 +58,8 @@ final readonly class SyncDefinitions
                 continue;
             }
 
-            $result = $database->attempt($store->name, fn (): array => $database->transaction(fn (): array => $this->sync($store, $database, $byStore[$name] ?? []), $store->name));
+            $repository = new DefinitionsRepository($database, $this->encoder);
+            $result = $database->attempt($store->name, fn (): array => $database->transaction(fn (): array => $repository->sync($store->name, $byStore[$name] ?? []), $store->name));
             $report['synced'] += $result['synced'];
             $report['removed'] += $result['removed'];
             $report['conflicts'] = [...$report['conflicts'], ...$result['conflicts']];
@@ -76,84 +73,5 @@ final readonly class SyncDefinitions
         ]);
 
         return $report;
-    }
-
-    /**
-     * @param list<Definition> $definitions
-     *
-     * @return array{synced: int, removed: int, conflicts: list<string>}
-     */
-    private function sync(Store $store, DatabaseDriver $database, array $definitions): array
-    {
-        $table = static fn () => $database->connection()->table($database->names()->definitions())->where('store', $store->name->value);
-        $now = CarbonImmutable::now();
-        $translations = new Translations($database->shape()->translations);
-        $synced = 0;
-        $conflicts = [];
-        $keys = [];
-
-        foreach ($definitions as $definition) {
-            $keys[] = $definition->key->value;
-            $row = $table()->where('key', $definition->key->value)->first(['is_system']);
-
-            if ($row !== null && ! DatabaseValues::boolean($row->is_system ?? false)) {
-                $conflicts[] = $store->name->value . '.' . $definition->key->value;
-
-                continue;
-            }
-
-            $columns = $this->columns($database, $store, $definition, $translations) + ['updated_at' => $now];
-
-            if ($row === null) {
-                $table()->insert($columns + DatabaseDriver::newId($database->shape()->ids) + [
-                    'store'      => $store->name->value,
-                    'key'        => $definition->key->value,
-                    'is_system'  => true,
-                    'created_at' => $now,
-                ]);
-            } else {
-                $table()->where('key', $definition->key->value)->update($columns);
-            }
-
-            $synced++;
-        }
-
-        $removed = $table()->where('is_system', true)->whereNotIn('key', $keys === [] ? [''] : $keys)->delete();
-
-        return ['synced' => $synced, 'removed' => $removed, 'conflicts' => $conflicts];
-    }
-
-    /** @return array<string, mixed> */
-    private function columns(DatabaseDriver $database, Store $store, Definition $definition, Translations $translations): array
-    {
-        $category = null;
-
-        if ($definition->category !== null) {
-            $categories = $database->connection()->table($database->names()->categories());
-
-            // Definitions are shared by every tenant, so they link to the central categories ('').
-            if ($database->shape()->tenancy->hasColumn()) {
-                $categories->where('tenant', '');
-            }
-
-            $category = $categories->where('store', $store->name->value)->where('slug', $definition->category)->value('id');
-        }
-
-        return [
-            'slug'        => $definition->key->slug(),
-            'group'       => $definition->group(),
-            'category_id' => is_int($category) || is_string($category) ? $category : null,
-            'type'        => $definition->type,
-            // An encrypted setting's default stays in code: the table must not hold a readable copy.
-            'default'        => $definition->hasDefault && ! $definition->encrypted ? $this->encoder->encode($definition->key, $definition->default) : null,
-            'label'          => $translations->storeNullable($definition->label),
-            'description'    => $translations->storeNullable($definition->description),
-            'rules'          => Json::encode($definition->rules, 'A definition'),
-            'is_encrypted'   => $definition->encrypted,
-            'is_public'      => $definition->public,
-            'is_locked'      => $definition->locked,
-            'inherits'       => $definition->inherits,
-            'overridable_by' => Json::encode($definition->overridableBy, 'A definition'),
-        ];
     }
 }
