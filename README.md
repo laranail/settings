@@ -7,9 +7,8 @@ They are added once each claim is true.
 
 Requires PHP 8.4.1+ or 8.5 and Laravel 13. Works on MySQL, PostgreSQL and SQLite; SQL Server is not supported in 0.x.
 
-> **Pre-release.** The engine reads and writes through file and config layers today; the
-> database layer, caching and history arrive in the next phases. See
-> [Getting started](docs/getting-started.md).
+> **Pre-release.** The engine reads and writes through database, file and config layers;
+> caching and history arrive in the next phases. See [Getting started](docs/getting-started.md).
 
 ## Install
 
@@ -24,14 +23,19 @@ composer require laranail/settings
 
 ### Getting started
 
-Publish the config and the migrations (`settings`, `settings_categories`, `settings_audit`), then
-migrate: the default store reads the database first, then its runtime file, then shipped defaults
-from `settings/defaults.php` when that file exists.
+Publish the config and the package's one migration (it creates `settings_categories`, a values
+table per database store, and `settings_audit`), migrate, and optionally seed the default
+categories: the default store reads the database first, then its runtime file, then shipped
+defaults from `settings/defaults.php` when that file exists.
 
 ```bash
 php artisan laranail::settings.install
 php artisan migrate
+php artisan db:seed     # general, appearance, localisation, mail, notifications, security
 ```
+
+For multi-tenant applications set `tenancy.mode` before migrating (see
+[Tenancy](docs/tools/tenancy.md)).
 
 An application without a database drops `database` from `stores.settings.layers` and keeps its
 values in `storage/app/private/laranail/settings/settings.json`.
@@ -86,6 +90,8 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Runtime configuration](docs/tools/runtime-configuration.md) — stores, definitions and access changed in code for one request.
 - [Schema switches](docs/tools/schema-switches.md) — identity, key types, dedicated stores, soft deletes, JSON translations, the definitions table and the schema file.
 - [Audit queries](docs/tools/audit-queries.md) — reading the audit trail from PHP, gated by `view_audit`.
+- [Tenancy](docs/tools/tenancy.md) — tenant column or database per tenant, the discriminator, and the stancl and spatie adapters.
+- [Models and factories](docs/tools/models-and-factories.md) — Eloquent models and factories for tests, seeding and admin screens.
 
 ### Recipes
 
@@ -93,6 +99,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Test code that uses settings](docs/recipes/testing-with-the-fake.md) — `Settings::fake()` and its assertions.
 - [Act as a user](docs/recipes/acting-as-a-user.md) — authorize and audit changes made on a user's behalf.
 - [Move from files to the database](docs/recipes/moving-from-files-to-the-database.md) — bootstrap mode during install, then promotion.
+- [Seed the default categories](docs/recipes/seeding-default-categories.md) — the shipped set, your own set, and per tenant.
 
 ## Contributing & security
 

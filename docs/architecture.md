@@ -75,8 +75,8 @@ edits definitions), so they are switches (see [Schema switches](tools/schema-swi
 
 A switch decides a column, so it is migration-time, and the package must not trust configuration
 for it afterwards: flipping `soft_deletes` on after migrating would make every read filter on a
-`deleted_at` column that does not exist. So `install` and `make-store` record the shape they
-produce in a schema file the application commits, the runtime and the migrations read that file,
+`deleted_at` column that does not exist. So `install` and `make-store` record the shape the
+migration produces in a schema file the application commits, the runtime and the migration read that file,
 and `doctor` reports any drift between configuration, the file and the database. A later
 `make-store` keeps the file's key type, so a new table's `category_id` can never disagree with the
 categories key it points at.
@@ -84,6 +84,31 @@ categories key it points at.
 Every combination is a shape the suite has to keep working. A pairwise set (every pair of switch
 values meets at least once, asserted along with the number of shapes) runs on every pull request
 on SQLite, MySQL and PostgreSQL, and the full product weekly.
+
+## Why one migration?
+
+Every table the package uses is created by one migration file, in dependency order (categories,
+definitions, each store's values, audit), with a `down()` that drops them in reverse. Four
+migration stubs used to do this, each repeating the same connection and shape lookups, and a new
+store meant copying a stub. Nothing in the migration varies per application any more (the shape
+comes from the schema file), so it ships as a real PHP file. Its table definitions stay inline,
+in short private methods, rather than in a schema-builder class: a migration is read when it
+fails, and one file that says what it creates is easier to maintain than a migration delegating
+to code elsewhere. `make-store` copies that same file and pins one store (and, with
+`--connection`, a connection), so there is still exactly one definition of each table.
+
+## Why tenancy this way?
+
+Settings are a tenant's own data, so tenancy is in the core rather than a companion package, and
+it needs neither tenancy package: a `TenantDiscriminator` says who the current tenant is, with
+adapters for stancl/tenancy and spatie/laravel-multitenancy picked by `class_exists`. A tenant
+column (one database) and a database per tenant are both common, so both are modes, and the
+default is none. In column mode the filter sits where every query is built (the database driver,
+the categories repository, the audit sink and queries), so no call path can forget it, and the
+tenant leads the unique keys so two tenants can hold the same key. Definitions describe settings
+rather than hold values, so they stay shared. Memoised reads are keyed by tenant in every mode,
+because a job that loops over tenants is the easiest way to leak one tenant's settings into
+another's.
 
 ## Why does a plain set retry once, and an expected-version write never?
 

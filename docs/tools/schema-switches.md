@@ -104,8 +104,8 @@ registered caster alias, and an encrypted definition's default is never copied i
 ## The schema file
 
 `install` writes `database/settings-schema.php` (or `schema.path`): a `shape_version`, the
-switches, the table names and one entry per database store. `make-store` adds its store's entry.
-The migrations and the runtime read this file, not configuration, so changing a switch after
+switches (`tenancy` included), the table names and one entry per database store. `make-store`
+adds its store's entry. The package migration and the runtime read this file, not configuration, so changing a switch after
 migrating changes nothing until a migration does. Commit it. An existing record always wins:
 recording again only adds stores that are new.
 
@@ -118,10 +118,11 @@ type fails). A database store with no entry in the file fails.
 ## Keeping the switches tested
 
 `tests/Feature/Database/SchemaMatrixTest.php` builds a pairwise set of shapes (every pair of
-switch values meets in at least one; 10 shapes covering all 141 pairs, both counts asserted) and
-runs each end to end, finishing with `doctor`. It runs on SQLite with the suite and on MySQL and
-PostgreSQL in the `database` group; `LARANAIL_SETTINGS_MATRIX=full` runs all 576 shapes, which
-the weekly CI job does.
+switch values meets in at least one; 10 shapes covering all 177 pairs of the nine switches,
+`tenancy.mode` none and column included, both counts asserted) and runs each end to end, inside a
+tenant in column mode, finishing with `doctor`. It runs on SQLite with the suite and on MySQL and
+PostgreSQL in the `database` group; `LARANAIL_SETTINGS_MATRIX=full` runs all 1,152 shapes, which
+the weekly CI job does. (`database` mode adds no column, so it is not a separate shape.)
 
 ---
 

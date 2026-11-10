@@ -31,6 +31,11 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `categories.soft_deletes` | `false` | trash deleted categories and restore them when the slug is created again (migration-time) |
 | `writes.retry_on_conflict` | `true` | retry a plain `set()` once after a concurrent change |
 | `readiness.flush_on` | the stancl and spatie tenancy events | events after which schema readiness is re-checked |
+| `tenancy.mode` | `none` (`LARANAIL_SETTINGS_TENANCY`) | `column` adds a `tenant` column to the values, categories and audit tables; `database` relies on a database per tenant (migration-time) |
+| `tenancy.discriminator` | `auto` | who the current tenant is: `auto` (stancl/tenancy, then spatie/laravel-multitenancy, when installed), `null`, `stancl`, `spatie`, or a class implementing `TenantDiscriminator` |
+| `seed.enabled` | `true` (`LARANAIL_SETTINGS_SEED`) | whether `db:seed` creates the default categories |
+| `seed.stores` | `[]` | the stores to seed; empty means the default store |
+| `seed.categories` | general, appearance, localisation, mail, notifications, security | `slug => title` or `slug => [title, description, icon, parent, sort_order, translations]` |
 | `layers.<name>.driver` | — | `database`, `json`, `php`, `config`, `array`, or a custom driver |
 | `layers.<name>.connection` | `null` (`LARANAIL_SETTINGS_DB_CONNECTION` for `database`) | database driver: the connection; null is the default one |
 | `layers.<name>.writable` | `true` | set `false` for a read-only layer |
@@ -57,7 +62,7 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 
 Store names, keys, locales and owner aliases are validated, and a misconfiguration (an unknown driver, sink, verifier, resolver, level or ability included) raises `InvalidConfiguration` naming the config path on first use. The `password_confirmation` verifier also reads Laravel's own `auth.password_timeout`.
 
-Migration-time switches are read by `install` and `make-store` and recorded in the schema file; after that the package reads the file, and `doctor` reports configuration that differs from it. See [Schema switches](tools/schema-switches.md).
+Migration-time switches (`tenancy.mode` among them) are read by `install` and `make-store` and recorded in the schema file; after that the package reads the file, and `doctor` reports configuration that differs from it. See [Schema switches](tools/schema-switches.md).
 
 Access, audit and logging are described in [Access control](tools/access-control.md) and [Audit and logging](tools/audit-and-logging.md); per-request changes in [Runtime configuration](tools/runtime-configuration.md).
 

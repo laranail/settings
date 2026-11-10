@@ -55,7 +55,10 @@ both survive the refusal. The table has no value column.
 | `ip`, `user_agent`, `request_id`, `reason` | the actor's context |
 | `meta` | identifiers only (the refusal, the category operation) |
 
-Every connection a store uses has its own audit table; `make-store --connection` generates it.
+Every connection a store uses has its own audit table; the package migration creates it (and
+`make-store --connection` for a store added later). In column-mode tenancy each row carries the
+tenant, and `Settings::audit()` reads the current tenant's rows only; `prune-audit` applies the
+retention to every tenant.
 
 ## Querying the trail
 
