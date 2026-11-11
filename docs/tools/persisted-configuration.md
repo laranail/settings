@@ -29,7 +29,7 @@ $editor->saveDefinition('site.theme', ['type' => 'string', 'default' => 'light',
 $editor->deleteDefinition('site.theme');
 ```
 
-Store and layer entries take the shape the configuration file gives `stores.<name>` and `layers.<name>`; definitions take the attributes of `definitions.<key>`. Each change is validated exactly like configuration before it is stored, needs `manage_stores` (step-up verification by default) or `manage_definitions`, and is audited. A definition from code or configuration cannot be overridden or deleted here, and a persisted store may not change the layers the configuration file gives a store: moving data between drivers is [promote](commands.md)'s job.
+Store and layer entries take the shape the configuration file gives `stores.<name>` and `layers.<name>`; definitions take the attributes of `definitions.<key>`. Each change is validated exactly like configuration before it is stored, needs `manage_stores` (step-up verification by default) or `manage_definitions`, and is audited. A definition from code or configuration cannot be overridden or deleted here, and a persisted store may not change the layers the configuration file gives a store: moving data between drivers is [promote](commands.md)'s job. A persisted layer may not use the `php` or `config` driver: the first requires the file it names and the second reads application configuration, so both are defined in the configuration file only.
 
 ## Loading
 

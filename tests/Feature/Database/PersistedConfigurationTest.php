@@ -62,6 +62,28 @@ it('validates an entry before saving it, and refuses re-layering a configured st
         ->and(DB::table('settings_stores')->count())->toBe(0);
 });
 
+it('never persists a php or config layer, which would run a file or read configuration on the server', function (): void {
+    $file = sys_get_temp_dir() . '/laranail-settings-persisted-' . bin2hex(random_bytes(6));
+    $marker = $file . '.ran';
+    file_put_contents($file . '.php', "<?php file_put_contents('" . $marker . "', 'ran'); return ['a' => 1];");
+    $editor = settings()->persistedConfiguration();
+
+    expect(fn () => $editor->saveLayer('evil', ['driver' => 'php', 'path' => $file . '.php']))->toThrow(InvalidConfiguration::class, 'only be defined in the configuration file')
+        ->and(fn () => $editor->saveLayer('shipped', ['driver' => 'php', 'path' => $file . '.php']))->toThrow(InvalidConfiguration::class, 'only be defined in the configuration file')
+        ->and(fn () => $editor->saveLayer('secrets', ['driver' => 'config', 'prefix' => 'app']))->toThrow(InvalidConfiguration::class, 'only be defined in the configuration file')
+        ->and(DB::table('settings_stores')->count())->toBe(0);
+
+    // A row written to the table directly is skipped the same way, and its file is never required.
+    DB::table('settings_stores')->insert([
+        ['id' => '01J00000000000000000000001', 'kind' => 'layer', 'name' => 'evil', 'config' => json_encode(['driver' => 'php', 'path' => $file . '.php']), 'created_at' => now(), 'updated_at' => now()],
+        ['id' => '01J00000000000000000000002', 'kind' => 'store', 'name' => 'evil', 'config' => '{"layers":["evil"]}', 'created_at' => now(), 'updated_at' => now()],
+    ]);
+    app()->forgetScopedInstances();
+
+    expect(fn (): mixed => settings()->store('evil')->get('a'))->toThrow(UnknownStore::class)
+        ->and(is_file($marker))->toBeFalse();
+});
+
 it('skips and reports an invalid row instead of failing', function (): void {
     DB::table('settings_stores')->insert([
         ['id' => '01J00000000000000000000001', 'kind' => 'store', 'name' => 'broken', 'config' => '{"layers":["missing"]}', 'created_at' => now(), 'updated_at' => now()],
