@@ -8,6 +8,7 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
+use Simtabi\Laranail\Settings\Support\RecordSerializer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
 it('builds and reads per-locale title maps', function (): void {
@@ -48,3 +49,13 @@ it('parses stored scopes and names their owner', function (): void {
         ->and(Scope::global()->owner())->toBeNull()
         ->and(fn (): ?Scope => Scope::fromString('App\\Models\\User:1'))->toThrow(InvalidIdentifier::class);
 });
+
+it('reports a file record with a bad key, locale, date or version as a malformed record', function (array $row): void {
+    expect(fn (): mixed => new RecordSerializer()->fromArray(['scope' => 'global', 'key' => 'site.name', ...$row], 'runtime.json'))
+        ->toThrow(DriverFailure::class, 'A record in [runtime.json] is malformed');
+})->with([
+    'key'     => [['key' => 'Not A Key']],
+    'locale'  => [['locale' => 'zz-garbage-locale']],
+    'date'    => [['written_at' => 'not a date']],
+    'version' => [['version' => 0]],
+]);

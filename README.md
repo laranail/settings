@@ -39,7 +39,9 @@ php artisan db:seed     # general, appearance, localisation, mail, notifications
 ```
 
 For multi-tenant applications set `tenancy.mode` before migrating (see
-[Tenancy](docs/tools/tenancy.md)).
+[Tenancy](docs/tools/tenancy.md)). To keep values per owner, list the owner's morph alias in a
+store's `owners` (for example `'owners' => ['user']` under `stores.settings`); an alias no store
+lists raises `OwnerNotAllowed`.
 
 An application without a database drops `database` from `stores.settings.layers` and keeps its
 values in `storage/app/private/laranail/settings/settings.json`.
