@@ -47,7 +47,10 @@ php artisan laranail::settings.diff storage/settings.json          # exits 1 whe
 php artisan laranail::settings.import storage/settings.json         # a dry run
 php artisan laranail::settings.import storage/settings.json --apply
 php artisan laranail::settings.import storage/settings.json --apply --trusted
+php artisan laranail::settings.import exports/settings.json --disk=s3 --apply   # read the file from a disk
 ```
+
+`--disk=<name>` reads the file from any configured filesystem disk, with the source as the path on that disk; without it the source is a local path, as before. The REST import takes the document in the request body, so it has no disk option.
 
 The console command and `POST /stores/{store}/export` stream the document, reading 500 rows at a time, so a large store is never held in memory; the bytes are the ones `export()->toJson()` gives. In PHP, the `StreamExport` action (`handle($request, $stream, $actor)`) writes to any stream; `export()` still returns the whole `ExportDocument`.
 

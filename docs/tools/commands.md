@@ -20,7 +20,7 @@ Nineteen Artisan commands, all named `laranail::settings.<command>`.
 | `laranail::settings.clear-cache [--store=*]` | resets the cached settings of every store, or the named ones, for every tenant |
 | `laranail::settings.prune-changes` | marks open change requests past `approvals.expire_after` as expired and deletes decided ones older than `approvals.keep_days` |
 | `laranail::settings.export [path] [--store=] [--with-secrets] [--decrypt] [--confirm=]` | writes a store as a JSON document; secrets redacted unless asked for |
-| `laranail::settings.import {source} [--store=] [--from=] [--apply] [--trusted]` | imports an export file, or another package's settings through an importer; a dry run without `--apply` |
+| `laranail::settings.import {source?} [--store=] [--from=] [--disk=] [--apply] [--trusted]` | imports an export file, or another package's settings through an importer, from a local path or a filesystem disk; a dry run without `--apply` |
 | `laranail::settings.diff {path} [--store=]` | compares a store with an export file, by identity only; exits 1 when they differ |
 | `laranail::settings.reencrypt` | encrypts every stored secret again under the current key (values, history, change requests) |
 | `laranail::settings.rescope {from} {to}` | renames an owner alias in stored values, history and change requests |

@@ -33,18 +33,16 @@ final readonly class SpatieSettingsImporter implements Importer
             throw new InvalidImport(sprintf('spatie: table [%s] on connection [%s] is not a spatie/laravel-settings table (%s).', $table, $connection ?: 'default', $exception->getMessage()), 0, $exception);
         }
 
-        $values = [];
+        $entries = [];
 
         foreach ($rows as $row) {
             $row = (array) $row;
             $group = is_string($row['group'] ?? null) ? $row['group'] : '';
             $name = is_string($row['name'] ?? null) ? $row['name'] : '';
             $payload = is_string($row['payload'] ?? null) ? json_decode($row['payload'], true) : null;
-            $key = ImportedKeys::key($group . '.' . $name, 'spatie');
-
-            $values[$key->value] = [$payload, (bool) ($row['locked'] ?? false)];
+            $entries[] = [$group . '.' . $name, $payload, (bool) ($row['locked'] ?? false)];
         }
 
-        return ImportedKeys::document($store, $values, 'spatie');
+        return ImportedKeys::document($store, ImportedKeys::values($entries, 'spatie'), 'spatie');
     }
 }

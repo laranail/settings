@@ -140,6 +140,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [REST API quick start](docs/recipes/rest-api-quick-start.md) — enable the API, authenticate and make a first request.
 - [Call the REST API with Sanctum](docs/recipes/calling-the-rest-api-with-sanctum.md) — a token with an ability ceiling, ETags and idempotency.
 - [Migrate from spatie/laravel-settings](docs/recipes/migrating-from-spatie-laravel-settings.md) — import the values and keep typed classes.
+- [Migrate from laranail/toolkit's settings store](docs/recipes/migrating-from-laranail-toolkit.md) — import toolkit's JSON file from a local path or a disk.
 - [Build your own admin UI on the REST API](docs/recipes/building-an-admin-ui-on-the-rest-api.md) — forms from definitions, ETag saves, history and activity.
 - [Read settings from an SPA or a mobile app](docs/recipes/consuming-from-an-spa-or-mobile-app.md) — cookies or tokens, ETags and safe retries.
 - [Build a per-user preferences screen](docs/recipes/building-a-preferences-screen.md) — defaults, `many()`, `setMany()` and resetting.
