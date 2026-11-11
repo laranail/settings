@@ -17,6 +17,9 @@ final readonly class ExportDocument
 
     public const int VERSION = 1;
 
+    /** How {@see toJson()} encodes, and the streamed export with it. */
+    public const int JSON_FLAGS = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR;
+
     /**
      * @param list<ExportedCategory> $categories
      * @param list<ExportedSetting> $settings
@@ -99,7 +102,7 @@ final readonly class ExportDocument
 
     public function toJson(): string
     {
-        return json_encode($this->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR) . "\n";
+        return json_encode($this->toArray(), self::JSON_FLAGS) . "\n";
     }
 
     /** @return array<string, ExportedSetting> by identity */

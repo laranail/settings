@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -9,6 +11,7 @@ use Illuminate\Testing\TestResponse;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Cache\Events\CacheMissed;
 use Illuminate\Database\Schema\Blueprint;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
@@ -20,13 +23,18 @@ use Illuminate\Database\Events\TransactionBeginning;
 use Simtabi\Laranail\Settings\Http\Support\Problems;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Simtabi\Laranail\Settings\Tests\Support\ApiSchemas;
 use Simtabi\Laranail\Settings\Tests\Support\JsonSchema;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
+use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
@@ -52,12 +60,16 @@ function api(string $method, string $uri, array $data = [], array $headers = [])
     $response = test()->json($method, '/api/settings/v1/' . $uri, $data, $headers);
     $route = $response->baseRequest->route();
 
-    if (is_object($route) && $response->status() !== 204) {
-        $schema = ApiSchemas::response((string) $route->getName(), $response->status());
+    $status = $response->baseResponse->getStatusCode();
 
-        expect($schema)->not->toBeNull(sprintf('%s %s answered %d, which no response shape describes', $method, $uri, $response->status()));
+    if (is_object($route) && $status !== 204) {
+        $schema = ApiSchemas::response((string) $route->getName(), $status);
 
-        $errors = new JsonSchema(ApiSchemas::document())->errors(json_decode((string) $response->getContent(), true), $schema);
+        expect($schema)->not->toBeNull(sprintf('%s %s answered %d, which no response shape describes', $method, $uri, $status));
+
+        // An export is streamed.
+        $content = $response->baseResponse instanceof StreamedResponse ? $response->streamedContent() : (string) $response->getContent();
+        $errors = new JsonSchema(ApiSchemas::document())->errors(json_decode($content, true), $schema);
         expect($errors)->toBe([], sprintf('%s %s does not match its schema', $method, $uri));
     }
 
@@ -265,6 +277,148 @@ it('keeps a stored idempotent response encrypted, since it can hold a secret', f
         ->and($replay->json('data.value'))->toBe($secret)
         ->and($files)->toHaveCount(1)
         ->and((string) file_get_contents((string) array_key_first($files)))->not->toContain($secret);
+});
+
+it('answers a retry sent while the first request still runs with 409, and writes once (SP-04)', function (): void {
+    $runs = 0;
+    $inner = null;
+    $request = static function (): Request {
+        $request = Request::create('/api/settings/v1/stores/settings/settings/site.name', 'PUT', content: '{"value":"Acme"}');
+        $request->headers->set('Idempotency-Key', 'in-flight');
+
+        return $request;
+    };
+    $middleware = app(IdempotentWrites::class);
+
+    // The retry arrives while the first request is still inside the action.
+    $middleware->handle($request(), function () use ($middleware, $request, &$runs, &$inner): Response {
+        $runs++;
+
+        try {
+            $middleware->handle($request(), static function () use (&$runs): Response {
+                $runs++;
+
+                return new Response('second', 200);
+            });
+        } catch (ConflictHttpException $conflict) {
+            $inner = $conflict->getStatusCode();
+        }
+
+        return new Response('first', 200);
+    });
+
+    $replay = $middleware->handle($request(), static fn (): Response => new Response('third', 200));
+
+    expect($runs)->toBe(1)
+        ->and($inner)->toBe(409)
+        ->and($replay->getContent())->toBe('first')
+        ->and($replay->headers->get('Idempotent-Replayed'))->toBe('true');
+});
+
+it('replays a response stored while it waited for the key, rather than writing again (SP-04)', function (): void {
+    $runs = 0;
+    $request = static function (): Request {
+        $request = Request::create('/api/settings/v1/stores/settings/settings/site.name', 'PUT', content: '{"value":"Acme"}');
+        $request->headers->set('Idempotency-Key', 'finished-meanwhile');
+
+        return $request;
+    };
+    $middleware = app(IdempotentWrites::class);
+    $raced = false;
+
+    // The first request finishes between this one's cache read and its taking the lock.
+    Event::listen(CacheMissed::class, static function () use ($middleware, $request, &$runs, &$raced): void {
+        if (! $raced) {
+            $raced = true;
+            $middleware->handle($request(), static function () use (&$runs): Response {
+                $runs++;
+
+                return new Response('first', 200);
+            });
+        }
+    });
+
+    $response = $middleware->handle($request(), static function () use (&$runs): Response {
+        $runs++;
+
+        return new Response('second', 200);
+    });
+
+    expect($raced)->toBeTrue()
+        ->and($runs)->toBe(1)
+        ->and($response->getContent())->toBe('first')
+        ->and($response->headers->get('Idempotent-Replayed'))->toBe('true');
+});
+
+it('keys a replay by the tenant, so the same user id in two tenants never shares a response (SP-08)', function (): void {
+    useDatabase(['stores.settings.owners' => ['user'], 'tenancy.mode' => 'column', 'verification.driver' => 'none']);
+    $tenant = (object) ['id' => 'acme'];
+    app()->forgetScopedInstances();
+    app()->instance(TenantDiscriminator::class, new ClosureTenantDiscriminator(static fn (): ?string => $tenant->id));
+    allowGates(...Ability::cases());
+    $secret = TestCredentials::secret();
+
+    api('PUT', 'stores/settings/settings/site.name', ['value' => $secret], ['Idempotency-Key' => 'same-key'])->assertOk();
+
+    $tenant->id = 'globex';
+    $other = test()->json('PUT', '/api/settings/v1/stores/settings/settings/site.name', ['value' => $secret], ['Idempotency-Key' => 'same-key'])->assertOk();
+
+    expect($other->headers->get('Idempotent-Replayed'))->toBeNull()
+        ->and($other->json('data.version'))->toBe(1);
+
+    $tenant->id = 'acme';
+    $replay = test()->json('PUT', '/api/settings/v1/stores/settings/settings/site.name', ['value' => $secret], ['Idempotency-Key' => 'same-key'])->assertOk();
+
+    expect($replay->headers->get('Idempotent-Replayed'))->toBe('true');
+});
+
+it('answers a refused export with a problem, not a half-written stream (SP-10)', function (): void {
+    Gate::define(Ability::Export->gateName(), static fn (): bool => false);
+
+    api('POST', 'stores/settings/export')->assertForbidden()->assertJsonPath('status', 403);
+});
+
+it('never runs a REST request as the system actor, whatever the resolver returns (SP-02)', function (): void {
+    settings()->configuration()->resolveActorsUsing(static fn (): Actor => Actor::system('service account'));
+
+    foreach (Ability::cases() as $ability) {
+        Gate::define($ability->gateName(), static fn (): bool => false);
+    }
+
+    test()->json('PUT', '/api/settings/v1/stores/settings/settings/site.name', ['value' => 'Acme'])
+        ->assertUnauthorized()
+        ->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#actor-required');
+    test()->json('GET', '/api/settings/v1/stores/settings/settings')->assertUnauthorized();
+
+    expect(settings()->get('site.name'))->toBeNull();
+});
+
+it('keeps a value stored encrypted secret after its definition stops saying so (SP-01)', function (): void {
+    $secret = TestCredentials::secret();
+    api('PUT', 'stores/settings/definitions/mail.password', ['attributes' => ['type' => 'string', 'encrypted' => true]])->assertOk();
+    settings()->set('mail.password', $secret);
+    Gate::define(Ability::ViewSensitive->gateName(), static fn (): bool => false);
+
+    // manage_definitions alone: redefine the key as plain, then delete the definition.
+    api('PUT', 'stores/settings/definitions/mail.password', ['attributes' => ['type' => 'string']])->assertOk();
+    api('GET', 'stores/settings/settings/mail.password')->assertOk()->assertJsonPath('data.redacted', true)->assertJsonMissingPath('data.value');
+    api('DELETE', 'stores/settings/definitions/mail.password')->assertNoContent();
+
+    $show = api('GET', 'stores/settings/settings/mail.password')->assertOk()->assertJsonPath('data.redacted', true)->assertJsonMissingPath('data.value');
+    $list = api('GET', 'stores/settings/settings')->assertOk();
+    $explain = api('GET', 'stores/settings/settings/mail.password/explain')->assertOk();
+
+    expect($show->getContent())->not->toContain($secret)
+        ->and($list->getContent())->not->toContain($secret)
+        ->and($explain->getContent())->not->toContain($secret)
+        ->and(fn (): mixed => settings()->as(user(1))->get('mail.password'))->toThrow(AccessDenied::class, 'view_sensitive')
+        ->and(settings()->as(user(1))->all())->not->toHaveKey('mail.password')
+        // Trusted code and an actor allowed view_sensitive still read it.
+        ->and(settings()->get('mail.password'))->toBe($secret);
+
+    Gate::define(Ability::ViewSensitive->gateName(), static fn (): bool => true);
+
+    expect(settings()->as(user(1))->get('mail.password'))->toBe($secret);
 });
 
 it('applies values.max_bytes to REST writes, imports and promotion alike', function (): void {

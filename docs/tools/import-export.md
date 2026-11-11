@@ -49,6 +49,8 @@ php artisan laranail::settings.import storage/settings.json --apply
 php artisan laranail::settings.import storage/settings.json --apply --trusted
 ```
 
+The console command and `POST /stores/{store}/export` stream the document, reading 500 rows at a time, so a large store is never held in memory; the bytes are the ones `export()->toJson()` gives. In PHP, the `StreamExport` action (`handle($request, $stream, $actor)`) writes to any stream; `export()` still returns the whole `ExportDocument`.
+
 An import creates missing categories first, by slug, parents before children, then writes each setting through the normal write pipeline as the actor: validated and cast under the destination's definition, encrypted, with history and one audit entry per key. A setting that needs approval opens a change request instead (the report lists them). Everything runs in one transaction, so one failed write leaves the store as it was. Redacted values, owners the store does not accept and global values for a dedicated store are skipped, each with its reason in the report.
 
 Locks and system categories in a document are applied only by a trusted import (`--trusted` on the console); the PHP `import()` and the REST API never apply them. `import` needs step-up verification by default (`verification.abilities`).

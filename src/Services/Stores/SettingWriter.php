@@ -121,7 +121,7 @@ final readonly class SettingWriter
     {
         $scope = $this->scope($owner);
 
-        return $store->writableLayer()->driver->load($store->name, [$scope])->find($scope, $key, $locale)?->locked === true;
+        return $this->current($store, $store->writableLayer(), $scope, $key, $locale)?->locked === true;
     }
 
     /** Lock one row against writes, creating a value-less row when none exists. */
@@ -167,7 +167,7 @@ final readonly class SettingWriter
         $database = $this->database($layer);
         $existing = $relocked && $database instanceof DatabaseDriver
             ? $database->lockedFind($store->name, $scope, $key, $locale)
-            : $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale);
+            : $this->current($store, $layer, $scope, $key, $locale);
 
         if ($expectedVersion !== null && ($existing->version ?? 0) !== $expectedVersion) {
             throw new ConcurrentModification(sprintf('Setting [%s] in store [%s] for scope [%s] is at version %d, not the expected %d; re-read and retry.', $key, $store->name, $scope, $existing->version ?? 0, $expectedVersion));
@@ -234,6 +234,19 @@ final readonly class SettingWriter
         }, $store->name);
     }
 
+    /**
+     * The writable layer's row for this identity. A database layer reads that one row, not the
+     * whole scope, so a write costs the same in a scope of ten keys or ten thousand.
+     */
+    private function current(Store $store, Layer $layer, Scope $scope, Key $key, Locale $locale): ?Record
+    {
+        $database = $this->database($layer);
+
+        return $database instanceof DatabaseDriver
+            ? $database->find($store->name, $scope, $key, $locale)
+            : $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale);
+    }
+
     private function database(Layer $layer): ?DatabaseDriver
     {
         return $layer->driver instanceof DatabaseBacked && $layer->driver->isActive() ? $layer->driver->database() : null;
@@ -245,7 +258,7 @@ final readonly class SettingWriter
 
         $layer = $store->writableLayer();
         $scope = $this->scope($owner);
-        $existing = $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale);
+        $existing = $this->current($store, $layer, $scope, $key, $locale);
         $this->assertVersion($store, $scope, $key, $existing, $expectedVersion);
 
         if (! $existing instanceof Record) {
@@ -290,7 +303,7 @@ final readonly class SettingWriter
 
         $layer = $store->writableLayer();
         $scope = $this->scope($owner);
-        $found = $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale);
+        $found = $this->current($store, $layer, $scope, $key, $locale);
         $existing = $found ?? new Record($scope, $key, $locale, null, version: $this->baseVersion($layer, $store, $scope, $key, $locale, null));
 
         $record = new Record(

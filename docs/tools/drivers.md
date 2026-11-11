@@ -21,7 +21,7 @@ Described in [Database](database.md): one table per store, version-checked write
 
 ## The JSON driver
 
-One file per store. Writes go to a temporary file that is then moved over the real one, which is an atomic rename on local disks. There is no cross-process lock, so two processes writing at the same moment can lose one update; the runtime layer is meant for the install window, not for heavy concurrent writing. A public disk is refused.
+One file per store. Writes go to a temporary file that is then moved over the real one, which is an atomic rename on local disks. On a local disk each write holds an exclusive `flock` on a sidecar `<file>.lock` for its read-modify-write, and is version-checked like the database layer: a writer whose base version is stale gets `ConcurrentModification` (a plain `set()` retries once), so no update is lost. Reads take no lock; the rename means a reader never sees half a file. A disk that is not local has no lock, so only the version check guards it; the runtime layer is still meant for the install window, not for heavy concurrent writing. A public disk is refused.
 
 ## The PHP driver
 

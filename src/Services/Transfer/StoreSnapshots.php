@@ -13,6 +13,7 @@ use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
@@ -62,6 +63,49 @@ final readonly class StoreSnapshots
             $mode,
             CarbonImmutable::now()->toIso8601String(),
         );
+    }
+
+    /**
+     * Write the store's export to a stream, the same bytes {@see export()} and
+     * {@see ExportDocument::toJson()} produce, reading 500 rows at a time instead of holding the
+     * store in memory.
+     *
+     * @param resource $stream
+     *
+     * @return array{settings: int, categories: int}
+     *
+     * @throws StoreNotWritable when the store has no active database layer
+     */
+    public function exportTo(Store $store, ExportMode $mode, $stream): array
+    {
+        $database = $store->requireDatabase('; exports read the database layer.');
+        $categories = array_map(ExportedCategory::of(...), $this->categories($store));
+        $head = new ExportDocument($store->name->value, $categories, [], $mode, CarbonImmutable::now()->toIso8601String())->toJson();
+        $empty = "[]\n}\n";
+
+        if (! str_ends_with($head, $empty)) {
+            throw new DriverFailure('The export document no longer ends with its settings list.');
+        }
+
+        $write = static function (string $bytes) use ($stream): void {
+            if (fwrite($stream, $bytes) !== strlen($bytes)) {
+                throw new DriverFailure('The export could not be written to its stream.');
+            }
+        };
+
+        $write(substr($head, 0, -strlen($empty)));
+        $written = 0;
+
+        // Each entry as toJson() nests it: two levels in, so every line gains eight spaces.
+        $database->eachRecord($store->name, function (Record $record) use ($write, $mode, &$written): void {
+            $entry = json_encode($this->setting($record, $mode)->toArray(), ExportDocument::JSON_FLAGS);
+            $write(($written === 0 ? "[\n" : ",\n") . preg_replace('/^/m', '        ', $entry));
+            $written++;
+        });
+
+        $write($written === 0 ? $empty : "\n    ]\n}\n");
+
+        return ['settings' => $written, 'categories' => count($categories)];
     }
 
     /**

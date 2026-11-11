@@ -75,7 +75,7 @@ final readonly class Resolver
                     $record = $loaded[$stepStore->name->value][$layer->name]->find($scope, $key, $candidate);
 
                     if ($record !== null && $record->hasValue()) {
-                        return new Explanation(Lookup::found($this->pipeline->fromRecord($record, $definition), $layer->name, $scope), $steps);
+                        return new Explanation(Lookup::found($this->pipeline->fromRecord($record, $definition), $layer->name, $scope, $record->encrypted), $steps);
                     }
                 }
             }

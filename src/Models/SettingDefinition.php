@@ -60,14 +60,15 @@ final class SettingDefinition extends SettingsModel
      * of that slug, since definitions are shared by every tenant.
      *
      * @param ?string $default the encoded default; an encrypted definition's default is never stored
+     * @param array<array-key, mixed>|null $categories the store's central category ids by slug, when the caller loaded them once; null looks the slug up
      */
-    public function fillFromDefinition(Definition $definition, ?string $default): static
+    public function fillFromDefinition(Definition $definition, ?string $default, ?array $categories = null): static
     {
-        $category = $definition->category === null ? null : SettingCategory::on($this->getConnectionName())
-            ->central()
-            ->forStore($this->store)
-            ->where('slug', $definition->category)
-            ->value('id');
+        $category = match (true) {
+            $definition->category === null => null,
+            $categories !== null           => $categories[$definition->category] ?? null,
+            default                        => $this->categoryId($definition->category),
+        };
 
         return $this->fill([
             'slug'           => $definition->key->slug(),
@@ -137,5 +138,15 @@ final class SettingDefinition extends SettingsModel
             'inherits'       => 'boolean',
             'is_system'      => 'boolean',
         ];
+    }
+
+    /** The id of the store's central category with this slug, or null. */
+    private function categoryId(string $slug): mixed
+    {
+        return SettingCategory::on($this->getConnectionName())
+            ->central()
+            ->forStore($this->store)
+            ->where('slug', $slug)
+            ->value('id');
     }
 }

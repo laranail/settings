@@ -76,6 +76,7 @@ return [
         'cache_off'            => 'Caching is off; nothing to reset.',
         'definitions_synced'   => 'Synced :synced definition(s); removed :removed stale system row(s).',
         'definitions_skipped'  => 'Store [:store] skipped: no active database layer, or the definitions table is off.',
+        'definitions_busy'     => 'Another sync-definitions run holds the lock; this one changed nothing. Run it again once that one finishes.',
         'definitions_conflict' => '[:key] is defined in code and edited in the table; code wins, the row was left alone.',
         'diff_none'            => 'No differences (:unchanged setting(s) equal).',
         'diff_summary'         => ':added to add, :removed only in the store, :changed changed, :unknown not comparable (redacted).',

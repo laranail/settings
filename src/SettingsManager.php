@@ -197,7 +197,14 @@ final class SettingsManager implements Settings
             $this->access->authorize($this->actingAs, Ability::ViewSensitive, $subject);
         }
 
-        return $this->resolve($store, $settingKey, $definition)->lookup;
+        $lookup = $this->resolve($store, $settingKey, $definition)->lookup;
+
+        // A value stored encrypted stays a secret after its definition stops saying so.
+        if (! $subject->sensitive && $lookup->isEncrypted()) {
+            $this->access->authorize($this->actingAs, Ability::ViewSensitive, $subject);
+        }
+
+        return $lookup;
     }
 
     public function has(string $key): bool
@@ -296,7 +303,7 @@ final class SettingsManager implements Settings
         [$store, $settingKey, $definition, $subject] = $this->readTarget($key);
         $explanation = $this->resolve($store, $settingKey, $definition);
 
-        if ($subject->sensitive && $this->actingAs instanceof Actor && ! $this->access->allows($this->actingAs, Ability::ViewSensitive, $subject)) {
+        if (($subject->sensitive || $explanation->lookup->isEncrypted()) && $this->actingAs instanceof Actor && ! $this->access->allows($this->actingAs, Ability::ViewSensitive, $subject)) {
             return $explanation->redacted();
         }
 

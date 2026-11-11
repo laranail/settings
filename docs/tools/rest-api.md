@@ -15,7 +15,7 @@ A JSON API over every capability of the PHP API, in this package and off by defa
 ],
 ```
 
-No route is registered until `enabled` is true. The routes are declared in `routes/api.php`, and each controller method takes the action it runs as a parameter, so under Octane no request's actor, tenant or stores reach the next one. Routes are named `laranail-settings.api.<name>` (the owner form of a settings route adds `owners.`), run through `http.middleware` and the `laranail-settings` rate limiter, and every write runs through the idempotency middleware. The host's middleware authenticates; the configured actor resolver turns the request into an [actor](access-control.md) on the `rest` channel, so with the `sanctum` resolver a token's `laranail-settings:<ability>` abilities are a ceiling on what it may do. A request nobody is authenticated for is refused (`401`); the API never runs as trusted code.
+No route is registered until `enabled` is true. The routes are declared in `routes/api.php`, and each controller method takes the action it runs as a parameter, so under Octane no request's actor, tenant or stores reach the next one. Routes are named `laranail-settings.api.<name>` (the owner form of a settings route adds `owners.`), run through `http.middleware` and the `laranail-settings` rate limiter, and every write runs through the idempotency middleware. The host's middleware authenticates; the configured actor resolver turns the request into an [actor](access-control.md) on the `rest` channel, so with the `sanctum` resolver a token's `laranail-settings:<ability>` abilities are a ceiling on what it may do. A request nobody is authenticated for is refused (`401`), and so is one the resolver maps to the system actor: the API never runs as trusted code.
 
 ## Endpoints
 
@@ -69,7 +69,7 @@ Idempotency-Key: 6c0d1e8e-…
 - **Lists** are `{"data": [...], "meta": {"next_cursor": …}}`; pass `?cursor=` for the next page and `?limit=` (1-200). A cursor the list did not hand out answers `422`.
 - **Locales**: `?locale=fr`.
 - **Values the actor may not view** are left out, not masked: a list skips the key, a single setting answers `"redacted": true` without `value`.
-- **Idempotency.** A write with an `Idempotency-Key` header is answered from cache when retried (same actor, host, method, path and key) for `http.idempotency.ttl` seconds (24 hours), with `Idempotent-Replayed: true`. A retry with the same key and a different body is refused with `422` and applies nothing. The stored response is encrypted with the application key, since it can hold an encrypted setting's value; without an application key, or without an actor, nothing is stored.
+- **Idempotency.** A write with an `Idempotency-Key` header is answered from cache when retried (same tenant, actor, host, method, path and key) for `http.idempotency.ttl` seconds (24 hours), with `Idempotent-Replayed: true`. A retry with the same key and a different body is refused with `422` and applies nothing; one sent while the first request with that key is still running is refused with `409`, so the write runs once (the idempotency cache store must support locks for this, as Laravel's `redis`, `database`, `file` and `array` stores do). The stored response is encrypted with the application key, since it can hold an encrypted setting's value; without an application key, or without an actor, nothing is stored.
 
 ## Errors
 

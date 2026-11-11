@@ -79,7 +79,7 @@ table has the `deleted_at` column, so the option can be turned on at any time.
 
 `laranail::settings.sync-definitions` (also run by `install` once the table exists, and by
 `doctor --fix`) copies code and config definitions in as read-only `is_system` rows, so UIs can
-list them; system rows nothing defines any more are removed.
+list them; system rows nothing defines any more are removed. One run at a time: a run that finds another holding the lock waits up to five seconds, then changes nothing and says so (the report's `busy`).
 
 Other rows are definitions edited at runtime. With `database` in `definitions.sources` they answer
 for keys no code or config definition covers, so a row can never loosen a coded setting, and a row

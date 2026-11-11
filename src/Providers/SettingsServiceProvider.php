@@ -628,6 +628,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(LaravelValueEncrypter::class),
             $app->make(Repository::class)->integer('laranail.settings.http.idempotency.ttl', 86400),
             $app->make(Repository::class)->string('laranail.settings.cache.prefix', 'laranail-settings'),
+            $app->make(TenantDiscriminator::class),
         ));
     }
 

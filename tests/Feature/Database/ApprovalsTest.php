@@ -10,6 +10,8 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\ChangeFilter;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
@@ -24,6 +26,7 @@ use Simtabi\Laranail\Settings\Events\ChangeCancelled;
 use Simtabi\Laranail\Settings\Events\ChangeRequested;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
+use Simtabi\Laranail\Settings\Actions\Approvals\QueryChanges;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
 use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
@@ -128,6 +131,53 @@ it('waits for the minimum number of distinct approvals', function (): void {
         ->and(settings()->get('mail.host'))->toBeNull()
         ->and(settings()->as(user(3))->approvals()->approve($id)->status)->toBe(ChangeStatus::Applied)
         ->and(settings()->get('mail.host'))->toBe('smtp.acme.test');
+});
+
+it('counts a user and their API token as one person: no self-approval, no second vote (SP-03)', function (): void {
+    config()->set('laranail.settings.approvals.min_approvals', 2);
+    app()->forgetScopedInstances();
+    needsApproval();
+    settings()->as(user(1))->set('mail.host', 'smtp.acme.test');
+    $id = settings()->approvals()->get()[0]->id;
+
+    expect(fn (): ChangeRequest => settings()->as(Actor::user(user(1), abilities: ['*']))->approvals()->approve($id))->toThrow(AccessDenied::class, 'own change request');
+
+    settings()->as(user(2))->approvals()->approve($id);
+    $again = settings()->as(Actor::user(user(2), abilities: ['*']))->approvals()->approve($id);
+
+    expect($again->status)->toBe(ChangeStatus::Approved)
+        ->and($again->approvals)->toBe(['user:' . user(2)->getMorphClass() . ':2'])
+        ->and(settings()->get('mail.host'))->toBeNull()
+        ->and(settings()->as(user(3))->approvals()->approve($id)->status)->toBe(ChangeStatus::Applied);
+});
+
+it('reads an approval recorded for a token before 0.1.1 as its user\'s (SP-03)', function (): void {
+    config()->set('laranail.settings.approvals.min_approvals', 2);
+    app()->forgetScopedInstances();
+    needsApproval();
+    settings()->as(user(1))->set('mail.host', 'smtp.acme.test');
+    $id = settings()->approvals()->get()[0]->id;
+    DB::table('settings_change_requests')->where('id', $id)->update(['status' => 'approved', 'approvals' => json_encode(['token:' . user(2)->getMorphClass() . ':2'])]);
+
+    expect(settings()->as(user(2))->approvals()->approve($id)->status)->toBe(ChangeStatus::Approved);
+});
+
+it('pages an actor\'s own change requests in the query, not after it (SP-05)', function (): void {
+    needsApproval('mail.host');
+    needsApproval('mail.port');
+    settings()->as(user(1))->set('mail.host', 'smtp.acme.test');
+
+    foreach ([2, 3, 4] as $id) {
+        settings()->as(user($id))->set('mail.port', $id);
+    }
+
+    Gate::define(Ability::Approve->gateName(), static fn ($user): bool => $user->getAuthIdentifier() !== 1);
+    $own = app(QueryChanges::class)->handle(new ChangeFilter(new StoreName('settings')), Actor::user(user(1)), 3);
+    $asToken = app(QueryChanges::class)->handle(new ChangeFilter(new StoreName('settings')), Actor::user(user(1), abilities: ['*']), 3);
+
+    expect(array_map(static fn (ChangeRequest $request): string => $request->key, $own))->toBe(['mail.host'])
+        ->and($asToken)->toHaveCount(1)
+        ->and(app(QueryChanges::class)->handle(new ChangeFilter(new StoreName('settings')), Actor::user(user(2)), 3))->toHaveCount(3);
 });
 
 it('counts two approvals recorded at once, never losing one', function (): void {

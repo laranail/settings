@@ -23,6 +23,12 @@ final readonly class ApiActor
     public function of(Request $request, ?string $reason = null): Actor
     {
         $actor = $this->access->resolveActor($request) ?? throw new ActorRequired('The settings API needs an authenticated actor.');
+
+        // The system actor skips every check, so a resolver handing it to a request would open the API.
+        if ($actor->isSystem()) {
+            throw new ActorRequired('The settings API never acts as the system actor; resolve a user, token or service actor for the request.');
+        }
+
         $actor = $actor->withChannel(Channel::Rest);
 
         return $reason === null || $reason === '' ? $actor : $actor->withReason($reason);

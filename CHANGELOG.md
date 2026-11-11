@@ -141,6 +141,22 @@ Each was removed before the first tag; none was in a tagged release.
 - Two approvals recorded at once both count: the request is re-read under a row lock before an
   approval is added.
 - A REST `cursor` the listing did not hand out answers `422` instead of the first page.
+- An `Idempotency-Key` retry sent while the first request is still running answers `409` instead
+  of running the write a second time. (SP-04)
+- An actor without `approve` saw an empty page of change requests when other people's newer
+  requests filled the page; their own are now filtered in the query. (SP-05)
+- `sync-definitions` read each definition's row and category one query at a time; it now reads
+  them once per store. (SP-06)
+- Every write (set, forget, lock, unlock, and so each row of an import) read all the rows of its
+  scope, twice, to check one; it now reads that row only. (SP-07)
+- The JSON driver lost updates under concurrent writers. A write now holds an exclusive `flock`
+  on a sidecar `<file>.lock` (local disks) for its read-modify-write, and is version-checked like
+  the database layer, so a stale writer gets `ConcurrentModification`. (SP-09)
+- `laranail::settings.export` and `POST /stores/{store}/export` stream the document, 500 rows per
+  query, instead of building the whole store in memory; the output bytes are unchanged.
+  The `StreamExport` action is new; `export()` still returns the `ExportDocument`. (SP-10)
+- Two overlapping `sync-definitions` runs no longer fail on each other's rows: the second waits up
+  to five seconds for a cache lock, then reports `busy` and changes nothing. (SP-11)
 
 ### Security
 
@@ -159,3 +175,16 @@ Each was removed before the first tag; none was in a tagged release.
   and returned every store's entries.
 - A persisted layer may not redefine a layer the configuration file defines, saved or read back;
   it could otherwise move a configured store onto another connection, table or driver.
+- A value stored encrypted is sensitive whatever its definition now says. Redefining or deleting a
+  runtime definition (`manage_definitions`) used to make the stored secret readable in plaintext
+  by any actor with `view`, over REST and PHP. Reads now also check the stored row: without
+  `view_sensitive`, `get()` throws `AccessDenied`, `explain()` and REST redact, listings omit it.
+  `Lookup::isEncrypted()` is new. (SP-01)
+- The REST API refuses a request whose actor resolver returns the system actor (`401`
+  `actor-required`), which used to skip every check. (SP-02)
+- An API token counts as its user in approvals: it can no longer approve its user's own change
+  request, and a user and their token are one approval towards `min_approvals`. Approvals
+  recorded under `token:` before this release are read as their user's. (SP-03)
+- Idempotent replays are keyed by tenant as well as actor: in `column` or `database` tenancy,
+  `user:1` of one tenant reusing a key used by `user:1` of another received that tenant's stored
+  response. (SP-08)

@@ -42,15 +42,24 @@ final readonly class ChangeRequest
         public ?CarbonImmutable $createdAt = null,
     ) {}
 
-    /** How an actor is written in `approvals`, and compared with the requester. */
+    /**
+     * How an actor is written in `approvals`, and compared with the requester. A token acts for
+     * its user, so both are one person: one approval, and never an approver of their own request.
+     */
     public static function actorKey(Actor $actor): string
     {
-        return $actor->type->value . ':' . ($actor->alias ?? '') . ':' . ($actor->id ?? '');
+        return self::identity($actor->type, $actor->alias, $actor->id);
+    }
+
+    /** An `approvals` entry as {@see actorKey()} writes it now; older entries named token actors apart. */
+    public static function normaliseKey(string $key): string
+    {
+        return str_starts_with($key, ActorType::Token->value . ':') ? ActorType::User->value . substr($key, strlen(ActorType::Token->value)) : $key;
     }
 
     public function requesterKey(): string
     {
-        return $this->requestedByType->value . ':' . ($this->requestedByAlias ?? '') . ':' . ($this->requestedById ?? '');
+        return self::identity($this->requestedByType, $this->requestedByAlias, $this->requestedById);
     }
 
     public function isRequestedBy(Actor $actor): bool
@@ -95,5 +104,10 @@ final readonly class ChangeRequest
             'expires_at'      => $this->expiresAt?->toIso8601String(),
             'created_at'      => $this->createdAt?->toIso8601String(),
         ];
+    }
+
+    private static function identity(ActorType $type, ?string $alias, ?string $id): string
+    {
+        return ($type === ActorType::Token ? ActorType::User : $type)->value . ':' . ($alias ?? '') . ':' . ($id ?? '');
     }
 }
