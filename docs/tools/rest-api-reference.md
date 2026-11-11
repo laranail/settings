@@ -14,7 +14,7 @@ Paths are under `/{http.prefix}/v1`, by default `/api/settings/v1`; set `http.pr
 | Locales | `?locale=fr` on settings routes; the write routes also take it. |
 | Bodies | JSON. Every write may send `"reason"` (recorded in the audit trail and history). |
 | ETags | setting responses carry `ETag`. Send it back as `If-Match` on `PUT` or `DELETE`: a mismatch is `412`; `*` matches any version. |
-| Idempotency | every non-`GET` route accepts `Idempotency-Key`; a retry with the same key, user, method and path within `http.idempotency.ttl` (24 hours) is answered from cache with `Idempotent-Replayed: true`. |
+| Idempotency | every non-`GET` route accepts `Idempotency-Key`; a retry with the same key, actor, host, method and path within `http.idempotency.ttl` (24 hours) is answered from cache with `Idempotent-Replayed: true`. The same key with a different body answers `422` (`http-422`) and applies nothing. |
 | Pagination | lists answer `{"data": [...], "meta": {"next_cursor": "…" or null}}`; pass `?cursor=<next_cursor>` and `?limit=` (1 to 200, default `http.page_size`). Cursors are opaque. |
 | Visibility | values the actor may not view are left out of lists; a single setting answers `"redacted": true` without `value`. |
 | Approvals | a write to a setting that needs approval answers `202` with the change request instead of the setting. |

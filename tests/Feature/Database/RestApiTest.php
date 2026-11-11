@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\NewCategory;
@@ -191,6 +192,53 @@ it('answers a retried write from the idempotency cache instead of applying it tw
     expect($retry->headers->get('Idempotent-Replayed'))->toBe('true')
         ->and($retry->getContent())->toBe($first->getContent())
         ->and(settings()->get('site.name'))->toBe('Moved on');
+});
+
+it('refuses an idempotency key reused with a different body, and applies nothing', function (): void {
+    api('PUT', 'stores/settings/settings/site.name', ['value' => 'Acme'], ['Idempotency-Key' => 'reused'])->assertOk();
+
+    test()->json('PUT', '/api/settings/v1/stores/settings/settings/site.name', ['value' => 'Other'], ['Idempotency-Key' => 'reused'])
+        ->assertUnprocessable()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertHeaderMissing('Idempotent-Replayed');
+
+    expect(settings()->get('site.name'))->toBe('Acme');
+});
+
+it('keys a replay by the resolved actor, not only by the session user', function (): void {
+    auth()->logout();
+    $this->rebootWith(['laranail.settings.http.enabled' => true, 'laranail.settings.http.middleware' => ['api']]);
+    useDatabase(['verification.driver' => 'none']);
+    allowGates(...Ability::cases());
+    // An application that finds its actor from a header rather than a Laravel guard.
+    settings()->configuration()->resolveActorsUsing(static fn ($request): ?Actor => is_numeric($request?->header('X-User'))
+        ? Actor::user(user((int) $request->header('X-User')))
+        : null);
+
+    test()->json('PUT', '/api/settings/v1/stores/settings/settings/site.name', ['value' => 'Acme'], ['Idempotency-Key' => 'shared', 'X-User' => '1'])->assertOk();
+    settings()->set('site.name', 'Moved on');
+    $other = test()->json('PUT', '/api/settings/v1/stores/settings/settings/site.name', ['value' => 'Acme'], ['Idempotency-Key' => 'shared', 'X-User' => '2'])->assertOk();
+
+    expect($other->headers->get('Idempotent-Replayed'))->toBeNull()
+        ->and($other->json('data.version'))->toBe(3);
+});
+
+it('keeps a stored idempotent response encrypted, since it can hold a secret', function (): void {
+    $directory = sys_get_temp_dir() . '/laranail-settings-idempotency-' . bin2hex(random_bytes(6));
+    config()->set('cache.stores.idempotency', ['driver' => 'file', 'path' => $directory]);
+    config()->set('laranail.settings.http.idempotency.cache', 'idempotency');
+    app(DefinitionRegistry::class)->define('mail.password')->encrypted()->register();
+    $secret = TestCredentials::secret();
+
+    api('PUT', 'stores/settings/settings/mail.password', ['value' => $secret], ['Idempotency-Key' => 'secret'])->assertOk()->assertJsonPath('data.value', $secret);
+    $replay = api('PUT', 'stores/settings/settings/mail.password', ['value' => $secret], ['Idempotency-Key' => 'secret'])->assertOk();
+
+    $files = array_filter(iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS))), static fn (SplFileInfo $file): bool => $file->isFile());
+
+    expect($replay->headers->get('Idempotent-Replayed'))->toBe('true')
+        ->and($replay->json('data.value'))->toBe($secret)
+        ->and($files)->toHaveCount(1)
+        ->and((string) file_get_contents((string) array_key_first($files)))->not->toContain($secret);
 });
 
 it('needs an authenticated user and switches route groups off', function (): void {

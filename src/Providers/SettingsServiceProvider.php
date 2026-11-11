@@ -624,6 +624,8 @@ final class SettingsServiceProvider extends PackageServiceProvider
     {
         $this->app->bind(IdempotentWrites::class, static fn (Application $app): IdempotentWrites => new IdempotentWrites(
             self::cacheStore($app, $app->make(Repository::class)->get('laranail.settings.http.idempotency.cache'), 'laranail.settings.http.idempotency.cache'),
+            $app->make(AccessGuard::class),
+            $app->make(LaravelValueEncrypter::class),
             $app->make(Repository::class)->integer('laranail.settings.http.idempotency.ttl', 86400),
             $app->make(Repository::class)->string('laranail.settings.cache.prefix', 'laranail-settings'),
         ));
