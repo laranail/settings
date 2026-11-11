@@ -153,7 +153,7 @@ final readonly class AccessGuard
         if ($decision->needsApproval()) {
             $this->refuse($actor, $ability, $subject, 'approval_unavailable', $decision->reason);
 
-            throw new ApprovalUnavailable(sprintf('[%s] on [%s] needs approval, which this release cannot hold.', $ability->value, $subject->store));
+            throw new ApprovalUnavailable(sprintf('[%s] on [%s] needs approval; propose the change instead.', $ability->value, $subject->store));
         }
 
         if ($this->needsVerification($decision, $ability, $subject) && ! $this->verifier()->isVerified($actor, $subject)) {

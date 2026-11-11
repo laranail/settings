@@ -6,7 +6,7 @@ declare(strict_types=1);
  * The layering: entry points → actions → services → support.
  *
  *   1. An action exposes handle() and nothing else public.
- *   2. Actions never touch the database connection or schema builder themselves; repositories
+ *   2. Actions never touch the database connection or schema builder themselves; models
  *      and drivers do.
  *   3. Only entry points depend on actions.
  *   4. Support classes hold no mutable state.

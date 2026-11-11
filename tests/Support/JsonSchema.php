@@ -8,14 +8,14 @@ use stdClass;
 use LogicException;
 
 /**
- * The subset of JSON Schema (2020-12, as OpenAPI 3.1 uses it) the settings OpenAPI document
- * uses: `type` (one or a list, `null` included), `enum`, `const`, `required`, `properties`,
+ * The subset of JSON Schema (2020-12) the REST API response schemas in `ApiSchemas`
+ * use: `type` (one or a list, `null` included), `enum`, `const`, `required`, `properties`,
  * `items`, `minimum`, `maximum` and `$ref` into `#/components/schemas`. Small on purpose, and in
  * the repository, so validating responses needs no dependency. Unknown keywords are ignored.
  */
 final readonly class JsonSchema
 {
-    /** @param array<string, mixed> $document the OpenAPI document */
+    /** @param array<string, mixed> $document the response schemas, keyed under `components.schemas` */
     public function __construct(private array $document) {}
 
     /**

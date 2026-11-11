@@ -34,7 +34,7 @@ final readonly class ExportedSetting
     public static function fromArray(array $data, int|string $index): self
     {
         try {
-            $scope = Scope::fromString(is_string($data['scope'] ?? null) ? $data['scope'] : '') ?? throw new InvalidImport('bad scope');
+            $scope = Scope::fromString(is_string($data['scope'] ?? null) ? $data['scope'] : '') ?? throw new InvalidImport(sprintf('scope [%s] is neither global nor alias:id.', is_scalar($data['scope'] ?? null) ? (string) $data['scope'] : get_debug_type($data['scope'] ?? null)));
 
             return new self(
                 $scope,

@@ -153,7 +153,7 @@ final class DefinitionBuilder
         return $this;
     }
 
-    /** Writes need a second person's approval; without a change requests table they raise ApprovalUnavailable. */
+    /** Writes become change requests; a store without an active database layer raises ApprovalUnavailable. */
     public function requiresApproval(): self
     {
         $this->requiresApproval = true;
