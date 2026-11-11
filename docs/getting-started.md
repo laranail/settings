@@ -2,6 +2,11 @@
 
 Read and write settings, give them owners, and describe them with definitions.
 
+`laranail/settings` keeps key-value settings for any Laravel owner (the application, a user, a
+tenant, a product), stored in layered stores that work even before the database exists, and after
+it does. This page
+takes a fresh application from install to its first owner and definition.
+
 ## Install and migrate
 
 ```bash
@@ -65,14 +70,37 @@ app(DefinitionRegistry::class)->define('limits.seats')
 
 Definitions add types, defaults, validation, encryption, locks and inheritance. See [Definitions](tools/definitions.md).
 
-## What comes next
+## Act on a user's behalf
 
-| Phase | Adds |
-|---|---|
-| Dedicated stores | an `owner_id` foreign key that deletes an owner's settings with it; soft deletes |
-| Performance | caching with stale-while-revalidate |
-| Governance | history and rollback, approvals, export and import, the full `doctor` |
-| Typed classes | strongly typed settings classes over the same engine |
+A call without an actor is trusted application code, audited as `system`. Name the actor when a
+person is behind the change, and the call is authorized against the `laranail-settings.<ability>`
+gates and audited with the reason:
+
+```php
+Settings::as($request->user())->because('INC-123')->set('mail.from.address', 'ap@acme.test');
+```
+
+Define the gates first (`Gate::define('laranail-settings.update', …)`): an ability nobody defined is
+denied. See [Act as a user](recipes/acting-as-a-user.md) and [Access control](tools/access-control.md).
+
+## Check it
+
+```bash
+php artisan laranail::settings.doctor          # tables, columns, encryption and stored data
+php artisan laranail::settings.show site.name  # where one value comes from
+```
+
+When something does not resolve as expected, [Troubleshooting](troubleshooting.md) lists the common
+errors and what to run.
+
+## Where to go next
+
+- [Typed settings](tools/typed-settings.md) for a class over a group of keys.
+- [REST API](tools/rest-api.md), off by default, for an admin UI or a mobile client; the
+  [REST quick start](recipes/rest-api-quick-start.md) gets a first request through.
+- [Caching](tools/caching.md), [History](tools/history.md) and [Approvals](tools/approvals.md) for
+  production use.
+- [Tenancy](tools/tenancy.md) before the first migration of a multi-tenant application.
 
 ---
 

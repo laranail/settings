@@ -42,7 +42,7 @@ final class GeneralSettings extends TypedSettings
 
 Properties map to snake-cased keys by default (`siteName` is `general.site_name`), so `#[Key]` is only needed where the names differ. Replace `GeneralSettings::class` injections with the new class (resolved from the container, it loads itself) and `$settings->save()` keeps working.
 
-spatie's settings migrations become [settings migrations](../tools/typed-settings.md#settings-migrations-g-17). When nothing reads spatie's table any more, drop it.
+spatie's settings migrations become [settings migrations](../tools/typed-settings.md#settings-migrations). When nothing reads spatie's table any more, drop it.
 
 ---
 

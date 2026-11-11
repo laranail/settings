@@ -32,7 +32,7 @@ Messages name the store, key, scope and ability involved, never a value, so they
 | `AccessDenied` | `SettingsException` | an actor may not perform the ability on the subject; carries the ability, store and key | `403 access-denied` |
 | `ActorRequired` | `SettingsException` | a call has no actor while `authorization.require_actor` is on, or `asCurrentActor()` finds nobody | `401 actor-required` |
 | `VerificationRequired` | `SettingsException` | the actor is allowed but must verify again (step-up), for an ability in `verification.abilities` or a definition that `requiresVerification()` | `428 verification-required` |
-| `ApprovalUnavailable` | `SettingsException` | a write needs approval but the store cannot hold change requests (no active database layer, or no change requests table) | `409 approval-unavailable` |
+| `ApprovalUnavailable` | `SettingsException` | a write needs approval but the store cannot hold change requests (no active database layer), or an authorizer answered that the ability needs approval | `409 approval-unavailable` |
 | `ChangeRequestClosed` | `SettingsException` | a change request was already applied, rejected, cancelled, stale or expired | `409 change-request-closed` |
 | `UnknownChangeRequest` | `SettingsException` | no change request with this id exists in the store (for the current tenant) | `404 unknown-change-request` |
 | `ConcurrentModification` | `SettingsException` | another writer changed the row between read and update (the version check failed), or `If-Match` did not match; re-read and retry | `412 precondition-failed` |

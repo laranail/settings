@@ -49,13 +49,15 @@ exists); it prints the layer to add. It refuses a store that already has a migra
 
 ## `doctor`
 
-For every store with a database layer:
+For every store with a database layer (a store without one is reported as skipped):
 
 | Check | Fails when |
 |---|---|
 | readiness | the connection does not answer or the table is missing (a warning in bootstrap mode) |
 | schema | a column the package uses is missing from the values, categories, audit, history or change requests table (and, on the default store's connection, the definitions and stores tables) |
 | scopes | a scope names a class instead of a morph alias (fails) or an alias the store does not list (warns) |
+| encryption | an encrypted value cannot be decrypted with the current or previous keys (put the old key in `APP_PREVIOUS_KEYS`, then run `reencrypt`) |
+| change requests | warns when open change requests are past their expiry (schedule `prune-changes`) |
 | categories | a row points at a category of another store |
 | category keys | warns when a value's key does not start with its category's slug |
 

@@ -20,6 +20,7 @@ A read through the cascade (owner, parents, global) costs, per distinct store in
 | cold (bags not cached) | one, covering every scope the read needs from that store | two (tokens, then bags) and one write |
 | warm (bags cached) | none | two |
 | again in the same request | none | none (bags and tokens are held in memory for the request) |
+| `cache.enabled` off | one per read | none |
 
 ## Keys
 

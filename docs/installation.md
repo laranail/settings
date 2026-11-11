@@ -61,13 +61,7 @@ name it. It creates the `seed.categories` set (general, appearance, localisation
 notifications, security) as system categories and changes nothing when run again. See
 [Seed the default categories](recipes/seeding-default-categories.md).
 
-## Upgrading from the four migration stubs
-
-Before the single migration, install published four migrations (`create_settings_categories_table`,
-`create_settings_table`, `create_settings_audit_table`, `create_settings_definitions_table`).
-They stay in your `database/migrations` and keep working; do not publish the new one next to
-them, or the tables would be created twice. Store migrations written by an older `make-store`
-keep working too.
+## When install refuses
 
 Install refuses to publish anything when a table of the same name already exists and is not
 this package's (a `settings` table of your own, say). Rename the package's tables with
