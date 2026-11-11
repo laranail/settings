@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Artisan;
+use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
@@ -164,6 +165,23 @@ it('rejects and cancels without writing', function (): void {
         ->and(fn (): ChangeRequest => settings()->approvals()->reject($first->id))->toThrow(ChangeRequestClosed::class);
     Event::assertDispatched(ChangeRejected::class);
     Event::assertDispatched(ChangeCancelled::class);
+});
+
+it('never decides a change request through another store, where it would be authorized and applied', function (): void {
+    useDatabase(['stores.billing' => ['layers' => ['database'], 'approvals' => ['keys' => ['plan.*']]]], ['billing']);
+    allowGates(Ability::Update, Ability::Approve, Ability::View);
+    // An approver of the settings store only.
+    Gate::define(Ability::Approve->gateName(), static fn ($user, Subject $subject): bool => $subject->store->value === 'settings');
+    $change = settings()->store('billing')->as(user(1))->propose('plan.tier', 'gold');
+
+    foreach (['approve', 'reject', 'cancel'] as $decision) {
+        expect(fn (): ChangeRequest => settings()->as(user(2))->approvals()->{$decision}($change->id))->toThrow(UnknownChangeRequest::class, 'Store [settings]');
+    }
+
+    expect(settings()->get('plan.tier'))->toBeNull()
+        ->and(settings()->store('billing')->get('plan.tier'))->toBeNull()
+        ->and(DB::table('settings_change_requests')->value('status'))->toBe('pending')
+        ->and(settings()->store('billing')->approvals()->find($change->id)->store)->toBe('billing');
 });
 
 it('proposes forget, lock and unlock as well as values', function (): void {
