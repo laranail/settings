@@ -226,6 +226,50 @@ final readonly class DatabaseDriver implements DatabaseBacked
     }
 
     /**
+     * Hand every live record of the store (the current tenant's) to `$each`, `$chunk` rows per
+     * query, in the order their `scope|key|locale` identities sort, so an export never holds the
+     * whole store. Returns how many records were handed over.
+     *
+     * @param Closure(Record): void $each
+     */
+    public function eachRecord(StoreName $store, Closure $each, int $chunk = 500): int
+    {
+        return $this->attempt($store, function () use ($store, $each, $chunk): int {
+            // `a|` sorts after `a0|`, as the identity string does; ordering by the bare column would not.
+            [$scope, $key] = match ($this->connection()->getDriverName()) {
+                'mysql', 'mariadb' => ["concat(`scope`, '|')", "concat(`key`, '|')"],
+                'sqlsrv'           => ["[scope] + '|'", "[key] + '|'"],
+                default            => ['"scope" || \'|\'', '"key" || \'|\''],
+            };
+            $count = 0;
+
+            $rows = $this->live($store)
+                ->orderByRaw($scope)
+                ->orderByRaw($key)
+                ->orderBy('locale')
+                ->select(self::COLUMNS)
+                ->lazy($chunk);
+
+            foreach ($rows as $row) {
+                $each($this->record((array) $row));
+                $count++;
+            }
+
+            return $count;
+        });
+    }
+
+    /** Read one live row, without the rest of its scope: a write's precondition, not a read path. */
+    public function find(StoreName $store, Scope $scope, Key $key, Locale $locale): ?Record
+    {
+        return $this->attempt($store, function () use ($store, $scope, $key, $locale): ?Record {
+            $row = $this->identity($this->live($store), $scope, $key, $locale)->first(self::COLUMNS);
+
+            return $row === null ? null : $this->record((array) $row);
+        });
+    }
+
+    /**
      * Read one live row under a row lock, for retrying a write after a conflict.
      *
      * A plain re-read under MySQL's REPEATABLE READ would see the old snapshot.

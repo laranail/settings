@@ -121,6 +121,22 @@ final class SettingChangeRequest extends SettingsModel
         return self::on($connection)->whereKey($request->id)->where('status', $to->value)->exists();
     }
 
+    /**
+     * Limit a query to one actor's requests; a token's are its user's, as {@see ChangeRequest::actorKey()} counts them.
+     *
+     * @param Builder<self> $query
+     *
+     * @return Builder<self>
+     */
+    public static function requestedBy(Builder $query, Actor $actor): Builder
+    {
+        $types = in_array($actor->type, [ActorType::User, ActorType::Token], true) ? [ActorType::User->value, ActorType::Token->value] : [$actor->type->value];
+
+        return $query->whereIn('requested_by_type', $types)
+            ->when($actor->alias === null, static fn (Builder $query): Builder => $query->whereNull('requested_by_alias'), static fn (Builder $query): Builder => $query->where('requested_by_alias', $actor->alias))
+            ->when($actor->id === null, static fn (Builder $query): Builder => $query->whereNull('requested_by_id'), static fn (Builder $query): Builder => $query->where('requested_by_id', $actor->id));
+    }
+
     #[Override]
     public function getTable(): string
     {

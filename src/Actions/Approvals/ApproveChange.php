@@ -78,7 +78,7 @@ final readonly class ApproveChange
         // Counted under a row lock, so two approvals recorded at once both count.
         [$approvals, $remaining] = $database->transaction(function () use ($database, $store, $request, $subject, $actor, $decision, $now): array {
             $current = $database->attempt($store->name, static fn (): ChangeRequest => SettingChangeRequest::locked($database->connectionName(), $store->name, $request->id));
-            $approvals = array_values(array_unique([...$current->approvals, ChangeRequest::actorKey($actor ?? Actor::system())]));
+            $approvals = array_values(array_unique([...array_map(ChangeRequest::normaliseKey(...), $current->approvals), ChangeRequest::actorKey($actor ?? Actor::system())]));
             $remaining = max(0, $this->policy->minApprovals - count($approvals));
 
             if ($remaining > 0) {

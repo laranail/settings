@@ -50,7 +50,7 @@ $settings->as($editor)->approvals()->cancel($id);      // the requester only
 | Days before an open request expires | 7 | `approvals.expire_after` (null: never) |
 | Days a decided request is kept | 90 | `approvals.keep_days` (null: for ever) |
 
-Approving and rejecting need `approve` on the setting. Listing needs `approve` to see everyone's requests; an actor without it sees only their own. Trusted code without an actor sees and decides everything.
+An API token acts for its user: a user and their token are one person, so a token cannot approve its user's request, and the two count as one approval towards `min_approvals`. Approving and rejecting need `approve` on the setting. Listing needs `approve` to see everyone's requests; an actor without it sees only their own. Trusted code without an actor sees and decides everything.
 
 ## Applying
 

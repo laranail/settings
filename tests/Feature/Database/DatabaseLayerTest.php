@@ -202,3 +202,29 @@ it('reads a store from its configured table', function (): void {
     expect(DB::table('app_settings')->value('key'))->toBe('site.name')
         ->and(Schema::hasTable('settings'))->toBeFalse();
 });
+
+it('reads only the row it writes, never the whole scope, on set, forget, lock and unlock (SP-07)', function (): void {
+    for ($index = 0; $index < 30; $index++) {
+        settings()->set('bulk.key' . $index, $index);
+    }
+
+    $rows = 0;
+    $selects = 0;
+    DB::listen(static function ($query) use (&$rows, &$selects): void {
+        if (preg_match('/^select .* from ["`]?settings["`]? where/i', $query->sql) === 1) {
+            $selects++;
+            $rows += preg_match('/["`]key["`] = \\?/', $query->sql) === 1 ? 1 : 30;
+        }
+    });
+
+    settings()->set('bulk.key0', 'changed');
+    settings()->lock('bulk.key1');
+    settings()->unlock('bulk.key1');
+    settings()->forget('bulk.key2');
+
+    // Each select names the key; one that loaded the global scope would count all 30 rows.
+    expect($selects)->toBeGreaterThan(0)
+        ->and($rows)->toBe($selects)
+        ->and(settings()->get('bulk.key0'))->toBe('changed')
+        ->and(settings()->has('bulk.key2'))->toBeFalse();
+});

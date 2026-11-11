@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Database\Schema\Blueprint;
@@ -17,9 +19,12 @@ use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
 use Simtabi\Laranail\Settings\Services\Transfer\Importers;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Actions\Transfer\StreamExport;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
@@ -221,4 +226,68 @@ it('needs import to import and export to compare', function (): void {
     expect(fn (): ImportReport => settings()->as(user())->import($document))->toThrow(AccessDenied::class, 'import')
         ->and(fn (): StoreDiff => settings()->as(user())->compare($document))->toThrow(AccessDenied::class, 'export')
         ->and(settings()->as(Actor::system())->compare($document)->isEmpty())->toBeTrue();
+});
+
+it('streams the export as the same bytes the document gives, in identity order (SP-10)', function (ExportMode $mode): void {
+    $this->travelTo(now()->startOfSecond());
+    settings()->categories()->create(new NewCategory('mail', 'Mail'));
+    app(DefinitionRegistry::class)->define('mail.password')->encrypted()->register();
+    settings()->set('mail.password', TestCredentials::secret());
+    // `user:1` / `user:10` and `mail` / `mail.host` sort differently as columns and as identities.
+    settings()->set('mail', ['nested' => ['a' => 1.0, 'b' => 'naïve/✓'], 'empty' => []]);
+    settings()->set('mail.host', 'smtp.acme.test');
+    settings()->for(new OwnerRef('user', 10))->set('ui.theme', 'dark');
+    settings()->for(new OwnerRef('user', 1))->set('ui.theme', 'light');
+    settings()->for(new OwnerRef('user', 1))->set('ui.null', null);
+    $stream = fopen('php://temp', 'w+b');
+
+    $counts = app(StreamExport::class)->handle(new ExportRequest(app(StoreRegistry::class)->default(), $mode), $stream);
+    rewind($stream);
+
+    expect(stream_get_contents($stream))->toBe(settings()->export($mode)->toJson())
+        ->and($counts)->toBe(['settings' => 6, 'categories' => 1]);
+})->with([ExportMode::Redacted, ExportMode::Ciphertext, ExportMode::Plaintext]);
+
+it('streams an empty store as the same bytes too (SP-10)', function (): void {
+    $this->travelTo(now()->startOfSecond());
+    $stream = fopen('php://temp', 'w+b');
+    app(StreamExport::class)->handle(new ExportRequest(app(StoreRegistry::class)->default()), $stream);
+    rewind($stream);
+
+    expect(stream_get_contents($stream))->toBe(settings()->export()->toJson());
+});
+
+it('reads the store 500 rows at a time when it streams an export (SP-10)', function (): void {
+    $now = now()->toDateTimeString();
+    DB::table('settings')->insert(array_map(static fn (int $index): array => [
+        'id'    => (string) Str::ulid(), 'uid' => (string) Str::ulid(), 'scope' => 'global', 'key' => 'bulk.k' . $index, 'locale' => '',
+        'value' => (string) $index, 'version' => 1, 'autoload' => true, 'sort_order' => 0, 'group' => 'bulk', 'created_at' => $now, 'updated_at' => $now,
+    ], range(1, 1100)));
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $path = sys_get_temp_dir() . '/laranail-settings-stream-' . bin2hex(random_bytes(4)) . '.json';
+    expect(Artisan::call('laranail::settings.export', ['path' => $path]))->toBe(0);
+    $chunks = array_values(array_filter(DB::getQueryLog(), static fn (array $query): bool => preg_match('/from ["`]settings["`] .*limit 500/i', $query['query']) === 1));
+    DB::disableQueryLog();
+
+    expect($chunks)->toHaveCount(3)
+        ->and(ExportDocument::fromJson((string) file_get_contents($path))->settings)->toHaveCount(1100);
+});
+
+it('reports what stops a streamed export: an unknown store, an unwritable path, no database layer, a refusal (SP-10)', function (): void {
+    expect(Artisan::call('laranail::settings.export', ['--store' => 'nope']))->toBe(1)
+        ->and(Artisan::call('laranail::settings.export', ['path' => sys_get_temp_dir() . '/no-such-directory-' . bin2hex(random_bytes(4)) . '/x.json']))->toBe(1);
+
+    config()->set('laranail.settings.stores.filed', ['layers' => ['runtime']]);
+    app()->forgetScopedInstances();
+
+    expect(Artisan::call('laranail::settings.export', ['--store' => 'filed']))->toBe(1)
+        ->and(Artisan::output())->toContain('no active database layer');
+
+    $stream = fopen('php://temp', 'w+b');
+    Gate::define(Ability::Export->gateName(), static fn (): bool => false);
+
+    expect(fn () => app(StreamExport::class)->handle(new ExportRequest(app(StoreRegistry::class)->default()), $stream, Actor::user(user())))->toThrow(AccessDenied::class)
+        ->and(fstat($stream)['size'] ?? null)->toBe(0);
 });

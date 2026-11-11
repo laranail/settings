@@ -34,21 +34,26 @@ final readonly class QueryChanges
             $this->access->assertActorNotRequired(Ability::Approve, $subject);
         }
 
+        // An actor who may not approve sees only their own requests: filtered in the query, so a
+        // page is never filled with other people's requests and then emptied.
+        $own = $actor instanceof Actor && ! $actor->isSystem() && ! $this->access->allows($actor, Ability::Approve, $subject) ? $actor : null;
         $database = $store->changeRequestsDatabase();
-        $requests = $database->attempt($store->name, static fn (): array => SettingChangeRequest::on($database->connectionName())
-            ->matching($filter)
-            ->when($after !== null, static fn (Builder $query): Builder => $query->where('id', '<', $after))
-            ->limit($limit)
-            ->get()
-            ->map(static fn (SettingChangeRequest $request): ChangeRequest => $request->toRequest())
-            ->values()
-            ->all());
-        $requests = array_values($requests);
+        $requests = $database->attempt($store->name, static function () use ($database, $filter, $own, $after, $limit): array {
+            $query = SettingChangeRequest::on($database->connectionName())->matching($filter);
 
-        if (! $actor instanceof Actor || $actor->isSystem() || $this->access->allows($actor, Ability::Approve, $subject)) {
-            return $requests;
-        }
+            if ($own instanceof Actor) {
+                SettingChangeRequest::requestedBy($query, $own);
+            }
 
-        return array_values(array_filter($requests, static fn (ChangeRequest $request): bool => $request->isRequestedBy($actor)));
+            return $query
+                ->when($after !== null, static fn (Builder $query): Builder => $query->where('id', '<', $after))
+                ->limit($limit)
+                ->get()
+                ->map(static fn (SettingChangeRequest $request): ChangeRequest => $request->toRequest())
+                ->values()
+                ->all();
+        });
+
+        return array_values(array_filter($requests, static fn (ChangeRequest $request): bool => ! $own instanceof Actor || $request->isRequestedBy($own)));
     }
 }

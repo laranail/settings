@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Enums\Ability;
@@ -13,8 +14,10 @@ use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Actions\Configuration\SaveDefinition;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /** Insert a definition row edited at runtime (not is_system). */
@@ -170,4 +173,80 @@ it('reports skipped stores and conflicts from the command, and fails when syncin
 
     $this->artisan('laranail::settings.sync-definitions')->assertFailed();
     $this->artisan('laranail::settings.doctor', ['--fix' => true])->assertFailed();
+});
+
+it('syncs N definitions with the same number of reads as one (SP-06)', function (): void {
+    useDatabase(['definitions.sources' => ['code', 'config', 'database']]);
+    settings()->categories()->create(new NewCategory('mail', 'Mail'));
+
+    $queries = static function (int $count): array {
+        for ($index = 0; $index < $count; $index++) {
+            app(DefinitionRegistry::class)->define('sync.key' . $index)->ofType('string')->inCategory('mail')->register();
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        app(SyncDefinitions::class)->handle();
+        $selects = count(array_filter(DB::getQueryLog(), static fn (array $query): bool => str_starts_with(strtolower($query['query']), 'select')));
+        DB::flushQueryLog();
+        app(SyncDefinitions::class)->handle();
+        $resync = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        return [$selects, $resync];
+    };
+
+    [$selectsFor5, $resyncFor5] = $queries(5);
+    [$selectsFor20, $resyncFor20] = $queries(20);
+
+    // A runtime definition saved on its own still finds its category.
+    app(SaveDefinition::class)->handle(app(StoreRegistry::class)->default(), 'sync.runtime', ['type' => 'string', 'category' => 'mail']);
+
+    expect($selectsFor20)->toBe($selectsFor5)
+        ->and(DB::table('settings_definitions')->where('key', 'sync.runtime')->value('category_id'))->toBe(DB::table('settings_categories')->where('slug', 'mail')->value('id'))
+        ->and($resyncFor20)->toBe($resyncFor5)
+        ->and(DB::table('settings_definitions')->where('key', 'like', 'sync.key%')->whereNotNull('category_id')->count())->toBe(20);
+});
+
+it('skips a sync that overlaps a running one instead of failing on its rows (SP-11)', function (): void {
+    useDatabase(['definitions.sources' => ['code', 'config', 'database']]);
+    app(DefinitionRegistry::class)->define('overlap.a')->ofType('string')->register();
+    app(DefinitionRegistry::class)->define('overlap.b')->ofType('string')->register();
+    $second = null;
+
+    // The second run starts while the first is inserting its rows.
+    DB::listen(static function ($query) use (&$second): void {
+        if ($second === null && str_starts_with(strtolower($query->sql), 'insert into') && str_contains($query->sql, 'settings_definitions')) {
+            $second = false;
+
+            try {
+                $second = app()->makeWith(SyncDefinitions::class, ['wait' => 0])->handle();
+            } catch (Throwable $exception) {
+                $second = $exception;
+            }
+        }
+    });
+
+    $first = app(SyncDefinitions::class)->handle();
+
+    expect($second)->toBeArray()
+        ->and($second['busy'] ?? null)->toBeTrue()
+        ->and($second['synced'] ?? null)->toBe(0)
+        ->and($first['busy'])->toBeFalse()
+        ->and($first['synced'])->toBeGreaterThanOrEqual(2)
+        ->and(DB::table('settings_definitions')->whereIn('key', ['overlap.a', 'overlap.b'])->count())->toBe(2);
+
+    // The lock is released: the next run syncs again.
+    expect(app()->makeWith(SyncDefinitions::class, ['wait' => 0])->handle()['busy'])->toBeFalse();
+
+    Cache::lock('laranail-settings:sync-definitions', 300)->get();
+    $this->app->when(SyncDefinitions::class)->needs('$wait')->give(0);
+    $this->artisan('laranail::settings.sync-definitions')->expectsOutputToContain('Another sync-definitions run holds the lock')->assertSuccessful();
+});
+
+it('gives up on the sync lock after waiting, and reports busy (SP-11)', function (): void {
+    useDatabase(['definitions.sources' => ['code', 'config', 'database']]);
+    Cache::lock('laranail-settings:sync-definitions', 300)->get();
+
+    expect(app()->makeWith(SyncDefinitions::class, ['wait' => 1])->handle()['busy'])->toBeTrue();
 });

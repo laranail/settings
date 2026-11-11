@@ -11,18 +11,24 @@ use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Simtabi\Laranail\Settings\Contracts\Driver;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
+use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 
 /**
  * Stores records in a JSON file on a filesystem disk, one file per store.
  *
- * Writes replace the file through an atomic rename. There is no cross-process lock, so concurrent
- * writers can lose an update.
+ * Writes replace the file through an atomic rename, so a reader never sees half a file. On a local
+ * disk each read-modify-write holds an exclusive `flock` on a sidecar `<file>.lock`, and a write
+ * is version-checked like the database layer's: a writer whose base version is stale gets
+ * {@see ConcurrentModification} instead of overwriting. Reads take no lock. A disk that is not
+ * local (S3 and the like) has no lock, so the version check is all that guards it.
  */
 final readonly class JsonDriver implements Driver
 {
@@ -43,18 +49,34 @@ final readonly class JsonDriver implements Driver
         ));
     }
 
+    /**
+     * Store a record one version above the version the writer read.
+     *
+     * @throws ConcurrentModification when the file holds another version than the writer read
+     */
     public function put(StoreName $store, Record $record): void
     {
-        $records = $this->read($store);
-        $records[$record->identity()] = $record;
-        $this->write($store, $records);
+        $this->locked($store, function () use ($store, $record): void {
+            $records = $this->read($store);
+            $current = $records[$record->identity()] ?? null;
+
+            // As the database layer: a record must be at the version below; a new one may start anywhere.
+            if ($current instanceof Record && $current->version !== $record->version - 1) {
+                throw new ConcurrentModification(sprintf('Setting [%s] in store [%s] for scope [%s] is at version %d in its file, not %d; re-read and retry.', $record->key, $store, $record->scope, $current->version, $record->version - 1));
+            }
+
+            $records[$record->identity()] = $record;
+            $this->write($store, $records);
+        });
     }
 
     public function forget(StoreName $store, Scope $scope, Key $key, Locale $locale): void
     {
-        $records = $this->read($store);
-        unset($records[Record::identityOf($scope, $key, $locale)]);
-        $this->write($store, $records);
+        $this->locked($store, function () use ($store, $scope, $key, $locale): void {
+            $records = $this->read($store);
+            unset($records[Record::identityOf($scope, $key, $locale)]);
+            $this->write($store, $records);
+        });
     }
 
     public function isWritable(): bool
@@ -129,7 +151,7 @@ final readonly class JsonDriver implements Driver
             $records[$record->identity()] = $record;
         }
 
-        $this->write($store, $records);
+        $this->locked($store, fn () => $this->write($store, $records));
 
         return $archive;
     }
@@ -218,6 +240,45 @@ final readonly class JsonDriver implements Driver
         } catch (Throwable $exception) {
             throw new DriverFailure(sprintf('Settings file [%s] could not be written.', $path), $exception->getCode(), previous: $exception);
         }
+    }
+
+    /**
+     * Run a read-modify-write under an exclusive lock on the store's sidecar lock file, released
+     * whatever happens. A disk that is not local runs it unlocked.
+     *
+     * @param callable(): void $work
+     */
+    private function locked(StoreName $store, callable $work): void
+    {
+        $lockPath = $this->localPath($this->path($store) . '.lock');
+
+        if ($lockPath === null) {
+            $work();
+
+            return;
+        }
+
+        $directory = dirname($lockPath);
+        $handle = (is_dir($directory) || @mkdir($directory, 0o755, true)) ? @fopen($lockPath, 'c') : false;
+
+        if ($handle === false || ! flock($handle, LOCK_EX)) {
+            throw new DriverFailure(sprintf('Settings file [%s] could not be locked for writing.', $this->path($store)));
+        }
+
+        try {
+            $work();
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
+    }
+
+    /** The absolute path of a file on a local disk, or null when the disk is not local. */
+    private function localPath(string $path): ?string
+    {
+        return $this->disk instanceof FilesystemAdapter && $this->disk->getAdapter() instanceof LocalFilesystemAdapter
+            ? $this->disk->path($path)
+            : null;
     }
 
     private function archivePath(StoreName $store, CarbonImmutable $at): string

@@ -359,7 +359,7 @@ it('promotes only the kinds a store selects, and the rest keep answering from th
     app()->terminate();
 
     expect(DB::getQueryLog())->toBe([])
-        ->and(Storage::disk('local')->files('laranail/settings'))->toHaveCount($inFile === [] ? 1 : 2);
+        ->and(array_filter(Storage::disk('local')->files('laranail/settings'), static fn (string $path): bool => ! str_ends_with($path, '.lock')))->toHaveCount($inFile === [] ? 1 : 2);
 })->with([
     'settings only'   => [['include' => ['settings']], ['global'], ['user:1', 'team:2']],
     'owners only'     => [['include' => ['owners']], ['team:2', 'user:1'], ['global']],

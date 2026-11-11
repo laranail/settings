@@ -15,11 +15,13 @@ final readonly class Lookup
         private ?string $layer,
         private ?Scope $scope,
         private bool $redacted = false,
+        private bool $encrypted = false,
     ) {}
 
-    public static function found(mixed $value, string $layer, Scope $scope): self
+    /** @param bool $encrypted whether the value was stored encrypted, which makes it sensitive whatever its definition says */
+    public static function found(mixed $value, string $layer, Scope $scope, bool $encrypted = false): self
     {
-        return new self(true, $value, $layer, $scope);
+        return new self(true, $value, $layer, $scope, encrypted: $encrypted);
     }
 
     public static function fromDefault(mixed $value): self
@@ -35,7 +37,13 @@ final readonly class Lookup
     /** The same answer with its value withheld; presence, layer and scope stay visible. */
     public function redacted(): self
     {
-        return new self($this->found, null, $this->layer, $this->scope, redacted: true);
+        return new self($this->found, null, $this->layer, $this->scope, redacted: true, encrypted: $this->encrypted);
+    }
+
+    /** Whether the value was stored encrypted: a secret, even when no definition says so any more. */
+    public function isEncrypted(): bool
+    {
+        return $this->encrypted;
     }
 
     public function isRedacted(): bool

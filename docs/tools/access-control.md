@@ -107,7 +107,7 @@ With `locks.overridable` on, an actor allowed `override_lock` may `set` or `forg
 
 ## Sensitive settings
 
-Mark a definition `sensitive()` (or `'sensitive' => true` in config); `encrypted()` implies it. Reading one needs `view_sensitive` as well as `view`, and `explain()` redacts its value: `Explanation::isRedacted()` is true, `Lookup::value()` throws, and the layer and steps stay visible.
+Mark a definition `sensitive()` (or `'sensitive' => true` in config); `encrypted()` implies it. Reading one needs `view_sensitive` as well as `view`, and `explain()` redacts its value: `Explanation::isRedacted()` is true, `Lookup::value()` throws, and the layer and steps stay visible. A value stored encrypted stays sensitive after its definition is changed or removed: the stored row decides as well as the definition (`Lookup::isEncrypted()`).
 
 ## Step-up verification
 

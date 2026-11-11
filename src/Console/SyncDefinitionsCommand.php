@@ -32,6 +32,12 @@ final class SyncDefinitionsCommand extends Command
             return self::FAILURE;
         }
 
+        if ($report['busy']) {
+            $this->warn(__('laranail/settings::settings.console.definitions_busy'));
+
+            return self::SUCCESS;
+        }
+
         foreach ($report['skipped'] as $store) {
             $this->line(__('laranail/settings::settings.console.definitions_skipped', ['store' => $store]));
         }
