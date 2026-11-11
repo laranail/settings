@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
@@ -75,6 +77,21 @@ it('needs view_audit when an actor queries, and records the denial', function ()
     allowGates(Ability::ViewAudit);
 
     expect(settings()->as(user())->audit()->outcome(AuditOutcome::Denied)->get()[0]->action)->toBe(AuditAction::ViewAudit);
+});
+
+it('answers an unfiltered query with the stores the actor may audit only', function (): void {
+    settings()->set('site.name', 'Acme');
+    settings()->store('billing')->set('plan.tier', 'gold');
+    // An auditor of the settings store only.
+    Gate::define(Ability::ViewAudit->gateName(), static fn ($user, Subject $subject): bool => $subject->store->value === 'settings');
+
+    expect(array_map(static fn (AuditEntry $entry): string => $entry->store, settings()->as(user())->audit()->action(AuditAction::Update)->get()))->toBe(['settings'])
+        ->and(fn (): array => settings()->as(user())->audit()->store('billing')->get())->toThrow(AccessDenied::class)
+        ->and(count(settings()->audit()->action(AuditAction::Update)->get()))->toBe(2);
+
+    Gate::define(Ability::ViewAudit->gateName(), static fn (): bool => false);
+
+    expect(fn (): array => settings()->as(user())->audit()->get())->toThrow(AccessDenied::class);
 });
 
 it('cannot query a store whose trail is not in a database', function (): void {

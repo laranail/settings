@@ -37,7 +37,8 @@ at either end) and `hasMore()`.
 ## Access
 
 With an actor on the handle, every run needs `view_audit` (checked against the filtered store,
-key and owner); a denial is itself audited. Without an actor the call is trusted, unless
+key and owner); a denial is itself audited. Without `store()`, the query returns entries of the
+stores the actor may audit only, and is refused when there is none. Without an actor the call is trusted, unless
 `authorization.require_actor` is on. Entries never carry a value, encrypted or not, so there is
 nothing to redact.
 

@@ -45,7 +45,7 @@ Messages name the store, key, scope and ability involved, never a value, so they
 | `UnknownCategory` | `SettingsException` | no category with the slug exists in the store | `404 unknown-category` |
 | `CategoryCycle` | `SettingsException` | moving a category under itself or a descendant | `422 category-cycle` |
 | `CategoryStoreMismatch` | `SettingsException` | a category belongs to another store than what refers to it | `422 category-store-mismatch` |
-| `InvalidSettingValue` | `SettingsException` | a value failed its definition's rules, cast or locale constraints | `422 invalid-value` |
+| `InvalidSettingValue` | `SettingsException` | a value failed its definition's rules, cast or locale constraints, or its payload is larger than `values.max_bytes` | `422 invalid-value` |
 | `TypeMismatch` | `SettingsException` | a typed getter (`string()`, `integer()`, …) or a typed settings property found another type, or no value | `422 type-mismatch` |
 | `InvalidIdentifier` | `SettingsException` | a store name, locale, owner alias or filter failed validation | `422 invalid-identifier` |
 | `InvalidKey` | `InvalidIdentifier` | a key is not lower-case dot notation of `[a-z0-9_]` segments, at most 191 characters; or `many()` got a non-string list entry | `422 invalid-identifier` |

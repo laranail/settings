@@ -84,6 +84,9 @@ has the steps for one.
 - **Testing**: `Settings::fake()` with assertions for writes, forgets and audit entries; Eloquent
   models and factories for every table.
 - One migration for every table, tested on SQLite, MySQL 8.4 and PostgreSQL 17 in CI.
+- `values.max_bytes` (`LARANAIL_SETTINGS_MAX_VALUE_BYTES`, default 1 MiB, `null` for no limit):
+  every write path (the PHP API, REST, import, promotion, approvals) refuses a value whose encoded
+  payload is larger, with `InvalidSettingValue` (REST `422 invalid-value`).
 
 ### Changed
 
@@ -130,6 +133,12 @@ Each was removed before the first tag; none was in a tagged release.
 - A malformed record in a `json` layer's file (bad key, locale, date or version) is reported as
   `DriverFailure` naming the file, instead of an `InvalidKey`, `InvalidIdentifier` or Carbon
   exception.
+- `DELETE` with `If-Match` (and `ForgetSetting` with an expected version) forgets only at that
+  version, re-checked under a row lock, so a change made after the check answers `412` instead of
+  being deleted.
+- Two approvals recorded at once both count: the request is re-read under a row lock before an
+  approval is added.
+- A REST `cursor` the listing did not hand out answers `422` instead of the first page.
 
 ### Security
 
@@ -143,3 +152,8 @@ Each was removed before the first tag; none was in a tagged release.
   key, so two actors the guard cannot tell apart never share a replay. A retry with a different
   body is refused with `422` instead of being answered with the first response, and the stored
   response is encrypted, since it can hold an encrypted setting's value.
+- An audit query without a store filter returns entries of the stores the actor may audit only,
+  and is refused (`403`) when there is none. Before, it was authorized against the default store
+  and returned every store's entries.
+- A persisted layer may not redefine a layer the configuration file defines, saved or read back;
+  it could otherwise move a configured store onto another connection, table or driver.

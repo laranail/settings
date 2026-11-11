@@ -70,6 +70,18 @@ final class SettingChangeRequest extends SettingsModel
     }
 
     /**
+     * {@see get()} under a row lock, inside the caller's transaction, so concurrent approvals
+     * read each other's.
+     *
+     * @throws UnknownChangeRequest
+     */
+    public static function locked(?string $connection, StoreName $store, string $id): ChangeRequest
+    {
+        return self::on($connection)->where('store', $store->value)->whereKey($id)->lockForUpdate()->first()?->toRequest()
+            ?? throw new UnknownChangeRequest(sprintf('Store [%s] has no change request [%s].', $store, $id));
+    }
+
+    /**
      * Move a request from one of `$from` to a new status; false when someone else decided it first.
      *
      * @param list<ChangeStatus> $from

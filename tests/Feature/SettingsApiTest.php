@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Storage;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 it('writes to the runtime file and reads the value back', function (): void {
     settings()->set('site.name', 'Acme');
@@ -88,4 +90,22 @@ it('derives new handles without changing the shared instance', function (): void
     expect($scoped)->not->toBe($base)
         ->and($base->get('ui.theme'))->toBeNull()
         ->and($scoped->get('ui.theme'))->toBe('dark');
+});
+
+it('refuses a value whose payload is larger than values.max_bytes, and takes null as no limit', function (): void {
+    config()->set('laranail.settings.values.max_bytes', 16);
+    app()->forgetInstance(ValuePipeline::class);
+    app()->forgetScopedInstances();
+
+    settings()->set('site.name', str_repeat('a', 14));     // "aaaaaaaaaaaaaa" is 16 bytes encoded
+
+    expect(fn () => settings()->set('site.name', str_repeat('a', 15)))->toThrow(InvalidSettingValue::class, 'over the 16-byte limit')
+        ->and(settings()->get('site.name'))->toBe(str_repeat('a', 14));
+
+    config()->set('laranail.settings.values.max_bytes');
+    app()->forgetInstance(ValuePipeline::class);
+    app()->forgetScopedInstances();
+    settings()->set('site.name', str_repeat('a', 2048));
+
+    expect(settings()->get('site.name'))->toHaveLength(2048);
 });

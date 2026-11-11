@@ -75,11 +75,23 @@ final readonly class ApproveChange
             throw AccessDenied::for(Ability::Approve, $subject, 'the requester cannot approve their own change request');
         }
 
-        $approvals = array_values(array_unique([...$request->approvals, ChangeRequest::actorKey($actor ?? Actor::system())]));
-        $remaining = max(0, $this->policy->minApprovals - count($approvals));
+        // Counted under a row lock, so two approvals recorded at once both count.
+        [$approvals, $remaining] = $database->transaction(function () use ($database, $store, $request, $subject, $actor, $decision, $now): array {
+            $current = $database->attempt($store->name, static fn (): ChangeRequest => SettingChangeRequest::locked($database->connectionName(), $store->name, $request->id));
+            $approvals = array_values(array_unique([...$current->approvals, ChangeRequest::actorKey($actor ?? Actor::system())]));
+            $remaining = max(0, $this->policy->minApprovals - count($approvals));
+
+            if ($remaining > 0) {
+                $this->record($database, $current, $subject, $actor, $decision->reason, $approvals, $remaining, $now);
+            }
+
+            return [$approvals, $remaining];
+        }, $store->name);
 
         if ($remaining > 0) {
-            return $this->record($database, $request, $subject, $actor, $decision->reason, $approvals, $remaining, $now);
+            $this->events->dispatch(new ChangeApproved($request->id, $request->store, $request->scope, $request->key, $request->locale, $request->operation->value, $remaining));
+
+            return $database->attempt($store->name, static fn (): ChangeRequest => SettingChangeRequest::get($database->connectionName(), $store->name, $request->id));
         }
 
         try {
@@ -113,16 +125,13 @@ final readonly class ApproveChange
     }
 
     /** @param list<string> $approvals */
-    private function record(DatabaseDriver $database, ChangeRequest $request, Subject $subject, ?Actor $actor, ?string $reason, array $approvals, int $remaining, CarbonImmutable $now): ChangeRequest
+    private function record(DatabaseDriver $database, ChangeRequest $request, Subject $subject, ?Actor $actor, ?string $reason, array $approvals, int $remaining, CarbonImmutable $now): void
     {
         if (! $database->attempt(new StoreName($request->store), static fn (): bool => SettingChangeRequest::transition($database->connectionName(), $request, [ChangeStatus::Pending, ChangeStatus::Approved], ChangeStatus::Approved, null, null, $now, $approvals))) {
             throw new ChangeRequestClosed(sprintf('Change request [%s] was decided by somebody else first.', $request->id));
         }
 
         $this->access->auditor()->record(AuditAction::Approve, AuditOutcome::Pending, $subject, $actor, $reason, meta: ['change_request' => $request->id, 'remaining' => $remaining]);
-        $this->events->dispatch(new ChangeApproved($request->id, $request->store, $request->scope, $request->key, $request->locale, $request->operation->value, $remaining));
-
-        return $database->attempt($subject->store, static fn (): ChangeRequest => SettingChangeRequest::get($database->connectionName(), $subject->store, $request->id));
     }
 
     private function assertOpen(DatabaseDriver $database, ChangeRequest $request, CarbonImmutable $now): void

@@ -100,6 +100,16 @@ final readonly class SettingWriter
         return $this->remove($store, $key, $locale, $owner, $definition, overrideLock: false);
     }
 
+    /**
+     * Remove this scope's own value only if it is still at `$expectedVersion` (0 for no row).
+     *
+     * @throws ConcurrentModification
+     */
+    public function forgetExpecting(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, int $expectedVersion, bool $overrideLock = false): ?Record
+    {
+        return $this->remove($store, $key, $locale, $owner, $definition, $overrideLock, $expectedVersion);
+    }
+
     /** {@see forget()} over a row lock; the same precondition as {@see setOverridingLock()}. */
     public function forgetOverridingLock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition): ?Record
     {
@@ -229,13 +239,14 @@ final readonly class SettingWriter
         return $layer->driver instanceof DatabaseBacked && $layer->driver->isActive() ? $layer->driver->database() : null;
     }
 
-    private function remove(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, bool $overrideLock): ?Record
+    private function remove(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, ?Definition $definition, bool $overrideLock, ?int $expectedVersion = null): ?Record
     {
         $this->guard($store, $key, $locale, $owner, $definition, $overrideLock);
 
         $layer = $store->writableLayer();
         $scope = $this->scope($owner);
         $existing = $layer->driver->load($store->name, [$scope])->find($scope, $key, $locale);
+        $this->assertVersion($store, $scope, $key, $existing, $expectedVersion);
 
         if (! $existing instanceof Record) {
             return null;
@@ -246,7 +257,12 @@ final readonly class SettingWriter
 
         if ($database instanceof DatabaseDriver) {
             // A tombstone: the version that was removed, no new value. The next write continues after it.
-            $database->transaction(function () use ($store, $layer, $database, $scope, $key, $locale, $existing): void {
+            $database->transaction(function () use ($store, $layer, $database, $scope, $key, $locale, $existing, $expectedVersion): void {
+                // Under a row lock, so a write between the check above and this delete is caught.
+                if ($expectedVersion !== null) {
+                    $this->assertVersion($store, $scope, $key, $database->lockedFind($store->name, $scope, $key, $locale), $expectedVersion);
+                }
+
                 $reference = $database->reference($store->name, $scope, $key, $locale);
                 $layer->driver->forget($store->name, $scope, $key, $locale);
                 $database->attempt($store->name, fn (): SettingHistory => SettingHistory::record($database->connectionName(), $store->name, HistoryOperation::Forget, $existing, null, $reference, $this->causer, $this->reason, $this->clock->now()));
@@ -258,6 +274,14 @@ final readonly class SettingWriter
         $this->events->dispatch(new SettingForgotten($store->name->value, $scope->value, $key->value, $locale->value, $existing->version));
 
         return $existing;
+    }
+
+    /** @throws ConcurrentModification when the row is not at the expected version (0: no row) */
+    private function assertVersion(Store $store, Scope $scope, Key $key, ?Record $current, ?int $expectedVersion): void
+    {
+        if ($expectedVersion !== null && ($current->version ?? 0) !== $expectedVersion) {
+            throw new ConcurrentModification(sprintf('Setting [%s] in store [%s] for scope [%s] is at version %d, not the expected %d; re-read and retry.', $key, $store->name, $scope, $current->version ?? 0, $expectedVersion));
+        }
     }
 
     private function storeLock(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, bool $locked, ?Definition $definition): Record

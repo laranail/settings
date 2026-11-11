@@ -84,6 +84,23 @@ it('never persists a php or config layer, which would run a file or read configu
         ->and(is_file($marker))->toBeFalse();
 });
 
+it('only adds layers: a persisted layer never redefines one the configuration file defines', function (): void {
+    expect(fn () => settings()->persistedConfiguration()->saveLayer('database', ['driver' => 'array']))->toThrow(InvalidConfiguration::class, 'would redefine a layer')
+        ->and(DB::table('settings_stores')->count())->toBe(0);
+
+    settings()->set('site.name', 'Acme');
+    // A row written to the table directly is skipped, and the store keeps the file's database layer.
+    DB::table('settings_stores')->insert(['id' => '01J00000000000000000000003', 'kind' => 'layer', 'name' => 'database', 'config' => '{"driver":"array"}', 'created_at' => now(), 'updated_at' => now()]);
+    app()->forgetScopedInstances();
+
+    expect(settings()->get('site.name'))->toBe('Acme')
+        ->and(settings()->persistedConfiguration()->entries())->toBe([]);
+
+    Artisan::call('laranail::settings.doctor', ['--json' => true]);
+
+    expect(Artisan::output())->toContain('layer [database]: Persisted layer [database] would redefine');
+});
+
 it('skips and reports an invalid row instead of failing', function (): void {
     DB::table('settings_stores')->insert([
         ['id' => '01J00000000000000000000001', 'kind' => 'store', 'name' => 'broken', 'config' => '{"layers":["missing"]}', 'created_at' => now(), 'updated_at' => now()],

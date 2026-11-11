@@ -140,6 +140,14 @@ return [
     ],
 
     /*
+    | max_bytes: the largest value a write accepts, measured as the encoded
+    |            payload before encryption; null for no limit.
+    */
+    'values' => [
+        'max_bytes' => env('LARANAIL_SETTINGS_MAX_VALUE_BYTES', 1048576),
+    ],
+
+    /*
     | The cache in front of database layers.
     |
     | store:   a cache store from config/cache.php, or null for the default.

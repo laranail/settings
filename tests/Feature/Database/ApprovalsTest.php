@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Artisan;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
@@ -15,6 +16,7 @@ use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Enums\ChangeStatus;
 use Simtabi\Laranail\Settings\Events\ChangeStale;
 use Simtabi\Laranail\Settings\Events\ChangeApplied;
+use Illuminate\Database\Events\TransactionBeginning;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Events\ChangeApproved;
 use Simtabi\Laranail\Settings\Events\ChangeRejected;
@@ -126,6 +128,29 @@ it('waits for the minimum number of distinct approvals', function (): void {
         ->and(settings()->get('mail.host'))->toBeNull()
         ->and(settings()->as(user(3))->approvals()->approve($id)->status)->toBe(ChangeStatus::Applied)
         ->and(settings()->get('mail.host'))->toBe('smtp.acme.test');
+});
+
+it('counts two approvals recorded at once, never losing one', function (): void {
+    config()->set('laranail.settings.approvals.min_approvals', 3);
+    app()->forgetScopedInstances();
+    needsApproval();
+    settings()->as(user(1))->set('mail.host', 'smtp.acme.test');
+    $id = settings()->approvals()->get()[0]->id;
+
+    // User 3's approval commits after user 2 read the request and before user 2 records theirs.
+    $raced = false;
+    Event::listen(TransactionBeginning::class, static function () use (&$raced, $id): void {
+        if (! $raced) {
+            $raced = true;
+            DB::table('settings_change_requests')->where('id', $id)->update(['status' => 'approved', 'approvals' => json_encode([ChangeRequest::actorKey(Actor::user(user(3)))])]);
+        }
+    });
+
+    $approved = settings()->as(user(2))->approvals()->approve($id);
+
+    expect($raced)->toBeTrue()
+        ->and($approved->status)->toBe(ChangeStatus::Approved)
+        ->and($approved->approvals)->toHaveCount(2);
 });
 
 it('marks a request stale when its setting changed after it was opened, and never overwrites', function (): void {

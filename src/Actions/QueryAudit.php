@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
+use Closure;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Support\LazyCollection;
 use Illuminate\Database\Eloquent\Builder;
@@ -62,16 +63,45 @@ final readonly class QueryAudit
     private function query(AuditFilter $filter, ?Actor $actor): Builder
     {
         $store = $filter->store instanceof StoreName ? $this->stores->get($filter->store) : $this->stores->default();
+        $subject = static fn (StoreName $name): Subject => new Subject($name, key: $filter->key, owner: $filter->scope?->owner());
+        $readable = $filter->store instanceof StoreName ? null : $this->readableStores($actor, $subject);
 
-        $this->access->authorize($actor, Ability::ViewAudit, new Subject(
-            $store->name,
-            key: $filter->key,
-            owner: $filter->scope?->owner(),
-        ));
+        // No store filter: only the stores this actor may audit. None at all is refused, audited,
+        // the same as a query naming one store.
+        if ($readable === null || $readable === []) {
+            $this->access->authorize($actor, Ability::ViewAudit, $subject($store->name));
+        }
 
         $database = $this->stores->auditDatabase($store->name)
             ?? throw new DriverUnavailable(sprintf('Store [%s] has no active database layer, so its audit trail went to the log and cannot be queried.', $store->name));
 
-        return SettingAuditEntry::on($database->connectionName())->matching($filter);
+        $query = SettingAuditEntry::on($database->connectionName())->matching($filter);
+
+        return $readable === null ? $query : $query->whereIn('store', $readable);
+    }
+
+    /**
+     * The names of the stores an actor may audit; null for trusted code and the system, which
+     * read every store.
+     *
+     * @param Closure(StoreName): Subject $subject
+     *
+     * @return list<string>|null
+     */
+    private function readableStores(?Actor $actor, Closure $subject): ?array
+    {
+        if (! $actor instanceof Actor || $actor->isSystem()) {
+            return null;
+        }
+
+        $readable = [];
+
+        foreach ($this->stores->all() as $store) {
+            if ($this->access->allows($actor, Ability::ViewAudit, $subject($store->name))) {
+                $readable[] = $store->name->value;
+            }
+        }
+
+        return $readable;
     }
 }

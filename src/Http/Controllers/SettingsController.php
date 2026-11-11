@@ -71,8 +71,8 @@ final readonly class SettingsController
         $input = $request->toData();
         $actor = $actors->of($request, $input->reason);
         $address = $addresses->of($input->address);
-        $this->expectedVersion($targets, $address, $input->ifMatch);
-        $change = $forget->handle($targets->target($address, $input->reason), $actor);
+        $expected = $this->expectedVersion($targets, $address, $input->ifMatch);
+        $change = $forget->handle($targets->target($address, $input->reason), $actor, $expected);
 
         return $change instanceof ChangeRequest ? $this->accepted($change) : new Response(status: 204);
     }

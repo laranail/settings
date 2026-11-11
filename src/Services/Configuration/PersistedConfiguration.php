@@ -233,6 +233,12 @@ final class PersistedConfiguration
             throw new InvalidConfiguration(sprintf('Persisted layer [%s]: the [%s] driver reads files or configuration on the server, so it can only be defined in the configuration file.', $name, is_string($config['driver']) ? $config['driver'] : ''));
         }
 
+        // Persisted layers only add to the file's: redefining one would move a store the file
+        // configures onto another connection, table or driver, which is promote's job.
+        if ($kind === 'layer' && array_key_exists($name, $this->configLayers)) {
+            throw new InvalidConfiguration(sprintf('Persisted layer [%s] would redefine a layer the configuration file defines; change it there, or persist a layer under a new name.', $name));
+        }
+
         $configured = $this->configStores[$name] ?? null;
 
         if ($kind === 'store' && is_array($configured) && ($configured['layers'] ?? null) !== ($config['layers'] ?? null)) {

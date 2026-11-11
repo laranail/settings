@@ -13,9 +13,9 @@ Paths are under `/{http.prefix}/v1`, by default `/api/settings/v1`; set `http.pr
 | Owners | a settings route has a global form (`/stores/{store}/settings/…`) and an owner form (`/stores/{store}/owners/{alias}/{id}/settings/…`). `{alias}` is a morph alias from `http.owners` or the morph map, never a class name. |
 | Locales | `?locale=fr` on settings routes; the write routes also take it. |
 | Bodies | JSON. Every write may send `"reason"` (recorded in the audit trail and history). |
-| ETags | setting responses carry `ETag`. Send it back as `If-Match` on `PUT` or `DELETE`: a mismatch is `412`; `*` matches any version. |
+| ETags | setting responses carry `ETag`. Send it back as `If-Match` on `PUT` or `DELETE`: a mismatch is `412`, and the write or delete applies only at that version, so a change made after the check is also `412`; `*` matches any version. |
 | Idempotency | every non-`GET` route accepts `Idempotency-Key`; a retry with the same key, actor, host, method and path within `http.idempotency.ttl` (24 hours) is answered from cache with `Idempotent-Replayed: true`. The same key with a different body answers `422` (`http-422`) and applies nothing. |
-| Pagination | lists answer `{"data": [...], "meta": {"next_cursor": "…" or null}}`; pass `?cursor=<next_cursor>` and `?limit=` (1 to 200, default `http.page_size`). Cursors are opaque. |
+| Pagination | lists answer `{"data": [...], "meta": {"next_cursor": "…" or null}}`; pass `?cursor=<next_cursor>` and `?limit=` (1 to 200, default `http.page_size`). Cursors are opaque; one the listing did not hand out answers `422` (`validation`). |
 | Visibility | values the actor may not view are left out of lists; a single setting answers `"redacted": true` without `value`. |
 | Approvals | a write to a setting that needs approval answers `202` with the change request instead of the setting. |
 | Errors | RFC 9457 `application/problem+json`; see [Problem types](#problem-types). |
@@ -179,7 +179,7 @@ Answers `200` with the setting as now read. Status: `200`, `401`, `403`, `404`, 
 
 ### `GET /audit`
 
-`audit.index`, ability `view_audit`. The audit trail, newest first. Entries never hold values. Filters: `store`, `scope` (`global` or `alias:id`), `key`, `action` (an `AuditAction` value such as `set`, `forget`, `rollback`), `outcome` (`allowed`, `denied`, `pending`, `failed`), `since`, `until` (dates); plus `limit`, `cursor`.
+`audit.index`, ability `view_audit`. The audit trail, newest first; without `store`, of the stores the actor may audit only (`403` when none). Entries never hold values. Filters: `store`, `scope` (`global` or `alias:id`), `key`, `action` (an `AuditAction` value such as `set`, `forget`, `rollback`), `outcome` (`allowed`, `denied`, `pending`, `failed`), `since`, `until` (dates); plus `limit`, `cursor`.
 
 ```json
 {"data": [{"id": "01JC…", "occurred_at": "2026-11-10T09:12:00+00:00", "action": "set", "outcome": "allowed",
