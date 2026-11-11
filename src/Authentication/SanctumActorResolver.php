@@ -15,7 +15,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
  * Resolves through Sanctum and copies the token's abilities onto the actor. A token's
- * `settings:<ability>` limits what the authorizer may allow; it never grants anything itself.
+ * `laranail-settings:<ability>` limits what the authorizer may allow; it never grants anything itself.
  * A first-party session has no token and is not limited. Requires laravel/sanctum.
  */
 final readonly class SanctumActorResolver implements ActorResolver

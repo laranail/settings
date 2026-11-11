@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Routing\Route as RoutingRoute;
 use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Http\Support\Problems;
 use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
 
 /*
@@ -91,6 +92,22 @@ it('documents every REST route and every problem type', function (): void {
 
     foreach ($types as $type) {
         expect(str_contains($page, '| `' . $type . '` |'))->toBeTrue(sprintf('rest-api-reference.md does not list problem type %s', $type));
+    }
+});
+
+it('points every problem type URI at an anchor on the exceptions page', function (): void {
+    $page = referencePage('tools/exceptions.md');
+    // The exceptions' own types, and those Problems renders for framework exceptions.
+    $types = [...problemTypes(), 'validation', 'unauthenticated', 'too-many-requests', 'http-404', 'http-405'];
+
+    expect(count($types))->toBeGreaterThanOrEqual(29);
+
+    foreach ($types as $type) {
+        $uri = Problems::typeUri($type);
+        [$base, $anchor] = explode('#', $uri, 2);
+
+        expect($base)->toBe('https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions')
+            ->and(str_contains($page, '<a name="' . $anchor . '"></a>'))->toBeTrue(sprintf('exceptions.md has no anchor for problem type %s (#%s)', $type, $anchor));
     }
 });
 

@@ -1,11 +1,13 @@
 # Architecture
 
-How `laranail/settings` is shaped, and why.
+How `laranail/settings` is shaped, and why: key-value settings for any Laravel owner (the
+application, a user, a tenant, a product), stored in layered stores that work even before the
+database exists, and after it does.
 
 ## The model
 
 - **Stores.** Settings live in named stores. The default store is `settings`; an application adds
-  more (`user_settings`, `product_settings`) through configuration and a generated migration.
+  more (`user_settings`, `product_settings`) through configuration; a store added after install gets its own migration from `make-store`.
 - **Layers.** A store reads through ordered layers, each backed by a driver: the database, a
   runtime JSON file, a shipped PHP file, config. Before the application is installed, a store
   that opts in can serve from its files; once installed, an unreachable database is an error, never
@@ -34,16 +36,14 @@ are read and written by the database driver on the query builder, because that p
 every request. An action never touches a connection or the schema builder itself. A change and its audit entry always go
 through `Support\AuditedTransaction`, so every write, category change and promotion commits and
 audits the same way. Only entry points depend on actions. Architecture tests hold each rule,
-and each exemption (the guards the actions run through, the action bundles, `QueryAudit`'s three
-result shapes) carries its reason and fails when it is no longer needed.
+and each exemption (the guards the actions run through, `QueryAudit`'s three result shapes) carries its reason and fails when it is no longer needed.
 
-## Why a Services namespace?
+## Why a `Services` namespace?
 
 The layering above names a service as a stateful collaborator that owns I/O or a body of rules,
-but until 0.1 the services sat beside whatever they served: `Database\AuditRepository` next to the
-schema value objects, `Stores\SettingWriter` next to `Store` and `Layer`, `Support\ValuePipeline`
-among the stateless helpers it is not one of. Reading a directory did not say which kind of class
-it held. Every service now lives under `Services\` (`Database`, `Stores`, `Resolution`, `Access`,
+but before 0.1 the services sat beside whatever they served: `SettingWriter` next to `Store` and
+`Layer`, `ValuePipeline` among the stateless helpers it is not one of. Reading a directory did not
+say which kind of class it held. Every service now lives under `Services\` (`Database`, `Stores`, `Resolution`, `Access`,
 `Configuration`, `Definitions`, `Tenancy`, `Casting`, `Values`, `Drivers`, `Cache`),
 and the classes left in their old directories are value objects, contract implementations and
 entry points.
@@ -51,7 +51,7 @@ entry points.
 Two architecture tests keep it so: nothing under `Services\` implements a plug-in contract (a
 driver, sink, authorizer, caster, verifier, resolver or discriminator stays beside its kind, where
 a reader looking for "the drivers" finds them), and no class named `*Repository` or `*Registry`
-lives anywhere else. The 19 classes that moved there in 0.1 kept no old name: the package had never
+lives anywhere else. The classes that moved there before 0.1 kept no old name: the package had never
 been tagged, so the aliases were removed before the first release, and a third test asserts the old
 names no longer resolve.
 
@@ -144,8 +144,7 @@ Every write is one `final` action (`Actions\SetSetting`, …) that authorizes, w
 Every application gets the same tables: ULID keys, a `uid` per values row, a string owner key
 (`settable_id`, 36 characters, which fits integer, UUID and ULID model keys alike), and titles,
 labels and descriptions as JSON maps of locale to text. Each of those used to be a migration-time
-switch, recorded in a schema file the runtime read back, and the suite ran a pairwise matrix of
-every combination. Most of the combinations served no application, and every one of them was a
+switch, recorded in a file the runtime read back, and the suite tested the combinations. Most of the combinations served no application, and every one of them was a
 branch in the migration, the driver, the models and the doctor.
 
 A fixed shape is the shape `spatie/laravel-permission` ships: one migration that reads as what it
@@ -174,7 +173,7 @@ it needs neither tenancy package: a `TenantDiscriminator` says who the current t
 adapters for stancl/tenancy and spatie/laravel-multitenancy picked by `class_exists`. A tenant
 column (one database) and a database per tenant are both common, so both are modes, and the
 default is none. In column mode the filter sits where every query is built (the database driver,
-the categories repository, the audit sink and queries), so no call path can forget it, and the
+the models' tenant scope, the audit sink and queries), so no call path can forget it, and the
 tenant leads the unique keys so two tenants can hold the same key. Definitions describe settings
 rather than hold values, so they stay shared. Memoised reads are keyed by tenant in every mode,
 because a job that loops over tenants is the easiest way to leak one tenant's settings into
@@ -221,7 +220,7 @@ mode, so the empty answers before installation are never cached.
 A bag holds every row of its scope, not only the autoload rows, because a cached bag is treated
 as complete: a partial bag would turn a non-autoload value into a miss. It is stored as plain
 arrays, never objects, so the cache never unserializes a package class (applications may restrict
-`cache.serializable_classes`), and an entry written by another release, or a corrupted one, reads
+Laravel's `cache.serializable_classes`), and an entry written by another release, or a corrupted one, reads
 as a miss, never as an empty scope.
 
 Measured with `composer bench` (phpbench 1.7, PHP 8.5.7, SQLite file database, 200 revolutions x
@@ -301,6 +300,13 @@ is `promote`'s job.
 can still change a shipped default. The runtime file is archived afterwards, so a second run does
 nothing. Its lock is only as wide as the cache store, so a multi-server install needs a shared
 cache.
+
+Automatic promotion (`promote: auto`) is the same action, run as the system after migrations,
+after each request (from a terminating callback, so no response waits on it) and after each
+queued job. Its checks are ordered by cost: the configuration first, so an application with no
+`auto` store resolves nothing; then one file existence check, so a promoted store costs no query;
+then the schema readiness db-tools caches. It never throws into the request: a failure is logged,
+the file keeps answering reads, and the next run retries.
 
 ## Why install checks for foreign tables
 

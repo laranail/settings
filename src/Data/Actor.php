@@ -111,7 +111,7 @@ final readonly class Actor
             return true;
         }
 
-        return array_intersect(['*', 'settings:*', $ability->tokenAbility()], $this->abilities) !== [];
+        return array_intersect(['*', 'laranail-settings:*', $ability->tokenAbility()], $this->abilities) !== [];
     }
 
     public function withReason(string $reason): self

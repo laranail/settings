@@ -48,6 +48,8 @@ it('saves a store and a layer that settings then use, and audits it', function (
         ->and(DB::table('settings_audit')->where('action', AuditAction::ManageStores->value)->count())->toBe(2)
         ->and($editor->deleteStore('extra'))->toBeTrue()
         ->and($editor->deleteStore('extra'))->toBeFalse()
+        ->and($editor->deleteLayer('scratch'))->toBeTrue()
+        ->and($editor->deleteLayer('scratch'))->toBeFalse()
         ->and(fn (): mixed => settings()->store('extra')->get('feature.on'))->toThrow(UnknownStore::class);
 });
 

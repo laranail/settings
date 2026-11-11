@@ -62,6 +62,16 @@ final readonly class JsonDriver implements Driver
         return $this->writable;
     }
 
+    /** Whether the store's file exists: one existence check (an `is_file()` on a local disk). */
+    public function hasFile(StoreName $store): bool
+    {
+        try {
+            return $this->disk->exists($this->path($store));
+        } catch (Throwable $exception) {
+            throw new DriverFailure(sprintf('Settings file [%s] could not be read.', $this->path($store)), $exception->getCode(), previous: $exception);
+        }
+    }
+
     /**
      * Every record in the store's file.
      *
@@ -92,11 +102,43 @@ final readonly class JsonDriver implements Driver
         return $exists ? array_values($this->readPath($path)) : throw new DriverFailure(sprintf('Settings file [%s] does not exist.', $path));
     }
 
+    /**
+     * Copy the store's file aside, then replace it with only these records in one atomic rename:
+     * what a selective promotion leaves in the file. Returns the archive's path.
+     *
+     * @param list<Record> $kept
+     */
+    public function archiveKeeping(StoreName $store, CarbonImmutable $at, array $kept): string
+    {
+        $path = $this->path($store);
+        $archive = $this->archivePath($store, $at);
+
+        try {
+            if (! $this->disk->copy($path, $archive)) {
+                throw new DriverFailure(sprintf('Settings file [%s] could not be archived.', $path));
+            }
+        } catch (DriverFailure $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            throw new DriverFailure(sprintf('Settings file [%s] could not be archived.', $path), $exception->getCode(), previous: $exception);
+        }
+
+        $records = [];
+
+        foreach ($kept as $record) {
+            $records[$record->identity()] = $record;
+        }
+
+        $this->write($store, $records);
+
+        return $archive;
+    }
+
     /** Move the store's file aside after promotion and return the archive's path, if any. */
     public function archive(StoreName $store, CarbonImmutable $at): ?string
     {
         $path = $this->path($store);
-        $archive = preg_replace('/\.json$/', '', $path) . '.promoted-' . $at->format('Ymd_His_u') . '.json';
+        $archive = $this->archivePath($store, $at);
 
         try {
             if (! $this->disk->exists($path)) {
@@ -176,6 +218,11 @@ final readonly class JsonDriver implements Driver
         } catch (Throwable $exception) {
             throw new DriverFailure(sprintf('Settings file [%s] could not be written.', $path), $exception->getCode(), previous: $exception);
         }
+    }
+
+    private function archivePath(StoreName $store, CarbonImmutable $at): string
+    {
+        return preg_replace('/\.json$/', '', $this->path($store)) . '.promoted-' . $at->format('Ymd_His_u') . '.json';
     }
 
     private function path(StoreName $store): string

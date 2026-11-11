@@ -50,6 +50,21 @@ it('shows the resolved value, its layer, type, version, flags and the last audit
         ->expectsOutputToContain('| Locked     | no')
         ->expectsOutputToContain('| Encrypted  | no')
         ->expectsOutputToContain('| Last audit | update allowed by system via php')
+        ->expectsOutputToContain('| Stored     | version 2')
+        ->expectsOutputToContain('| Cache      | current')
+        ->assertSuccessful();
+});
+
+it('reads past the cache and flags a stale one', function (): void {
+    settings()->set('site.name', 'Acme');
+    settings()->get('site.name');
+    // A change the cache never saw, as a hand edit or another deploy's write would be.
+    DB::table('settings')->where('key', 'site.name')->update(['version' => 5]);
+
+    $this->artisan('laranail::settings.show', ['key' => 'site.name'])
+        ->expectsOutputToContain('| Version    | 1')
+        ->expectsOutputToContain('| Stored     | version 5')
+        ->expectsOutputToContain('| Cache      | stale: run laranail::settings.clear-cache')
         ->assertSuccessful();
 });
 

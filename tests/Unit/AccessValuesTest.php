@@ -31,7 +31,7 @@ function subjectFor(string $key = 'site.name'): Subject
 
 it('names each ability\'s gate and token ability, and knows the read abilities', function (): void {
     expect(Ability::Update->gateName())->toBe('laranail-settings.update')
-        ->and(Ability::OverrideLock->tokenAbility())->toBe('settings:override_lock')
+        ->and(Ability::OverrideLock->tokenAbility())->toBe('laranail-settings:override_lock')
         ->and(Ability::cases())->toHaveCount(18)
         ->and(array_values(array_map(static fn (Ability $ability): string => $ability->value, array_filter(Ability::cases(), static fn (Ability $ability): bool => $ability->isRead()))))
         ->toBe(['view', 'view_sensitive', 'view_history', 'view_audit']);
@@ -137,7 +137,7 @@ it('builds an actor for a non-model authenticatable with a generic alias', funct
 
 it('keeps an actor\'s other fields when deriving copies', function (): void {
     $at = CarbonImmutable::parse('2026-11-09 12:00:00');
-    $actor = Actor::user(new GenericUser(['id' => 5]), abilities: ['settings:view'])
+    $actor = Actor::user(new GenericUser(['id' => 5]), abilities: ['laranail-settings:view'])
         ->withVerifiedAt($at)
         ->withChannel(Channel::Console)
         ->withContext(new ActorContext('1.2.3.4'))
@@ -147,6 +147,6 @@ it('keeps an actor\'s other fields when deriving copies', function (): void {
         ->and($actor->channel->value)->toBe('console')
         ->and($actor->context->ip)->toBe('1.2.3.4')
         ->and($actor->context->reason)->toBe('why')
-        ->and($actor->abilities)->toBe(['settings:view'])
+        ->and($actor->abilities)->toBe(['laranail-settings:view'])
         ->and($actor->id)->toBe('5');
 });

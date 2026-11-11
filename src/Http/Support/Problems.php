@@ -20,13 +20,20 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
  */
 final readonly class Problems
 {
-    public const string TYPE_BASE = 'https://opensource.simtabi.com/documentation/laranail/settings/problems/';
+    /** Problem types are sections of the exceptions reference: this URL plus the type as its fragment. */
+    public const string TYPE_BASE = 'https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#';
 
     private const string LINES = 'laranail/settings::settings.';
 
     public function __construct(
         private Translator $translator,
     ) {}
+
+    /** The documented URI of a problem type; every `http-<status>` type shares the `http-status` section. */
+    public static function typeUri(string $type): string
+    {
+        return self::TYPE_BASE . (preg_match('/^http-\d{3}$/', $type) === 1 ? 'http-status' : $type);
+    }
 
     /** The problem response for an exception raised by an API route, or null to leave it alone. */
     public function render(Throwable $exception, Request $request): ?JsonResponse
@@ -53,7 +60,7 @@ final readonly class Problems
         $title = $this->translator->get(self::LINES . 'problems.titles.' . $type);
 
         return new JsonResponse([
-            'type'     => self::TYPE_BASE . $type,
+            'type'     => self::typeUri($type),
             'title'    => is_string($title) && $title !== self::LINES . 'problems.titles.' . $type ? $title : ucfirst(str_replace('-', ' ', $type)),
             'status'   => $status,
             'detail'   => $detail,

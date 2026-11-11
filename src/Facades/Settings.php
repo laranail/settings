@@ -33,6 +33,7 @@ use Simtabi\Laranail\Settings\Actions\UnlockSetting;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
@@ -44,6 +45,7 @@ use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
 use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
 use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
@@ -78,6 +80,8 @@ use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
  * @method static void preload(iterable<Settable|OwnerRef> $owners)
  * @method static CategoryManager categories()
  * @method static PromotionReport promote(?PromotionRequest $request = null)
+ * @method static PromotionReport|null promoteWhenReady(?PromotionSelection $only = null)
+ * @method static PromotionSettings promotion()
  * @method static AuditQuery audit()
  * @method static bool missing(string $key)
  * @method static array<string, mixed> many(array<array-key, mixed> $keys)

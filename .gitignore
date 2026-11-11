@@ -5,5 +5,5 @@ composer.lock
 .phpunit.cache
 .php-cs-fixer.cache
 .DS_Store
-# Design, ledger and audit files never enter the repository (design §8).
+# Local design, ledger and audit notes stay out of the repository.
 /.claude/

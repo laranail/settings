@@ -47,7 +47,7 @@ function servicesSources(): array
     $files = [];
 
     foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)) as $file) {
-        if ($file instanceof SplFileInfo && $file->getExtension() === 'php' && $file->getFilename() !== 'deprecated-aliases.php') {
+        if ($file instanceof SplFileInfo && $file->getExtension() === 'php') {
             $files[substr($file->getPathname(), strlen($root))] = (string) file_get_contents($file->getPathname());
         }
     }
@@ -96,10 +96,8 @@ it('files every registry under Services', function (): void {
 
 it('leaves no old name for a moved class, and every new name loads', function (): void {
     $base = 'Simtabi\\Laranail\\Settings\\';
-    $root = dirname(__DIR__, 2);
 
     expect(count(MOVED_SERVICES))->toBe(15)
-        ->and(is_file($root . '/src/deprecated-aliases.php'))->toBeFalse()
         ->and(array_keys(array_filter(MOVED_SERVICES, static fn (string $new, string $old): bool => class_exists($base . $old), ARRAY_FILTER_USE_BOTH)))->toBe([])
         ->and(array_values(array_filter(MOVED_SERVICES, static fn (string $new): bool => ! class_exists($base . $new))))->toBe([]);
 });

@@ -61,13 +61,7 @@ name it. It creates the `seed.categories` set (general, appearance, localisation
 notifications, security) as system categories and changes nothing when run again. See
 [Seed the default categories](recipes/seeding-default-categories.md).
 
-## Upgrading from the four migration stubs
-
-Before the single migration, install published four migrations (`create_settings_categories_table`,
-`create_settings_table`, `create_settings_audit_table`, `create_settings_definitions_table`).
-They stay in your `database/migrations` and keep working; do not publish the new one next to
-them, or the tables would be created twice. Store migrations written by an older `make-store`
-keep working too.
+## When install refuses
 
 Install refuses to publish anything when a table of the same name already exists and is not
 this package's (a `settings` table of your own, say). Rename the package's tables with
@@ -86,6 +80,20 @@ and shipped PHP defaults, as before:
 
 To start on files and move to the database later, see
 [Moving from files to the database](recipes/moving-from-files-to-the-database.md).
+
+## From an installer
+
+An installer that writes settings before the database exists can let the package move them once
+it does. Put the store in bootstrap mode, then ask for the promotion at the start of the install:
+
+```php
+Settings::store('settings')->asSystem('installer')->promoteWhenReady();
+```
+
+The values the installer writes go to the runtime file. When its `migrate` call finishes, the
+store is promoted in the same process. To keep doing this after the install, on every server, set
+`'promote' => 'auto'` on the store or `LARANAIL_SETTINGS_PROMOTE=auto`; `promote.include` and
+`promote.owners` limit what is moved (see [Configuration](configuration.md)).
 
 ## The REST API
 

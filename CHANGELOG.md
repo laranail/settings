@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Automatic promotion. A store set to `promote: auto` (or every store, with
+  `LARANAIL_SETTINGS_PROMOTE=auto`) copies its runtime file into its database layer once, the
+  first time the connection answers and its table exists: straight after `migrate`, or after the
+  first request or queued job that finds the database ready, once the response is sent. It runs as
+  the system under the promotion lock, skips keys that already have a row, and archives the file.
+  A failure is logged and retried on the next run, and reads keep coming from the file until then.
+  `manual`, the default, keeps today's behaviour. The runtime configuration's
+  `promote($store, $mode)` sets it per request, and `Settings::promoteWhenReady()` promotes now
+  when it can and otherwise sets the store to `auto` for the rest of the request, job or command.
+  `doctor` warns about an `auto` store whose file is still there while its database is ready.
+- Selective promotion. `promote` also takes a long form, `['mode' => 'auto', 'include' =>
+  ['settings', 'owners'], 'owners' => ['user', 'team']]`: `settings` are the application-wide
+  values, `owners` the per-owner values, optionally limited to some morph aliases (`['*']`, the
+  default, is everything; the runtime file holds setting values only, so these are the only
+  kinds). The archive keeps the whole original file, and the values left out are written back to
+  the runtime file in one rename, so they keep answering reads from there. `laranail::settings.promote`
+  takes `--only=settings,owners` and `--owner=user,team`, `promoteWhenReady()` and the runtime
+  configuration's `promote()` take a `PromotionSelection`, and `PromotionReport` lists what was
+  `kept`.
+- Fluent promotion setters: `Settings::store('settings')->promotion()->auto()->only('owners')
+  ->forOwners('user')` (also `manual()`, `everything()`, `forAllOwners()`), for the current
+  request or job. Each option is resolved in one place, highest first: the fluent setters, the
+  runtime configuration, persisted configuration, then the configuration file. Automatic promotion,
+  `promoteWhenReady()`, `doctor` and the command's defaults all read that result, and `SettingsFake`
+  supports the chain.
+- `laranail::settings.show` reads a cached answer's row past the cache and prints its `Stored`
+  version and whether the `Cache` is stale.
+- `doctor` warns when a dedicated store's `owner_id` column does not have the type of the owner
+  table's key (`<store>: owner key`).
+
 - `laranail::settings.show {key} [--store=] [--owner=] [--locale=] [--reveal]`: prints how one
   setting resolves (value, layer, scope, type, version, locked, encrypted and sensitive flags, and
   the latest audit entry), through the same `ExplainSetting` action as `explain()`. Sensitive and
@@ -209,6 +239,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- REST listings read `http.page_size` (default 50, clamped to 1 to 200) for a request without
+  `?limit=`; the key was documented as reserved and every listing used 50.
+- Sanctum token abilities are vendor-scoped: `laranail-settings:<ability>` and
+  `laranail-settings:*`, in place of `settings:<ability>` and `settings:*`. Issue tokens with the
+  new names; a token holding only the old names is refused.
+- Problem `type` URIs point at sections of the exceptions reference,
+  `https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#<type>`
+  (`#http-status` for every `http-<status>` type), instead of `…/settings/problems/<type>`,
+  which had no page. Each type has an anchor there, and a test holds the two together.
+- `composer test-coverage` reports coverage without a fixed `--min` floor; coverage ratchets
+  instead (see CONTRIBUTING).
+- With the REST API on, an `authorization.driver` that cannot be built fails closed (every actor
+  denied, API requests answer `401 actor-required`, one warning logged) instead of raising
+  `InvalidConfiguration` on every call. Without the API it still raises.
 - The table shape is fixed, with `tenancy.mode` as the one switch: every table is keyed by a ULID,
   each values row has a unique `uid` (the history's `setting_ref`) and no `slug`, `settable_id` is
   `string(36)`, and titles, labels and descriptions are JSON maps of locale to text. The migration

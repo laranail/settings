@@ -67,11 +67,13 @@ final readonly class PersistedConfigurationEditor
         $this->save->handle(new ConfigurationEntry(ConfigurationEntry::LAYER, $name, $config), $this->actor);
     }
 
+    /** Remove a persisted store entry; false when there was none. */
     public function deleteStore(string $name): bool
     {
         return $this->delete->handle(new ConfigurationEntry(ConfigurationEntry::STORE, $name), $this->actor);
     }
 
+    /** Remove a persisted layer entry; false when there was none. */
     public function deleteLayer(string $name): bool
     {
         return $this->delete->handle(new ConfigurationEntry(ConfigurationEntry::LAYER, $name), $this->actor);

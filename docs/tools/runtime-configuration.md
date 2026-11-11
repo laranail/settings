@@ -20,6 +20,7 @@
 | `auditTo(AuditSink ...)` | add audit sinks next to the configured ones |
 | `logTo(LoggerInterface\|false)` | send the operational log elsewhere, or nowhere |
 | `requireActor()` / `allowActorless()` | override `authorization.require_actor` |
+| `promote($store, 'manual'\|'auto', ?PromotionSelection $only)` | how a store promotes its runtime file, and optionally what it copies; wins over `stores.<name>.promote` and the global `promote` |
 
 Each change returns the configuration, so calls chain, and each is logged and audited as `configure`.
 

@@ -12,11 +12,14 @@ use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\NewCategory;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Simtabi\Laranail\Settings\Http\Support\Problems;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 use Simtabi\Laranail\Settings\Tests\Support\ApiSchemas;
 use Simtabi\Laranail\Settings\Tests\Support\JsonSchema;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
@@ -69,7 +72,7 @@ it('reads and writes a setting with ETags and If-Match', function (): void {
     api('PUT', 'stores/settings/settings/site.name', ['value' => 'Stale'], ['If-Match' => $etag])
         ->assertStatus(412)
         ->assertHeader('Content-Type', 'application/problem+json')
-        ->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/problems/precondition-failed');
+        ->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#precondition-failed');
 
     expect(settings()->get('site.name'))->toBe('Acme Ltd')
         ->and(DB::table('settings_audit')->where('channel', 'rest')->where('action', 'update')->count())->toBe(2);
@@ -155,6 +158,8 @@ it('manages categories, persisted configuration and definitions', function (): v
     api('GET', 'stores')->assertOk()->assertJsonCount(2, 'data');
     api('PUT', 'configuration/stores/broken', ['config' => ['layers' => ['missing']]])->assertUnprocessable();
     api('DELETE', 'configuration/stores/extra')->assertNoContent();
+    api('DELETE', 'configuration/layers/scratch')->assertNoContent();
+    api('GET', 'configuration')->assertOk()->assertJsonCount(0, 'data');
 
     api('PUT', 'stores/settings/definitions/site.theme', ['attributes' => ['type' => 'string', 'default' => 'light']])->assertOk()->assertJsonPath('data.default', 'light');
     api('GET', 'stores/settings/definitions')->assertOk()->assertJsonPath('data.0.key', 'site.theme');
@@ -173,7 +178,7 @@ it('exports, compares and imports', function (): void {
     api('POST', 'stores/settings/import', ['document' => $document])->assertOk()->assertJsonPath('data.applied', false);
     expect(settings()->get('site.name'))->toBe('Changed');
     api('POST', 'stores/settings/import', ['document' => $document, 'apply' => true])->assertOk()->assertJsonPath('data.updated', ['global|site.name|']);
-    api('POST', 'stores/settings/import', ['document' => ['format' => 'other']])->assertUnprocessable()->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/problems/invalid-import');
+    api('POST', 'stores/settings/import', ['document' => ['format' => 'other']])->assertUnprocessable()->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#invalid-import');
 
     expect(settings()->get('site.name'))->toBe('Acme');
 });
@@ -197,7 +202,7 @@ it('needs an authenticated user and switches route groups off', function (): voi
     expect(app(Router::class)->getRoutes()->getByName('laranail-settings.api.changes.index'))->toBeNull()
         ->and(app(Router::class)->getRoutes()->getByName('laranail-settings.api.settings.show'))->not->toBeNull();
 
-    test()->json('GET', '/api/settings/v1/stores')->assertUnauthorized()->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/problems/actor-required');
+    test()->json('GET', '/api/settings/v1/stores')->assertUnauthorized()->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#actor-required');
 });
 
 it('has a response shape for every registered route, and none for a route that is gone', function (): void {
@@ -224,7 +229,7 @@ it('loads a Settable owner, so its parents take part in reads, and refuses one t
     settings()->for(new OwnerRef('team', 3))->set('theme', 'teal');
 
     api('GET', 'stores/settings/owners/owner/5/settings/theme')->assertOk()->assertJsonPath('data.value', 'teal')->assertJsonPath('data.from', 'team:3');
-    api('GET', 'stores/settings/owners/owner/6/settings/theme')->assertNotFound()->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/problems/unknown-owner');
+    api('GET', 'stores/settings/owners/owner/6/settings/theme')->assertNotFound()->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#unknown-owner');
     api('GET', 'stores/settings/owners/owner/bad%20id/settings/theme')->assertNotFound();
 
     // Mapped only for URLs: addressed by alias and id, so no parents.
@@ -232,4 +237,41 @@ it('loads a Settable owner, so its parents take part in reads, and refuses one t
     config()->set('laranail.settings.stores.settings.owners', ['owner', 'team', 'member']);
     app()->forgetScopedInstances();
     api('GET', 'stores/settings/owners/member/5/settings/theme')->assertOk()->assertJsonPath('data.found', false);
+});
+
+it('pages listings by http.page_size, 50 by default and clamped to 1 to 200', function (): void {
+    foreach (range(1, 51) as $n) {
+        settings()->set(sprintf('page.key_%02d', $n), $n);
+    }
+
+    api('GET', 'stores/settings/settings')->assertOk()->assertJsonCount(50, 'data')->assertJsonPath('meta.next_cursor', 'page.key_50');
+
+    config()->set('laranail.settings.http.page_size', 20);
+    api('GET', 'stores/settings/settings')->assertOk()->assertJsonCount(20, 'data');
+    api('GET', 'stores/settings/settings?limit=3')->assertOk()->assertJsonCount(3, 'data');
+
+    config()->set('laranail.settings.http.page_size', 0);
+    api('GET', 'stores/settings/settings')->assertOk()->assertJsonCount(1, 'data');
+
+    config()->set('laranail.settings.http.page_size', 1000);
+    api('GET', 'stores/settings/settings')->assertOk()->assertJsonCount(51, 'data');
+});
+
+it('fails closed, with one warning, when the API is on and no authorizer can be built', function (): void {
+    $log = sys_get_temp_dir() . '/laranail-settings-closed-' . bin2hex(random_bytes(4)) . '.log';
+    config()->set('logging.channels.settings_closed', ['driver' => 'single', 'path' => $log]);
+    config()->set('laranail.settings.logging.channel', 'settings_closed');
+    config()->set('laranail.settings.authorization.driver', 'Nope\\Authorizer');
+    app()->forgetScopedInstances();
+
+    api('GET', 'stores')->assertUnauthorized()->assertJsonPath('type', Problems::typeUri('actor-required'));
+    expect(fn (): mixed => settings()->as(user())->get('site.name'))->toThrow(AccessDenied::class)
+        ->and(settings()->get('site.name'))->toBeNull()
+        ->and(substr_count((string) file_get_contents($log), 'has no usable authorizer'))->toBe(1);
+
+    // Without the API, a broken authorizer still raises the configuration error.
+    config()->set('laranail.settings.http.enabled', false);
+    app()->forgetScopedInstances();
+
+    expect(fn (): mixed => settings()->as(user())->get('site.name'))->toThrow(InvalidConfiguration::class, 'laranail.settings.authorization.driver');
 });

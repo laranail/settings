@@ -7,6 +7,7 @@ use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Data\Decision;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
@@ -14,6 +15,7 @@ use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
@@ -147,12 +149,12 @@ it('rejects an authorizer that is neither built in nor an Authorizer class', fun
 it('treats a token as an extra ceiling: the token must hold the ability as well as the gate', function (): void {
     allowGates(Ability::View, Ability::Update);
 
-    $limited = Actor::user(user(), abilities: ['settings:view']);
-    $wildcard = Actor::user(user(), abilities: ['settings:*']);
+    $limited = Actor::user(user(), abilities: ['laranail-settings:view']);
+    $wildcard = Actor::user(user(), abilities: ['laranail-settings:*']);
     $everything = Actor::user(user(), abilities: ['*']);
 
     expect(settings()->as($limited)->get('site.name'))->toBeNull()
-        ->and(fn () => settings()->as($limited)->set('site.name', 'x'))->toThrow(AccessDenied::class, 'the token lacks [settings:update]');
+        ->and(fn () => settings()->as($limited)->set('site.name', 'x'))->toThrow(AccessDenied::class, 'the token lacks [laranail-settings:update]');
 
     settings()->as($wildcard)->set('site.name', 'Acme');
     settings()->as($everything)->set('site.name', 'Acme');
@@ -164,7 +166,7 @@ it('never lets a token grant what the gate refuses', function (): void {
     allowGates(Ability::View);
     Gate::define('laranail-settings.update', static fn (TestUser $user): bool => false);
 
-    expect(fn () => settings()->as(Actor::user(user(), abilities: ['settings:*']))->set('site.name', 'x'))->toThrow(AccessDenied::class);
+    expect(fn () => settings()->as(Actor::user(user(), abilities: ['laranail-settings:*']))->set('site.name', 'x'))->toThrow(AccessDenied::class);
 });
 
 it('runs an explicit system actor as trusted code', function (): void {
@@ -212,3 +214,13 @@ final class AllowViewOnly implements Authorizer
         return $ability === Ability::View ? Decision::allow() : Decision::deny('view only');
     }
 }
+
+it('closes a guard that denies every actor and lets only trusted code through', function (): void {
+    $guard = AccessGuard::closed();
+    $subject = new Subject(new StoreName('settings'));
+
+    expect(fn () => $guard->authorize(Actor::user(user()), Ability::View, $subject))->toThrow(AccessDenied::class);
+
+    $guard->authorize(null, Ability::Update, $subject);
+    $guard->authorize(Actor::system('test'), Ability::Update, $subject);
+});

@@ -43,8 +43,8 @@ final readonly class SchemaInspector
         }
     }
 
-    /** The database type of the table's `id` column, or null. */
-    public function idType(string $table): ?string
+    /** The database type of a table's key column (`id` by default), or null when it cannot be read. */
+    public function idType(string $table, string $column = 'id'): ?string
     {
         try {
             $columns = $this->database->connection()->getSchemaBuilder()->getColumns($table);
@@ -52,9 +52,9 @@ final readonly class SchemaInspector
             return null;
         }
 
-        foreach ($columns as $column) {
-            if (($column['name'] ?? null) === 'id') {
-                return (string) ($column['type_name'] ?? '?');
+        foreach ($columns as $candidate) {
+            if (($candidate['name'] ?? null) === $column) {
+                return (string) ($candidate['type_name'] ?? '?');
             }
         }
 

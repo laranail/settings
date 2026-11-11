@@ -13,7 +13,7 @@ use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorReporter;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
- * Check each database store's readiness, schema drift and the rows the database cannot guard.
+ * Check each database store's readiness, missing columns and the rows the database cannot guard.
  * Exits non-zero on a failure; `--fix` refreshes the definitions table's system rows first.
  */
 final class DoctorCommand extends Command
@@ -24,7 +24,7 @@ final class DoctorCommand extends Command
         {--json : Emit the report as JSON}
         {--fix : Refresh the definitions table from code and config first}';
 
-    protected $description = 'Check the settings stores: readiness, schema drift and data the database cannot guard';
+    protected $description = 'Check the settings stores: readiness, missing columns and data the database cannot guard';
 
     public function handle(DiagnoseSettings $diagnose, SyncDefinitions $sync): int
     {

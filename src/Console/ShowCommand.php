@@ -18,6 +18,7 @@ use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Data\SettingAddress;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Actions\Reads\ExplainSetting;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
@@ -28,6 +29,7 @@ use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
  * Show how one setting resolves: value, layer, type, version, flags and the latest audit entry.
+ * For a cached answer it also reads the stored row past the cache and flags a stale cache.
  * Sensitive values print as `[protected]` unless `--reveal` is given.
  */
 final class ShowCommand extends Command
@@ -53,6 +55,7 @@ final class ShowCommand extends Command
             $audit = $this->latestAudit($settings, $address, $actor);
             $explanation = $explain->handle($address, $actor);
             $record = $this->record($store, $explanation, $address);
+            $stored = $this->stored($store, $explanation, $address);
         } catch (SettingsException $exception) {
             $this->error($exception->getMessage());
 
@@ -72,6 +75,7 @@ final class ShowCommand extends Command
             ['From scope', $lookup->scope()->value ?? '-'],
             ['Type', $record->type ?? $definition->type ?? '-'],
             ['Version', $record instanceof Record ? (string) $record->version : '-'],
+            ...$this->cacheRows($record, $stored),
             ['Locked', $this->flag($record instanceof Record ? $record->locked : $definition?->locked)],
             ['Encrypted', $this->flag($record instanceof Record ? $record->encrypted : $definition?->encrypted)],
             ['Sensitive', $this->flag($definition?->isSensitive())],
@@ -129,6 +133,39 @@ final class ShowCommand extends Command
         }
 
         return null;
+    }
+
+    /**
+     * The stored row behind a cached answer, read past the cache; false when the answer did not
+     * come through the cache.
+     */
+    private function stored(Store $store, Explanation $explanation, SettingAddress $address): Record|false|null
+    {
+        $scope = $explanation->lookup->scope();
+
+        foreach ($store->layers as $layer) {
+            if ($scope instanceof Scope && $layer->name === $explanation->lookup->layer() && $layer->driver instanceof CachingDriver) {
+                return $layer->driver->uncached()->load($store->name, [$scope])->find($scope, new Key($address->key), new Locale($address->locale));
+            }
+        }
+
+        return false;
+    }
+
+    /** @return list<array{string, string}> the stored version beside the cached one, and whether the cache is stale */
+    private function cacheRows(?Record $cached, Record|false|null $stored): array
+    {
+        if ($stored === false) {
+            return [];
+        }
+
+        $version = static fn (?Record $record): string => $record instanceof Record ? (string) $record->version : '-';
+        $stale = $version($cached) !== $version($stored);
+
+        return [
+            ['Stored', 'version ' . $version($stored)],
+            ['Cache', $stale ? 'stale: run laranail::settings.clear-cache' : 'current'],
+        ];
     }
 
     private function value(Explanation $explanation, bool $sensitive): string

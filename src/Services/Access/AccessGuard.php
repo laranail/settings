@@ -51,7 +51,7 @@ final readonly class AccessGuard
         private ?Dispatcher $events = null,
     ) {}
 
-    /** A guard that denies every actor and audits nowhere. */
+    /** A guard that denies every actor and audits nowhere, for code that must refuse everything without configuration. */
     public static function closed(): self
     {
         return new self(
@@ -153,7 +153,7 @@ final readonly class AccessGuard
         if ($decision->needsApproval()) {
             $this->refuse($actor, $ability, $subject, 'approval_unavailable', $decision->reason);
 
-            throw new ApprovalUnavailable(sprintf('[%s] on [%s] needs approval, which this release cannot hold.', $ability->value, $subject->store));
+            throw new ApprovalUnavailable(sprintf('[%s] on [%s] needs approval; propose the change instead.', $ability->value, $subject->store));
         }
 
         if ($this->needsVerification($decision, $ability, $subject) && ! $this->verifier()->isVerified($actor, $subject)) {

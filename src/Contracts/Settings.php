@@ -20,6 +20,7 @@ use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
@@ -35,6 +36,7 @@ use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
 use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
@@ -246,6 +248,25 @@ interface Settings
      * @throws StoreNotWritable when the store has no active database layer
      */
     public function promote(?PromotionRequest $request = null): PromotionReport;
+
+    /**
+     * Promote now if the store's database is ready, and otherwise set the store to promote
+     * automatically for the rest of this request, job or command, once it is. Returns the report,
+     * or null when the promotion is deferred (or another process holds the promotion lock).
+     * `$only` picks the values to copy, as `promote.include` and `promote.owners` do; null uses the
+     * store's configuration.
+     *
+     * @throws AccessDenied
+     * @throws StoreNotWritable when the store has no database layer at all
+     */
+    public function promoteWhenReady(?PromotionSelection $only = null): ?PromotionReport;
+
+    /**
+     * Fluent setters for this handle's store's promotion, for the current request or job:
+     * `auto()`, `manual()`, `only(...)`, `everything()`, `forOwners(...)`, `forAllOwners()`. Each
+     * wins over the same option in configuration.
+     */
+    public function promotion(): PromotionSettings;
 
     /**
      * Query the audit trail. Needs `view_audit`. Entries never hold values.

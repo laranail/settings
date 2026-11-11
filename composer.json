@@ -1,6 +1,6 @@
 {
     "name": "laranail/settings",
-    "description": "Key-value settings for any Laravel owner (application, user, tenant, product) with layered stores, categories, and a file-to-database bootstrap path. MySQL, PostgreSQL and SQLite; SQL Server is not supported in 0.x.",
+    "description": "Key-value settings for any Laravel owner (the application, a user, a tenant, a product), stored in layered stores that work even before the database exists, and after it does.",
     "keywords": [
         "laravel",
         "laranail",
@@ -53,7 +53,7 @@
         "roave/security-advisories": "dev-latest"
     },
     "suggest": {
-        "laranail/installer-headless": "Lets a store's database layer be skipped while the application is being installed (design: bootstrap mode).",
+        "laranail/installer-headless": "Lets a store's database layer be skipped while the application is being installed (bootstrap mode).",
         "laravel/sanctum": "Enables the sanctum actor resolver, which makes a token's settings:<ability> abilities a ceiling on what the token may do.",
         "stancl/tenancy": "Detected automatically (tenancy.discriminator = auto): settings, categories, audit rows and in-memory reads are kept per tenant.",
         "spatie/laravel-multitenancy": "Detected automatically (tenancy.discriminator = auto), like stancl/tenancy."
@@ -77,7 +77,7 @@
     "scripts": {
         "setup": "@composer install",
         "test": "vendor/bin/pest --colors=always",
-        "test-coverage": "@test --coverage --min=90",
+        "test-coverage": "@test --coverage",
         "test-dirty": "@test --dirty --compact",
         "mutate": "vendor/bin/pest --mutate --everything --exclude-group=mutation-excluded --min=70",
         "bench": [

@@ -19,13 +19,13 @@ use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
 use Simtabi\Laranail\Package\Tools\Providers\PackageToolsServiceProvider;
 
 /**
- * Phase 3's gate (design §7.5, §11): one request's reads, with and without the settings cache.
+ * The cache's performance gate: one request's reads, with and without the settings cache.
  *
  * Every revolution is one request: the scoped services (registry, resolver, the cache's
  * in-request memory) are rebuilt, then ten settings of one owner are read through the cascade
  * owner → team → global, all in one SQLite-file store. Subjects:
  *
- *  - uncached:   cache.enabled off: one query per request.
+ *  - uncached:   cache.enabled off: one query per read.
  *  - cold:       caching on, every bag invalidated first: the query plus the cache writes.
  *  - warm:       caching on, bags cached in the `array` store (in-process).
  *  - warm file:  caching on, bags cached in the `file` store (serialised to disk, the nearest
