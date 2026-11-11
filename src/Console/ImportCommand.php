@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
+use InvalidArgumentException;
 use Illuminate\Filesystem\Filesystem;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Contracts\Importer;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Settings\Contracts\DiskImporter;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
@@ -16,37 +19,44 @@ use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
  * Import an export file, or another package's settings with `--from=<importer>`. A dry run unless
- * `--apply`; `--trusted` lets the file set locks and system categories.
+ * `--apply`; `--trusted` lets the file set locks and system categories. `--disk` reads the file
+ * from a filesystem disk, for an export file or an importer that reads files.
  */
 final class ImportCommand extends Command
 {
     use SupportsNamespacedNames;
 
     protected $signature = 'laranail::settings.import
-        {source : An export file, or what the importer reads (a connection, connection:table or file)}
+        {source? : An export file, or what the importer reads (a connection, connection:table or file); a path on the disk with --disk}
         {--store= : The store (default: the default store)}
         {--from= : Read with an importer instead of an export file}
+        {--disk= : Read the file from this filesystem disk instead of a local path}
         {--apply : Write the changes (without it, a dry run)}
         {--trusted : Let the file set locks and system categories}';
 
     protected $description = 'Import settings from an export file or another package (dry run by default)';
 
-    public function handle(ImportStore $import, StoreRegistry $stores, Importers $importers, Filesystem $files): int
+    public function handle(ImportStore $import, StoreRegistry $stores, Importers $importers, Filesystem $files, FilesystemFactory $disks): int
     {
         $source = $this->argument('source');
         $source = is_string($source) ? $source : '';
         $from = $this->option('from');
+        $disk = $this->option('disk');
+        $disk = is_string($disk) && $disk !== '' ? $disk : null;
         $storeOption = $this->option('store');
 
         try {
             $store = is_string($storeOption) && $storeOption !== '' ? $stores->get(new StoreName($storeOption)) : $stores->default();
 
             if (is_string($from) && $from !== '') {
-                $document = $importers->get($from)->read($source, $store->name);
+                $document = $this->readWith($importers->get($from), $from, $source, $disk, $store->name);
+            } elseif ($disk !== null) {
+                $document = ExportDocument::fromJson($this->readDisk($disks, $disk, $source));
             } else {
                 if (! $files->isFile($source)) {
                     throw new InvalidImport(sprintf('[%s] is not a file.', $source));
@@ -71,6 +81,34 @@ final class ImportCommand extends Command
         $this->report($report);
 
         return self::SUCCESS;
+    }
+
+    /** @throws InvalidImport when `--disk` is given for an importer that does not read files */
+    private function readWith(Importer $importer, string $name, string $source, ?string $disk, StoreName $store): ExportDocument
+    {
+        if ($disk === null) {
+            return $importer->read($source, $store);
+        }
+
+        if (! $importer instanceof DiskImporter) {
+            throw new InvalidImport(sprintf('%s: this importer does not read from a disk; drop --disk.', $name));
+        }
+
+        return $importer->readFromDisk($disk, $source === '' ? null : $source, $store);
+    }
+
+    /** @throws InvalidImport when the disk or the file on it cannot be read */
+    private function readDisk(FilesystemFactory $disks, string $disk, string $path): string
+    {
+        try {
+            $filesystem = $disks->disk($disk);
+        } catch (InvalidArgumentException $exception) {
+            throw new InvalidImport(sprintf('Disk [%s] cannot be used (%s).', $disk, $exception->getMessage()), 0, $exception);
+        }
+
+        $json = $path !== '' && $filesystem->exists($path) ? $filesystem->get($path) : null;
+
+        return $json ?? throw new InvalidImport(sprintf('[%s] does not exist on disk [%s].', $path, $disk));
     }
 
     private function report(ImportReport $report): void

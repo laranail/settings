@@ -33,7 +33,7 @@ final readonly class AkauntingSettingsImporter implements Importer
             throw new InvalidImport(sprintf('akaunting: table [%s] on connection [%s] cannot be read (%s).', $table, $connection ?: 'default', $exception->getMessage()), 0, $exception);
         }
 
-        $values = [];
+        $entries = [];
 
         foreach ($rows as $row) {
             $row = (array) $row;
@@ -47,9 +47,9 @@ final readonly class AkauntingSettingsImporter implements Importer
                 continue;
             }
 
-            $values[ImportedKeys::key(is_string($row['key']) ? $row['key'] : '', 'akaunting')->value] = [$row['value'], false];
+            $entries[] = [is_string($row['key']) ? $row['key'] : '', $row['value'], false];
         }
 
-        return ImportedKeys::document($store, $values, 'akaunting');
+        return ImportedKeys::document($store, ImportedKeys::values($entries, 'akaunting'), 'akaunting');
     }
 }

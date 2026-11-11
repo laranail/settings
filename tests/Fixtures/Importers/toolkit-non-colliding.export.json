@@ -1,0 +1,61 @@
+{
+    "format": "laranail/settings",
+    "version": 1,
+    "store": "settings",
+    "mode": "plaintext",
+    "source": "toolkit",
+    "categories": [],
+    "settings": [
+        {
+            "scope": "global",
+            "key": "debug_mode",
+            "locale": "",
+            "value": false
+        },
+        {
+            "scope": "global",
+            "key": "empty",
+            "locale": "",
+            "value": []
+        },
+        {
+            "scope": "global",
+            "key": "mail.cc",
+            "locale": "",
+            "value": [
+                "a@x.test",
+                "b@x.test"
+            ]
+        },
+        {
+            "scope": "global",
+            "key": "mail.host",
+            "locale": "",
+            "value": "smtp.test"
+        },
+        {
+            "scope": "global",
+            "key": "mail.port",
+            "locale": "",
+            "value": 587
+        },
+        {
+            "scope": "global",
+            "key": "ratio",
+            "locale": "",
+            "value": 1.5
+        },
+        {
+            "scope": "global",
+            "key": "site.active_flag",
+            "locale": "",
+            "value": true
+        },
+        {
+            "scope": "global",
+            "key": "site.name",
+            "locale": "",
+            "value": "Acme"
+        }
+    ]
+}

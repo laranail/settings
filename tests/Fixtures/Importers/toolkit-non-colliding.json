@@ -1,0 +1,1 @@
+{"site":{"name":"Acme","Active-Flag":true},"mail":{"host":"smtp.test","cc":["a@x.test","b@x.test"],"port":587},"Debug Mode":false,"empty":[],"ratio":1.5}

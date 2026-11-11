@@ -23,7 +23,7 @@ php artisan laranail::settings.import :settings --from=spatie            # a dry
 php artisan laranail::settings.import :settings --from=spatie --apply --trusted
 ```
 
-`:settings` is spatie's table on the default connection (`<connection>:<table>`). Each row becomes the key `<group>.<name>`; `--trusted` keeps spatie's locks. Values spatie stored encrypted arrive as spatie's ciphertext: define those keys `encrypted()` here and set them again.
+`:settings` is spatie's table on the default connection (`<connection>:<table>`). Each row becomes the key `<group>.<name>`; `--trusted` keeps spatie's locks. Keys are lower-cased and `-` becomes `_`, so two rows such as `general.site_name` and `General.Site-Name` would land on one key: the import then fails, names both, and writes nothing. Rename one in spatie's table and import again. Values spatie stored encrypted arrive as spatie's ciphertext: define those keys `encrypted()` here and set them again.
 
 ## 3. Keep the typed classes
 

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Importers read from filesystem disks.** `laranail::settings.import --disk=<name>` reads an
+  export file, or the `toolkit` importer's JSON file, from any configured disk, with the source as
+  the path on it; local paths work as before. In PHP, the new `Contracts\DiskImporter` adds
+  `readFromDisk(?string $disk, ?string $path, StoreName $store)`, which `ToolkitJsonImporter`
+  implements through the injected filesystem factory. With no source, the `toolkit` importer reads
+  toolkit's own file from `laranail.toolkit.settings`' disk and path when that config is loaded,
+  otherwise `laranail/settings.json` on `local`; toolkit itself is not needed. The command's
+  `source` argument is now optional. The REST import takes a document, so it has no disk option.
+
+### Fixed
+
+- **Importers no longer overwrite colliding keys in silence.** Source keys that normalise to the
+  same settings key (differing by case, `-`, `_` or spaces, or toolkit's nested and dotted spelling
+  of one path) made the later one win with no report. The `spatie`, `toolkit` and `akaunting`
+  importers now fail with `InvalidImport` naming every colliding group
+  (`[Mail-Host, mail_host] -> mail_host`) before anything is written, in a dry run and when
+  applied. Input without collisions imports exactly as before. `ImportedKeys::values()` applies the
+  same check for a custom importer.
+
 ## [0.1.0] - 2026-11-11
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
