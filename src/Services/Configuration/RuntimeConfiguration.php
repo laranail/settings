@@ -21,6 +21,7 @@ use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Verification\ClosureVerifier;
 use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
@@ -62,6 +63,9 @@ final class RuntimeConfiguration
     private ?LoggerInterface $logger = null;
 
     private ?bool $requireActor = null;
+
+    /** @var array<string, array{mode?: string, include?: list<string>, owners?: list<string>|null}> promotion options set this request, by store name */
+    private array $promotions = [];
 
     private int $generation = 0;
 
@@ -207,6 +211,62 @@ final class RuntimeConfiguration
     }
 
     /**
+     * Set how a store promotes its runtime file for this request: `manual`, or `auto` to promote
+     * once its database is ready, optionally of only some values. Overrides the store's `promote`
+     * and the global override.
+     *
+     * @throws InvalidConfiguration for any other mode
+     */
+    public function promote(string $store, string $mode, ?PromotionSelection $only = null): self
+    {
+        return $this->setPromotion($store, ['mode' => $mode, ...($only instanceof PromotionSelection ? $only->toOptions() : [])]);
+    }
+
+    /**
+     * Override some of a store's promotion options for this request; what is not given keeps
+     * coming from the configuration. Validated before it is kept.
+     *
+     * @param array{mode?: string, include?: list<string>, owners?: list<string>|null} $options
+     *
+     * @throws InvalidConfiguration
+     */
+    public function setPromotion(string $store, array $options): self
+    {
+        $merged = [...$this->promotions[$store] ?? [], ...$options];
+
+        if (isset($merged['mode']) && ! in_array($merged['mode'], ['manual', 'auto'], true)) {
+            throw new InvalidConfiguration(sprintf('Promotion of store [%s]: use [manual] or [auto], not [%s].', $store, $merged['mode']));
+        }
+
+        PromotionSelection::from($merged['include'] ?? ['*'], $merged['owners'] ?? null, sprintf('Promotion of store [%s]', $store));
+        $this->promotions[$store] = $merged;
+
+        return $this->changed(sprintf('store [%s] promotion set (%s)', $store, implode(', ', array_keys($options))));
+    }
+
+    /** @return array<string, string> the promotion modes set this request, by store name */
+    public function promotions(): array
+    {
+        return array_filter(array_map(static fn (array $options): ?string => $options['mode'] ?? null, $this->promotions), is_string(...));
+    }
+
+    /**
+     * The promotion options set for a store this request; each one not set comes from the configuration.
+     *
+     * @return array{mode?: string, include?: list<string>, owners?: list<string>|null}
+     */
+    public function promotionOptions(string $store): array
+    {
+        return $this->promotions[$store] ?? [];
+    }
+
+    /** The promotion mode set for a store this request, or null to use the configuration. */
+    public function promotion(string $store): ?string
+    {
+        return $this->promotions[$store]['mode'] ?? null;
+    }
+
+    /**
      * Apply `$change`, run `$run`, then restore the previous configuration even when `$run` throws.
      *
      * @template TResult
@@ -221,6 +281,7 @@ final class RuntimeConfiguration
         $snapshot = [
             $this->stores, $this->layers, $this->drivers, clone $this->definitions, $this->authorizer,
             $this->verifier, $this->actorResolver, $this->auditSinks, $this->logger, $this->requireActor,
+            $this->promotions,
         ];
 
         try {
@@ -231,6 +292,7 @@ final class RuntimeConfiguration
             [
                 $this->stores, $this->layers, $this->drivers, $this->definitions, $this->authorizer,
                 $this->verifier, $this->actorResolver, $this->auditSinks, $this->logger, $this->requireActor,
+                $this->promotions,
             ] = $snapshot;
             $this->changed('runtime configuration restored');
         }

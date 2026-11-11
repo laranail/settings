@@ -31,7 +31,7 @@ it('builds a user actor from an authenticatable, keyed by morph alias and id', f
 });
 
 it('makes an actor with token abilities a token actor', function (): void {
-    expect(Actor::user(user(), abilities: ['settings:view'])->type)->toBe(ActorType::Token);
+    expect(Actor::user(user(), abilities: ['laranail-settings:view'])->type)->toBe(ActorType::Token);
 });
 
 it('builds an explicit system actor carrying its reason', function (): void {
@@ -47,7 +47,7 @@ it('never serialises the authenticatable, keeping identifiers and context', func
     $actor = Actor::user(
         user(7),
         Channel::Rest,
-        ['settings:view'],
+        ['laranail-settings:view'],
         new ActorContext('10.0.0.1', 'agent', 'req-1', 'INC-1'),
         now()->toImmutable()->startOfSecond(),
     );
@@ -61,7 +61,7 @@ it('never serialises the authenticatable, keeping identifiers and context', func
         ->and($copy->id)->toBe('7')
         ->and($copy->type)->toBe(ActorType::Token)
         ->and($copy->channel)->toBe(Channel::Rest)
-        ->and($copy->abilities)->toBe(['settings:view'])
+        ->and($copy->abilities)->toBe(['laranail-settings:view'])
         ->and($copy->verifiedAt?->equalTo($actor->verifiedAt))->toBeTrue()
         ->and($copy->context)->toEqual($actor->context);
 });
@@ -123,11 +123,11 @@ it('captures request context when resolving from a request', function (): void {
 
 it('copies Sanctum token abilities into the actor, and leaves a token-less session unlimited', function (): void {
     $user = user();
-    $user->tokenAbilities = ['settings:view', 42];
+    $user->tokenAbilities = ['laranail-settings:view', 42];
     Auth::guard()->setUser($user);
     $resolver = new SanctumActorResolver(app('auth'), ['web'], static fn (): null => null, stdClass::class);
 
-    expect($resolver->resolve()?->abilities)->toBe(['settings:view'])
+    expect($resolver->resolve()?->abilities)->toBe(['laranail-settings:view'])
         ->and($resolver->resolve()?->type)->toBe(ActorType::Token);
 
     $user->tokenAbilities = null;
@@ -169,8 +169,8 @@ it('resolves with the guard resolver directly, outside HTTP', function (): void 
 });
 
 it('lets a token-bearing actor be checked against the token ceiling only for the asked ability', function (): void {
-    expect(Actor::user(user(), abilities: ['settings:update'])->tokenAllows(Ability::Update))->toBeTrue()
-        ->and(Actor::user(user(), abilities: ['settings:update'])->tokenAllows(Ability::View))->toBeFalse()
+    expect(Actor::user(user(), abilities: ['laranail-settings:update'])->tokenAllows(Ability::Update))->toBeTrue()
+        ->and(Actor::user(user(), abilities: ['laranail-settings:update'])->tokenAllows(Ability::View))->toBeFalse()
         ->and(Actor::user(user())->tokenAllows(Ability::View))->toBeTrue();
 });
 

@@ -77,7 +77,7 @@
     "scripts": {
         "setup": "@composer install",
         "test": "vendor/bin/pest --colors=always",
-        "test-coverage": "@test --coverage --min=90",
+        "test-coverage": "@test --coverage",
         "test-dirty": "@test --dirty --compact",
         "mutate": "vendor/bin/pest --mutate --everything --exclude-group=mutation-excluded --min=70",
         "bench": [

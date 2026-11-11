@@ -301,6 +301,13 @@ can still change a shipped default. The runtime file is archived afterwards, so 
 nothing. Its lock is only as wide as the cache store, so a multi-server install needs a shared
 cache.
 
+Automatic promotion (`promote: auto`) is the same action, run as the system after migrations,
+after each request (from a terminating callback, so no response waits on it) and after each
+queued job. Its checks are ordered by cost: the configuration first, so an application with no
+`auto` store resolves nothing; then one file existence check, so a promoted store costs no query;
+then the schema readiness db-tools caches. It never throws into the request: a failure is logged,
+the file keeps answering reads, and the next run retries.
+
 ## Why install checks for foreign tables
 
 A bare `settings` table plausibly belongs to the application. Installing over it would fail half

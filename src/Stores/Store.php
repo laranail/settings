@@ -10,8 +10,10 @@ use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Enums\StoreMode;
+use Simtabi\Laranail\Settings\Drivers\JsonDriver;
 use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
@@ -25,6 +27,9 @@ final readonly class Store
      * @param list<Layer> $layers
      * @param list<string> $owners
      * @param list<string> $approvalKeys key globs whose writes become change requests
+     * @param bool $autoPromote promote the runtime file once the database is ready (`promote: auto`)
+     * @param ?string $ownerTable a dedicated store's owner table (`owner.table`), keyed by `$ownerKey`
+     * @param PromotionSelection $promotion which runtime-file values automatic promotion copies (`promote.include`, `promote.owners`)
      */
     public function __construct(
         public StoreName $name,
@@ -39,6 +44,10 @@ final readonly class Store
         public ?StoreName $fallback = null,
         public array $approvalKeys = [],
         public bool $softDeletes = false,
+        public bool $autoPromote = false,
+        public PromotionSelection $promotion = new PromotionSelection,
+        public ?string $ownerTable = null,
+        public string $ownerKey = 'id',
     ) {}
 
     /** Whether a write of this key becomes a change request. */
@@ -80,6 +89,18 @@ final readonly class Store
         foreach ($this->layers as $layer) {
             if ($layer->driver instanceof DatabaseBacked && $layer->driver->isActive()) {
                 return $layer->driver->database();
+            }
+        }
+
+        return null;
+    }
+
+    /** The first writable JSON layer: the runtime file that promotion copies from. */
+    public function runtimeFile(): ?JsonDriver
+    {
+        foreach ($this->layers as $layer) {
+            if ($layer->driver instanceof JsonDriver && $layer->driver->isWritable()) {
+                return $layer->driver;
             }
         }
 

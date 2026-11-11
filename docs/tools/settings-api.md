@@ -38,7 +38,7 @@ $settings->store('user_settings')->for($user)->locale('fr')->as($admin)->because
 | Cache and loading | [`preload()`](#preload), [`warmCache()`](#warmcache), [`clearCache()`](#clearcache) |
 | History | [`history()`](#history), [`historyDiff()`](#historydiff), [`rollback()`](#rollback) |
 | Approvals | [`propose()`](#propose), [`approvals()`](#approvals) |
-| Store administration | [`categories()`](#categories), [`promote()`](#promote), [`audit()`](#audit), [`export()`](#export), [`import()`, `previewImport()`](#import-and-previewimport), [`compare()`](#compare), [`persistedConfiguration()`](#persistedconfiguration) |
+| Store administration | [`categories()`](#categories), [`promote()`](#promote), [`promoteWhenReady()`](#promotewhenready), [`promotion()`](#promotion), [`audit()`](#audit), [`export()`](#export), [`import()`, `previewImport()`](#import-and-previewimport), [`compare()`](#compare), [`persistedConfiguration()`](#persistedconfiguration) |
 | Context | [`actor()`](#actor), [`configuration()`](#configuration), [`withConfiguration()`](#withconfiguration) |
 
 Abilities are named in the [access control](access-control.md) reference. A handle **without** an actor is trusted code: it is not authorized, and it is audited as `system` (unless `authorization.require_actor` is on, when it throws `ActorRequired`). A handle **with** an actor is authorized for every operation, reads included, and every refusal fires `AccessWasDenied`.
@@ -439,6 +439,37 @@ $report->promoted;   // keys copied into the database
 ```
 
 Copies the values written to the runtime file before the database existed into the database layer; shipped defaults are never copied. Idempotent. Needs `promote`. Throws `PromotionLocked`, `StoreNotWritable`, `AccessDenied`. Fires `StorePromoting` and `StorePromoted`. See [Move from files to the database](../recipes/moving-from-files-to-the-database.md).
+
+### `promoteWhenReady()`
+
+```php
+public function promoteWhenReady(?PromotionSelection $only = null): ?PromotionReport
+
+$report = $settings->store('settings')->asSystem('installer')->promoteWhenReady();
+```
+
+Promotes now when the store's database connection answers and its table exists, and returns the
+report. Otherwise it returns `null` and sets the store to promote automatically for the rest of
+the request, job or command, so the promotion runs after the migrations finish or when the request
+ends. Returns `null` too when another process holds the promotion lock. `$only` picks what is
+copied, as `promote.include` and `promote.owners` do: `new PromotionSelection(settings: true,
+owners: false)` copies the application-wide values and leaves owner values in the file; null uses
+the store's configuration. Needs `promote`. Throws
+`StoreNotWritable` when the store has no database layer, and `AccessDenied`.
+
+### `promotion()`
+
+```php
+public function promotion(): PromotionSettings
+
+Settings::store('settings')->promotion()->auto()->only('owners')->forOwners('user', 'team');
+```
+
+Fluent setters for the store's promotion, for the current request or job: `auto()`, `manual()`,
+`only('settings', 'owners')`, `everything()`, `forOwners('user', ...)` and `forAllOwners()`. Each
+returns the builder and wins over the same option in configuration; an option it does not set keeps
+coming from configuration. `only()` throws `InvalidConfiguration` for a kind the runtime file cannot
+hold. See [Configure promotion](../recipes/moving-from-files-to-the-database.md#configure-promotion).
 
 ### `audit()`
 

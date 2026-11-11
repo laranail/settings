@@ -17,6 +17,11 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `stores.<name>.table` | the store name | the store's values table, after `tables.prefix` |
 | `stores.<name>.bootstrap` | `false` | skip the database layer while, and only while, there is evidence of an install in progress |
 | `bootstrap` | `false` (`LARANAIL_SETTINGS_BOOTSTRAP`) | evidence of an install in progress; set it for the install window only |
+| `stores.<name>.promote` | `manual` | `manual`: copy the runtime file into the database with `laranail::settings.promote`; `auto`: copy it once, the first time the database connection answers and the store's table exists. A string is shorthand for `['mode' => …]` with every value included |
+| `stores.<name>.promote.mode` | `manual` | `manual` or `auto`, as above |
+| `stores.<name>.promote.include` | `['*']` | what automatic promotion copies: `settings` (application-wide values), `owners` (per-owner values), or `*` for both. The runtime file holds setting values only, so these are the only kinds |
+| `stores.<name>.promote.owners` | `null` | owner values only for these morph aliases (`['user', 'team']`); `null` for every owner |
+| `promote` | `null` (`LARANAIL_SETTINGS_PROMOTE`) | `manual` or `auto` for every store, overriding each store's `promote`; `null` leaves each store's own |
 | `stores.<name>.mode` | `polymorphic` | `dedicated`: one owner alias, an `owner_id` foreign key to `owner.table`, owner rows only (read when migrating) |
 | `stores.<name>.owner` | — | dedicated stores: `table`, `key` (`id`), `type` (`bigint`/`uuid`/`ulid`; null follows db-tools) |
 | `stores.<name>.fallback` | the default store | dedicated stores: the polymorphic store that holds their global values |
@@ -126,7 +131,7 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `http.routes.<group>` | `true` | switch a group off: `stores`, `definitions`, `settings`, `history`, `audit`, `approvals`, `categories`, `configuration`, `transfer` |
 | `http.idempotency.cache` / `http.idempotency.ttl` | `null` / `86400` | where and how long a write's response is kept for an `Idempotency-Key` |
 | `http.owners` | unset | owner alias => model class for URLs; unset uses the morph map |
-| `http.page_size` | `50` | reserved: listings use 50 items per page, and 0.1 does not read this key |
+| `http.page_size` | `50` | items per page in every REST listing without `?limit=`; clamped to 1 to 200 |
 
 Store names, keys, locales and owner aliases are validated, and a misconfiguration (an unknown driver, sink, verifier, resolver, level or ability included) raises `InvalidConfiguration` naming the config path on first use. The `password_confirmation` verifier also reads Laravel's own `auth.password_timeout`.
 

@@ -81,6 +81,20 @@ and shipped PHP defaults, as before:
 To start on files and move to the database later, see
 [Moving from files to the database](recipes/moving-from-files-to-the-database.md).
 
+## From an installer
+
+An installer that writes settings before the database exists can let the package move them once
+it does. Put the store in bootstrap mode, then ask for the promotion at the start of the install:
+
+```php
+Settings::store('settings')->asSystem('installer')->promoteWhenReady();
+```
+
+The values the installer writes go to the runtime file. When its `migrate` call finishes, the
+store is promoted in the same process. To keep doing this after the install, on every server, set
+`'promote' => 'auto'` on the store or `LARANAIL_SETTINGS_PROMOTE=auto`; `promote.include` and
+`promote.owners` limit what is moved (see [Configuration](configuration.md)).
+
 ## The REST API
 
 The JSON API is off until `http.enabled` is true; nothing is routed before that. It uses the

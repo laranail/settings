@@ -7,6 +7,7 @@ namespace Simtabi\Laranail\Settings\Console;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
@@ -22,7 +23,9 @@ final class PromoteCommand extends Command
     protected $signature = 'laranail::settings.promote
         {store? : The store to promote (default: the default store)}
         {--force : Overwrite keys that already have a database row}
-        {--from= : Replay an archived runtime file (a path on the runtime disk)}';
+        {--from= : Replay an archived runtime file (a path on the runtime disk)}
+        {--only= : Promote only these kinds, comma-separated: settings (global values), owners (per-owner values); default: the store promote.include}
+        {--owner= : Promote owner values only for these owner aliases, comma-separated; default: the store promote.owners}';
 
     protected $description = 'Promote values written before install from the runtime file into the database';
 
@@ -36,6 +39,7 @@ final class PromoteCommand extends Command
             $report = $handle->asSystem('laranail::settings.promote')->promote(new PromotionRequest(
                 force: $this->option('force') === true,
                 from: is_string($from) && $from !== '' ? $from : null,
+                only: $this->selection(),
             ));
         } catch (SettingsException $exception) {
             $this->error($exception->getMessage());
@@ -53,10 +57,31 @@ final class PromoteCommand extends Command
             ));
         }
 
+        if ($report->kept !== []) {
+            $this->line(sprintf('%d value(s) not selected stay in the runtime file.', count($report->kept)));
+        }
+
         if ($report->archive !== null) {
             $this->line(__('laranail/settings::settings.console.promote_archived', ['archive' => $report->archive]));
         }
 
         return self::SUCCESS;
+    }
+
+    /** `--only` and `--owner`; null without either, for the store's configured selection. */
+    private function selection(): ?PromotionSelection
+    {
+        $only = $this->list('only');
+        $owners = $this->list('owner');
+
+        return $only === null && $owners === null ? null : PromotionSelection::from($only ?? ['*'], $owners, 'laranail::settings.promote');
+    }
+
+    /** @return list<string>|null a comma-separated option as a list; null when it is not given */
+    private function list(string $option): ?array
+    {
+        $value = $this->option($option);
+
+        return is_string($value) && $value !== '' ? array_values(array_filter(array_map(trim(...), explode(',', $value)), static fn (string $item): bool => $item !== '')) : null;
     }
 }

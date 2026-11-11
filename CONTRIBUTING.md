@@ -16,7 +16,7 @@ Contributions are welcome via pull requests.
 | Command | What it checks |
 |---|---|
 | `composer test` | the Pest suite (Arch, Unit, Feature) |
-| `composer test-coverage` | the suite with line coverage, failing below 90 % |
+| `composer test-coverage` | the suite with a line coverage report. There is no fixed floor: coverage ratchets, so a pull request may not lower the total it reports, and a number set before it was measured would only be a guess CI enforces |
 | `composer mutate` | Pest mutation testing of the whole package, failing below a 70 % score (slow; CI runs it weekly, not on pull requests). For your change only: `vendor/bin/pest --mutate --path=src/Changed.php,src/Other.php --exclude-group=mutation-excluded --min=70` |
 | `composer lint` | Pint (shared laranail config), PHPStan at level max, Rector dry run; never changes files |
 | `composer composer-audit` | known-vulnerable dependencies |

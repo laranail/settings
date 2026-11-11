@@ -8,7 +8,7 @@ Nineteen Artisan commands, all named `laranail::settings.<command>`.
 |---|---|
 | `laranail::settings.install` | publishes the config and the package's one migration, syncs definitions once the table exists; refuses to run over a foreign table of the same name |
 | `laranail::settings.make-store {store} [--owner=*] [--connection=]` | writes a new store's migration (a copy of the package migration pinned to that store) and prints its configuration entry |
-| `laranail::settings.promote [store] [--force] [--from=]` | copies values written before install from the runtime file into the database |
+| `laranail::settings.promote [store] [--force] [--from=] [--only=] [--owner=]` | copies values written before install from the runtime file into the database; `--only=settings,owners` and `--owner=user,team` copy only some (default: the store's resolved `promote` options), and the rest stay in the file |
 | `laranail::settings.doctor [--json] [--fix]` | checks readiness, missing columns and rows the database cannot guard; `--fix` syncs definitions first |
 | `laranail::settings.show {key} [--store=] [--owner=] [--locale=] [--reveal]` | prints how one setting resolves: value, layer, scope, type, version, flags and the latest audit entry |
 | `laranail::settings.sync-definitions` | copies code and config definitions into the definitions table as system rows |
@@ -54,6 +54,8 @@ For every store with a database layer (a store without one is reported as skippe
 | Check | Fails when |
 |---|---|
 | readiness | the connection does not answer or the table is missing (a warning in bootstrap mode) |
+| promotion | warns when a store set to `promote: auto` still has values it selects in its runtime file although its database is ready |
+| owner key | for a dedicated store, warns when `owner_id` does not have the type of the owner table's key |
 | schema | a column the package uses is missing from the values, categories, audit, history or change requests table (and, on the default store's connection, the definitions and stores tables) |
 | scopes | a scope names a class instead of a morph alias (fails) or an alias the store does not list (warns) |
 | encryption | an encrypted value cannot be decrypted with the current or previous keys (put the old key in `APP_PREVIOUS_KEYS`, then run `reencrypt`) |
@@ -87,6 +89,8 @@ php artisan laranail::settings.show theme --owner=user:42 --locale=fr
 | From scope | global                                                              |
 | Type       | string                                                              |
 | Version    | 3                                                                   |
+| Stored     | version 3                                                           |
+| Cache      | current                                                             |
 | Locked     | no                                                                  |
 | Encrypted  | no                                                                  |
 | Sensitive  | no                                                                  |
@@ -101,6 +105,10 @@ the flags come from the row that answered; for a definition default or a miss th
 definition, or show `-`. `Last audit` is the newest entry for that key and scope, or `-` when the
 audit trail is not stored in the database. The command runs as the system actor, through the same
 `Actions\Reads\ExplainSetting` action as `explain()` and the REST API.
+
+When the answer came through the settings cache, `Stored` is the version of the row read past the
+cache, and `Cache` says `stale: run laranail::settings.clear-cache` when the two differ (a row
+edited by hand, say).
 
 ## `prune-orphans`
 

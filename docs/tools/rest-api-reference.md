@@ -9,7 +9,7 @@ Paths are under `/{http.prefix}/v1`, by default `/api/settings/v1`; set `http.pr
 | Topic | Rule |
 |---|---|
 | Authentication | the host's `http.middleware` authenticates; the actor resolver turns the request into an actor on the `rest` channel. No actor: `401`. The API never runs as trusted code. |
-| Abilities | each route names the ability its action checks. A Sanctum token's `settings:<ability>` abilities are a ceiling on top. |
+| Abilities | each route names the ability its action checks. A Sanctum token's `laranail-settings:<ability>` abilities are a ceiling on top. |
 | Owners | a settings route has a global form (`/stores/{store}/settings/…`) and an owner form (`/stores/{store}/owners/{alias}/{id}/settings/…`). `{alias}` is a morph alias from `http.owners` or the morph map, never a class name. |
 | Locales | `?locale=fr` on settings routes; the write routes also take it. |
 | Bodies | JSON. Every write may send `"reason"` (recorded in the audit trail and history). |
@@ -313,10 +313,10 @@ Answers `200` with the `ImportReport` (`applied`, `created`, `updated`, `unchang
 
 ## Problem types
 
-Every error is a problem document whose `type` is `https://opensource.simtabi.com/documentation/laranail/settings/problems/<type>`:
+Every error is a problem document whose `type` is `https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#<type>`, a section of the [exceptions reference](exceptions.md#problem-types) (`http-<status>` types point at `#http-status`):
 
 ```json
-{"type": "https://opensource.simtabi.com/documentation/laranail/settings/problems/locked", "title": "Locked", "status": 423,
+{"type": "https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#locked", "title": "Locked", "status": 423,
  "detail": "Setting [billing.currency] in store [settings] is locked for scope [global].", "instance": "/api/settings/v1/stores/settings/settings/billing.currency"}
 ```
 

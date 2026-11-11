@@ -61,7 +61,130 @@ Messages name the store, key, scope and ability involved, never a value, so they
 
 `LogicException` (PHP's own) is thrown for a programming error rather than a runtime condition: `flush()` without `for($owner)`.
 
-Each exception names its HTTP status and problem type itself (`STATUS` and `TYPE` constants), and `Http\Support\Problems` renders them; anything without its own is a `500 settings-error`; [REST API reference](rest-api-reference.md#problem-types) lists every problem type.
+Each exception names its HTTP status and problem type itself (`STATUS` and `TYPE` constants), and `Http\Support\Problems` renders them; anything without its own is a `500 settings-error`; [Problem types](#problem-types) below lists every problem type.
+
+## Problem types
+
+Each REST error is a problem document whose `type` is this page's URL with the problem type as
+its fragment, for example
+`https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#locked`. Every
+`http-<status>` type points at [`http-status`](#http-status).
+
+### <a name="access-denied"></a>`access-denied`
+
+Status 403. Raised by `AccessDenied`.
+
+### <a name="actor-required"></a>`actor-required`
+
+Status 401. Raised by `ActorRequired`.
+
+### <a name="unauthenticated"></a>`unauthenticated`
+
+Status 401. Raised by the host's authentication middleware.
+
+### <a name="verification-required"></a>`verification-required`
+
+Status 428. Raised by `VerificationRequired`: verify (confirm the password) and retry.
+
+### <a name="unknown-store"></a>`unknown-store`
+
+Status 404. Raised by `UnknownStore`.
+
+### <a name="unknown-setting"></a>`unknown-setting`
+
+Status 404. Raised by `UnknownSetting` (a strict store's undefined key).
+
+### <a name="unknown-owner"></a>`unknown-owner`
+
+Status 404. Raised by `UnknownOwner` (an alias or record the owner resolver cannot find).
+
+### <a name="unknown-category"></a>`unknown-category`
+
+Status 404. Raised by `UnknownCategory`.
+
+### <a name="unknown-change-request"></a>`unknown-change-request`
+
+Status 404. Raised by `UnknownChangeRequest`.
+
+### <a name="invalid-value"></a>`invalid-value`
+
+Status 422. Raised by `InvalidSettingValue`.
+
+### <a name="invalid-identifier"></a>`invalid-identifier`
+
+Status 422. Raised by `InvalidIdentifier`, `InvalidKey` (a key, store, locale, alias or filter).
+
+### <a name="invalid-import"></a>`invalid-import`
+
+Status 422. Raised by `InvalidImport`.
+
+### <a name="invalid-definition"></a>`invalid-definition`
+
+Status 422. Raised by `InvalidDefinition`.
+
+### <a name="invalid-configuration"></a>`invalid-configuration`
+
+Status 422. Raised by `InvalidConfiguration`.
+
+### <a name="type-mismatch"></a>`type-mismatch`
+
+Status 422. Raised by `TypeMismatch`.
+
+### <a name="category-cycle"></a>`category-cycle`
+
+Status 422. Raised by `CategoryCycle`.
+
+### <a name="category-store-mismatch"></a>`category-store-mismatch`
+
+Status 422. Raised by `CategoryStoreMismatch`.
+
+### <a name="validation"></a>`validation`
+
+Status 422. Raised by request validation; the body adds `errors`.
+
+### <a name="locked"></a>`locked`
+
+Status 423. Raised by `LockedSetting`.
+
+### <a name="precondition-failed"></a>`precondition-failed`
+
+Status 412. Raised by `ConcurrentModification` (`If-Match` did not match).
+
+### <a name="approval-unavailable"></a>`approval-unavailable`
+
+Status 409. Raised by `ApprovalUnavailable`.
+
+### <a name="change-request-closed"></a>`change-request-closed`
+
+Status 409. Raised by `ChangeRequestClosed`.
+
+### <a name="owner-not-allowed"></a>`owner-not-allowed`
+
+Status 409. Raised by `OwnerNotAllowed`.
+
+### <a name="store-not-writable"></a>`store-not-writable`
+
+Status 409. Raised by `StoreNotWritable`.
+
+### <a name="history-unavailable"></a>`history-unavailable`
+
+Status 409. Raised by `HistoryUnavailable`.
+
+### <a name="too-many-requests"></a>`too-many-requests`
+
+Status 429. Raised by the rate limit.
+
+### <a name="unavailable"></a>`unavailable`
+
+Status 503. Raised by `DriverUnavailable`.
+
+### <a name="http-status"></a>`http-<status>`
+
+Status that status. Raised by any other HTTP exception (`http-404` for an unknown route).
+
+### <a name="settings-error"></a>`settings-error`
+
+Status 500. Raised by any other package exception (its message is not exposed).
 
 ---
 

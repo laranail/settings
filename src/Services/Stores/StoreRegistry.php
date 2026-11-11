@@ -18,6 +18,7 @@ use Simtabi\Laranail\Settings\Events\LayerSkipped;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
@@ -46,6 +47,7 @@ final class StoreRegistry
      * @param array<array-key, mixed> $layerConfig `laranail.settings.layers`
      * @param ?Dispatcher $events receives {@see LayerSkipped} when bootstrap mode skips a layer
      * @param list<string> $sources merge order of config, database and runtime entries; later wins
+     * @param mixed $promote `laranail.settings.promote`: overrides every store's `promote` when set
      */
     public function __construct(
         private readonly DriverFactory $drivers,
@@ -59,12 +61,13 @@ final class StoreRegistry
         private readonly ?SettingsCache $cache = null,
         private readonly ?PersistedConfiguration $persisted = null,
         private readonly array $sources = ['config', 'database', 'runtime'],
+        private readonly mixed $promote = null,
     ) {}
 
     /** A copy whose every layer is replaced by one driver. */
     public function withEveryLayer(Driver $driver): self
     {
-        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->events, $this->cache, $this->persisted, $this->sources);
+        return new self($this->drivers, $this->default, $this->storeConfig, $this->layerConfig, $driver, $this->runtime, $this->evidence, $this->events, $this->cache, $this->persisted, $this->sources, $this->promote);
     }
 
     /** @throws InvalidConfiguration for the first problem in any store or layer */
@@ -176,6 +179,7 @@ final class StoreRegistry
                 throw new InvalidConfiguration($path . '.soft_deletes: true or false.');
             }
 
+            $promote = $this->promotion($storeName, $config['promote'] ?? 'manual', $path . '.promote');
             $owner = $this->dedicatedOwner($config, $storeName, $path);
             $options = ['table' => $table, 'soft_deletes' => $softDeletes, 'owner' => $owner];
 
@@ -192,6 +196,10 @@ final class StoreRegistry
                 fallback: $owner === null ? null : new StoreName($owner['fallback']),
                 approvalKeys: $this->approvalKeys($config['approvals'] ?? [], $path . '.approvals'),
                 softDeletes: $softDeletes,
+                autoPromote: $this->autoPromote($promote['mode'], $promote['modePath']),
+                promotion: PromotionSelection::from($promote['include'], $promote['owners'], $promote['path']),
+                ownerTable: $owner['table'] ?? null,
+                ownerKey: $owner['key'] ?? 'id',
             );
         }
 
@@ -348,6 +356,47 @@ final class StoreRegistry
         }
 
         return ['alias' => $owners[array_key_first($owners)], 'table' => $owner['table'], 'key' => $key, 'type' => $type, 'fallback' => $fallback->value];
+    }
+
+    /**
+     * The one place a store's promotion options are resolved. Each option comes from the first
+     * of: the fluent setters and runtime configuration for this request, the global `promote`
+     * override (mode only), then the store's `promote` from persisted configuration or the file.
+     * The string shorthand (`'auto'`) means every value.
+     *
+     * @return array{mode: mixed, include: mixed, owners: mixed, path: string, modePath: string}
+     */
+    private function promotion(StoreName $store, mixed $promote, string $path): array
+    {
+        if (is_array($promote)) {
+            $unknown = array_diff(array_keys($promote), ['mode', 'include', 'owners']);
+
+            if ($unknown !== []) {
+                throw new InvalidConfiguration(sprintf('%s: unknown option [%s]; use mode, include and owners.', $path, implode(', ', $unknown)));
+            }
+        }
+
+        $configured = is_array($promote)
+            ? ['mode' => $promote['mode'] ?? 'manual', 'include' => $promote['include'] ?? ['*'], 'owners' => $promote['owners'] ?? null]
+            : ['mode' => $promote, 'include' => ['*'], 'owners' => null];
+        $modePath = is_array($promote) ? $path . '.mode' : $path;
+
+        if ($this->promote !== null && $this->promote !== '') {
+            [$configured['mode'], $modePath] = [$this->promote, 'laranail.settings.promote'];
+        }
+
+        $set = $this->runtime?->promotionOptions($store->value) ?? [];
+
+        return [...$configured, ...$set, 'path' => $path, 'modePath' => $modePath];
+    }
+
+    private function autoPromote(mixed $mode, string $path): bool
+    {
+        return match ($mode) {
+            'auto'   => true,
+            'manual' => false,
+            default  => throw new InvalidConfiguration($path . ': use [manual] or [auto].'),
+        };
     }
 
     private function locksOverridable(mixed $locks, string $path): bool

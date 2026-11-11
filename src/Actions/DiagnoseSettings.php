@@ -7,6 +7,7 @@ namespace Simtabi\Laranail\Settings\Actions;
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Drivers\JsonDriver;
 use Simtabi\Laranail\Settings\Diagnostics\Finding;
 use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
@@ -23,7 +24,8 @@ use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 /**
  * The findings of `laranail::settings.doctor`. Read-only.
  *
- * Per store with a database layer: readiness, missing columns, scopes that name a class or an
+ * Per store with a database layer: readiness, a runtime file a store set to promote
+ * automatically has not promoted, missing columns, scopes that name a class or an
  * alias the store does not list, category links to another store, keys outside their category,
  * encrypted values no key can read, and overdue change requests. Then: every code or config
  * definition whose key sits outside its category, and persisted configuration entries skipped as
@@ -76,7 +78,17 @@ final readonly class DiagnoseSettings
             }
 
             $findings[] = new Finding("{$name}: readiness", 'The database layer answers and its table exists', DoctorResult::pass(sprintf('Table [%s] on [%s] is ready.', $database->tableFor($store->name), $database->connectionName())));
+
+            if ($store->autoPromote) {
+                $findings[] = $this->autoPromotion($store);
+            }
+
             $findings[] = $this->columns($store, $database);
+
+            if ($store->isDedicated()) {
+                $findings[] = $this->ownerKeyType($store, $database);
+            }
+
             $findings[] = $this->scopes($store, $database);
             $findings[] = $this->categories($store, $database);
             $findings[] = $this->categoryKeys($store, $database);
@@ -104,6 +116,33 @@ final readonly class DiagnoseSettings
         }
 
         return null;
+    }
+
+    /** A store set to promote automatically has no runtime file left once its database is ready. */
+    private function autoPromotion(Store $store): Finding
+    {
+        $file = $store->runtimeFile();
+
+        $waiting = $file instanceof JsonDriver && $file->hasFile($store->name) && array_any($file->all($store->name), $store->promotion->includes(...));
+
+        return new Finding("{$store->name}: promotion", 'A store set to promote automatically has promoted its runtime file', $waiting
+            ? DoctorResult::warn('The runtime file has not been promoted although the database is ready; check the log for a failed promotion, or run laranail::settings.promote.')
+            : DoctorResult::pass('No runtime file is waiting to be promoted.'));
+    }
+
+    /** A dedicated store's `owner_id` column has the type of the owner table's key. */
+    private function ownerKeyType(Store $store, DatabaseDriver $database): Finding
+    {
+        $inspector = new SchemaInspector($database);
+        $ownerId = $inspector->idType($database->tableFor($store->name), 'owner_id');
+        $ownerKey = $store->ownerTable === null ? null : $inspector->idType($store->ownerTable, $store->ownerKey);
+        $label = 'owner_id has the type of the owner table\'s key';
+
+        return match (true) {
+            $ownerId === null || $ownerKey === null => new Finding("{$store->name}: owner key", $label, DoctorResult::skip('The owner table or its key column could not be read.')),
+            $ownerId === $ownerKey                  => new Finding("{$store->name}: owner key", $label, DoctorResult::pass(sprintf('owner_id and %s.%s are both %s.', $store->ownerTable, $store->ownerKey, $ownerId))),
+            default                                 => new Finding("{$store->name}: owner key", $label, DoctorResult::warn(sprintf('owner_id is %s but %s.%s is %s; set stores.%s.owner.type to match and migrate again.', $ownerId, $store->ownerTable, $store->ownerKey, $ownerKey, $store->name))),
+        };
     }
 
     /** Every column the package uses exists on the store's tables. */

@@ -25,10 +25,12 @@ use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
 use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
@@ -241,6 +243,16 @@ final readonly class SettingsFake implements Settings
     public function promote(?PromotionRequest $request = null): PromotionReport
     {
         return $this->inner->promote($request);
+    }
+
+    public function promoteWhenReady(?PromotionSelection $only = null): ?PromotionReport
+    {
+        return $this->inner->promoteWhenReady($only);
+    }
+
+    public function promotion(): PromotionSettings
+    {
+        return $this->inner->promotion();
     }
 
     public function audit(): AuditQuery

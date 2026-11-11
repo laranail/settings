@@ -27,7 +27,7 @@ final readonly class CachingDriver implements DatabaseBacked
         private SettingsCache $cache,
     ) {}
 
-    /** The uncached database layer. */
+    /** The layer this cache wraps, for a caller that must read or check it without the cache. */
     public function uncached(): DatabaseBacked
     {
         return $this->inner;

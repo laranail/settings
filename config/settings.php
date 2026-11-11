@@ -35,6 +35,8 @@ return [
     |                locked setting.
     | approvals:     key globs (`mail.*`) whose writes become change requests.
     | bootstrap:     skip the database layer while the application installs.
+    | promote:       `manual` (run laranail::settings.promote) or `auto` (copy
+    |                the runtime file into the database once it is ready).
     | table:         the values table name (default: the store name).
     | mode:          `polymorphic` or `dedicated` (one owner alias, with a
     |                foreign key to `owner.table`; read when migrating).
@@ -56,6 +58,7 @@ return [
             'locks'        => ['overridable' => false],
             'approvals'    => ['keys' => []],
             'bootstrap'    => false,
+            'promote'      => 'manual',
             'mode'         => 'polymorphic',
             'soft_deletes' => false,
         ],
@@ -67,6 +70,12 @@ return [
     | install in progress counts too.
     */
     'bootstrap' => env('LARANAIL_SETTINGS_BOOTSTRAP', false),
+
+    /*
+    | Overrides every store's `promote` when set: `manual` or `auto`. Null
+    | leaves each store's own setting.
+    */
+    'promote' => env('LARANAIL_SETTINGS_PROMOTE'),
 
     /*
     | Table names. `prefix` is prepended to every table, including each store's
@@ -415,7 +424,7 @@ return [
     | routes:      switch route groups off.
     | idempotency: how long (`ttl`) and where (`cache`) responses to writes
     |              sent with an Idempotency-Key header are kept.
-    | page_size:   items per page in listings.
+    | page_size:   items per page in listings without `?limit=` (1 to 200).
     |
     | An optional `owners` key maps owner aliases a URL may name to model
     | classes; unset, the morph map is used.

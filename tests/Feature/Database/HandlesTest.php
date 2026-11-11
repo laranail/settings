@@ -97,6 +97,7 @@ it('reports a promotion as plain data', function (): void {
         'promoted' => ['global|a|'],
         'skipped'  => ['global|b|' => 'exists'],
         'archive'  => 'x.json',
+        'kept'     => [],
     ]);
 });
 

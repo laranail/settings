@@ -79,9 +79,16 @@ An ability nobody defined abstains, and `authorization.undefined` decides it: `d
 
 An authorizer returns a `Decision`: `allow()`, `deny($reason)`, `requiresVerification()`, `requiresApproval()` or `abstain()`. A denial raises `AccessDenied`, which carries the ability, store and key and never a value.
 
+When `authorization.driver` names something that cannot be built, every call raises
+`InvalidConfiguration` naming the path. With the REST API on, the package fails closed instead,
+so the API is never left open by a typo: it uses a guard that denies every actor and resolves
+none, logs one warning per request saying why, and keeps trusted code (calls without an actor)
+working. API requests then answer `401 actor-required`; actors calling the PHP API get
+`AccessDenied`.
+
 ## Tokens are a ceiling
 
-A token-bearing actor must also hold the ability in its token: `settings:<ability>`, `settings:*` or `*`. The token never grants anything on its own; the authorizer must allow too.
+A token-bearing actor must also hold the ability in its token: `laranail-settings:<ability>`, `laranail-settings:*` or `*`. The token never grants anything on its own; the authorizer must allow too.
 
 ## Guarded locks
 

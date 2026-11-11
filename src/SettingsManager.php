@@ -48,9 +48,11 @@ use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Actions\RollbackSetting;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
+use Simtabi\Laranail\Settings\Actions\PromoteWhenReady;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Actions\Transfer\DiffStore;
@@ -59,6 +61,7 @@ use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
+use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Actions\Transfer\ExportStore;
 use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
@@ -68,6 +71,7 @@ use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
 use Simtabi\Laranail\Settings\Services\Resolution\ScopeKeys;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
@@ -119,6 +123,7 @@ final class SettingsManager implements Settings
         private readonly CategoryManager $categories,
         private readonly Approvals $approvals,
         private readonly PersistedConfigurationEditor $configurationEditor,
+        private readonly PromoteWhenReady $promoteWhenReady,
     ) {}
 
     public function store(string $name): static
@@ -425,6 +430,28 @@ final class SettingsManager implements Settings
     public function promote(?PromotionRequest $request = null): PromotionReport
     {
         return $this->promote->handle($this->targetStore(), $request ?? new PromotionRequest, $this->actingAs);
+    }
+
+    public function promoteWhenReady(?PromotionSelection $only = null): ?PromotionReport
+    {
+        $store = $this->targetStore();
+
+        if (! $store->hasDatabaseLayer()) {
+            throw new StoreNotWritable(sprintf('Store [%s] has no database layer to promote into.', $store->name));
+        }
+
+        $report = $this->promoteWhenReady->handle($store, $this->actingAs, $only);
+
+        if (! $report instanceof PromotionReport) {
+            $this->runtime->promote($store->name->value, 'auto', $only);
+        }
+
+        return $report;
+    }
+
+    public function promotion(): PromotionSettings
+    {
+        return new PromotionSettings($this->runtime, $this->targetStore()->name->value);
     }
 
     public function audit(): AuditQuery

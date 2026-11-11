@@ -25,7 +25,7 @@ Gate::define('laranail-settings.update', fn (User $user) => $user->is_admin);
 For a token, install Sanctum and issue one:
 
 ```php
-$token = $user->createToken('admin-ui', ['settings:view', 'settings:update'])->plainTextToken;
+$token = $user->createToken('admin-ui', ['laranail-settings:view', 'laranail-settings:update'])->plainTextToken;
 ```
 
 ## First request

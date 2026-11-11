@@ -17,6 +17,7 @@ resolution steps. From PHP, `Settings::explain('mail.from_address')` returns the
 
 | You see | Cause | Fix |
 |---|---|---|
+| a store set to `promote: auto` still reads from its runtime file | promotion runs only once the connection answers and the table exists, after migrations, a request or a queued job; a failed attempt is logged as a warning and retried on the next one | run `doctor` (`promotion`), read the log entry (`could not promote store`), fix the cause, or run `laranail::settings.promote` |
 | `DriverUnavailable`: the database layer is unavailable (unreachable, or table missing) | the migration has not run, or the connection is down; the package never falls back to defaults silently | `php artisan migrate`, then `doctor` (`readiness`). While installing, see [bootstrap mode](recipes/moving-from-files-to-the-database.md) |
 | `InvalidConfiguration` naming a path such as `laranail.settings.stores.settings.layers` | that config entry has the wrong shape or names something unknown | fix the entry the message names; [Configuration](configuration.md) lists every key |
 | `AccessDenied` for a call made with `as($user)` | the `laranail-settings.<ability>` gate is not defined, or it said no; an undefined ability is denied | define the gate, or call without an actor for trusted code; see [Access control](tools/access-control.md) |

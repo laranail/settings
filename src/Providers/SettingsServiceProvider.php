@@ -14,6 +14,7 @@ use Illuminate\Log\LogManager;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Queue\Events\JobProcessed;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Queue\Events\JobProcessing;
@@ -21,6 +22,7 @@ use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Package\Tools\Package;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Data\AlertRule;
 use Simtabi\Laranail\Settings\Data\StoreName;
@@ -69,6 +71,7 @@ use Simtabi\Laranail\Settings\Audit\DatabaseAuditSink;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Services\Access\Auditor;
 use Simtabi\Laranail\Settings\Typed\SettingsMigration;
+use Simtabi\Laranail\Settings\Actions\PromoteWhenReady;
 use Simtabi\Laranail\Settings\Console\MakeStoreCommand;
 use Simtabi\Laranail\Settings\Console\ReencryptCommand;
 use Simtabi\Laranail\Settings\Console\WarmCacheCommand;
@@ -78,6 +81,7 @@ use Simtabi\Laranail\Settings\Console\ClearCacheCommand;
 use Simtabi\Laranail\Settings\Console\PruneAuditCommand;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Verification\NullVerifier;
+use Simtabi\Laranail\Settings\Actions\PromoteReadyStores;
 use Simtabi\Laranail\Settings\Listeners\LogSettingsEvent;
 use Simtabi\Laranail\Settings\Console\PruneChangesCommand;
 use Simtabi\Laranail\Settings\Console\PruneHistoryCommand;
@@ -202,6 +206,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $config = $this->app->make(Repository::class);
 
         $this->bootReadinessFlush($config);
+        $this->bootAutoPromotion();
         $this->bootTypedBindings($config);
 
         if (filter_var($config->get('laranail.settings.http.enabled', false), FILTER_VALIDATE_BOOL)) {
@@ -349,6 +354,26 @@ final class SettingsServiceProvider extends PackageServiceProvider
         return $instance instanceof $contract ? $instance : throw new InvalidConfiguration(sprintf('%s: [%s] did not build a %s.', $path, $class, $contract));
     }
 
+    /**
+     * Whether any store could be set to `promote: auto`, read from configuration alone, so an
+     * application that never asks for it resolves nothing per request.
+     */
+    private static function mayPromoteAutomatically(Application $app): bool
+    {
+        $config = $app->make(Repository::class);
+        $global = $config->get('laranail.settings.promote');
+        $stores = $config->array('laranail.settings.stores', []);
+
+        if ($app->resolved(RuntimeConfiguration::class)) {
+            $runtime = $app->make(RuntimeConfiguration::class);
+            $stores = [...$stores, ...$runtime->stores(), ...array_map(static fn (string $mode): array => ['promote' => $mode], $runtime->promotions())];
+        }
+
+        return $global === 'auto'
+            || filter_var($config->get('laranail.settings.configuration.persisted', false), FILTER_VALIDATE_BOOL)
+            || array_any($stores, static fn (mixed $store): bool => is_array($store) && in_array('auto', [$store['promote'] ?? null, is_array($store['promote'] ?? null) ? $store['promote']['mode'] ?? null : null], true));
+    }
+
     // Registration -------------------------------------------------------------------------
 
     /** The current tenant, and the context the Eloquent models read it from. */
@@ -433,6 +458,13 @@ final class SettingsServiceProvider extends PackageServiceProvider
             cache: self::cacheEnabled($app) ? $app->make(SettingsCache::class) : null,
             persisted: $app->make(PersistedConfiguration::class),
             sources: self::configurationSources($app->make(Repository::class)),
+            promote: $app->make(Repository::class)->get('laranail.settings.promote'),
+        ));
+
+        $this->app->bind(PromoteReadyStores::class, static fn (Application $app): PromoteReadyStores => new PromoteReadyStores(
+            $app->make(StoreRegistry::class),
+            $app->make(OperationalLogger::class),
+            static fn (): PromoteWhenReady => $app->make(PromoteWhenReady::class),
         ));
 
         $this->app->bind(MakeStore::class, static fn (Application $app): MakeStore => new MakeStore(
@@ -555,8 +587,22 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 throw new InvalidConfiguration('laranail.settings.authorization.undefined: use [allow] or [deny].');
             }
 
+            // With the REST API on, an authorizer that cannot be built fails closed rather than
+            // throwing on every request: every actor is denied, and the warning says why.
+            try {
+                $authorizer = $app->make(Authorizer::class);
+            } catch (Throwable $exception) {
+                if (! $exception instanceof InvalidConfiguration || ! filter_var($config->get('laranail.settings.http.enabled', false), FILTER_VALIDATE_BOOL)) {
+                    throw $exception;
+                }
+
+                $app->make(OperationalLogger::class)->warning('laranail/settings has no usable authorizer, so every actor is denied: ' . $exception->getMessage(), LogContext::of(extra: ['exception' => $exception::class]));
+
+                return AccessGuard::closed();
+            }
+
             return new AccessGuard(
-                $app->make(Authorizer::class),
+                $authorizer,
                 $app->make(Verifier::class),
                 $app->make(ActorResolver::class),
                 $app->make(Auditor::class),
@@ -651,6 +697,33 @@ final class SettingsServiceProvider extends PackageServiceProvider
         foreach ([MigrationsEnded::class, JobProcessing::class, 'Laravel\\Octane\\Events\\RequestReceived', ...self::strings($config, 'laranail.settings.readiness.flush_on')] as $event) {
             $events->listen($event, $flush);
         }
+    }
+
+    /**
+     * Promote stores set to `promote: auto` once their database is ready: after migrations (in
+     * the console, once readiness is flushed), and after each request and queued job, when no
+     * response waits on it. Octane terminates each request through the kernel, which runs the
+     * terminating callbacks too. Each run costs one file check per `auto` store until it promotes.
+     */
+    private function bootAutoPromotion(): void
+    {
+        $app = $this->app;
+        $events = $app->make(Dispatcher::class);
+
+        $run = static function (Channel $channel) use ($app): void {
+            try {
+                if (self::mayPromoteAutomatically($app)) {
+                    $app->make(PromoteReadyStores::class)->handle($channel);
+                }
+            } catch (Throwable $exception) {
+                // Building the action failed (a configuration error): report it, never throw.
+                $app->make(ExceptionHandler::class)->report($exception);
+            }
+        };
+
+        $events->listen(MigrationsEnded::class, static fn () => $run(Channel::Console));
+        $events->listen(JobProcessed::class, static fn () => $run(Channel::Queue));
+        $app->terminating(static fn () => $run($app->runningInConsole() ? Channel::Console : Channel::Php));
     }
 
     /** Each typed settings class in `typed.classes` resolves loaded, through the request's handle. */

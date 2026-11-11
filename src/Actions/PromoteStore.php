@@ -54,7 +54,7 @@ final readonly class PromoteStore
         $this->access->authorize($actor, Ability::Promote, $subject);
 
         $database = $store->requireDatabase(' to promote into.');
-        $runtime = $this->runtime($store);
+        $runtime = $store->runtimeFile();
 
         if (! $runtime instanceof JsonDriver) {
             return new PromotionReport($store->name->value);
@@ -76,7 +76,10 @@ final readonly class PromoteStore
 
     private function promote(Store $store, PromotionRequest $request, ?Actor $actor, Subject $subject, DatabaseDriver $database, JsonDriver $runtime): PromotionReport
     {
-        $records = $request->from === null ? $runtime->all($store->name) : $runtime->recordsIn($request->from);
+        $all = $request->from === null ? $runtime->all($store->name) : $runtime->recordsIn($request->from);
+        $only = $request->only ?? $store->promotion;
+        $records = array_values(array_filter($all, $only->includes(...)));
+        $kept = array_values(array_filter($all, static fn (Record $record): bool => ! $only->includes($record)));
 
         $this->events->dispatch(new StorePromoting($store->name->value));
 
@@ -96,11 +99,18 @@ final readonly class PromoteStore
         // The rows bypassed the cache, so reset the store's bags.
         $store->forgetCachedStore();
 
-        $archive = $request->from === null ? $runtime->archive($store->name, CarbonImmutable::now()) : null;
+        // The archive keeps the whole original. What the selection left out stays in the runtime
+        // file, rewritten in one rename so reads never find it missing; a file whose every
+        // record was left out is not touched.
+        $archive = match (true) {
+            $request->from !== null, $records === [] && $kept !== [] => null,
+            $kept === []                                             => $runtime->archive($store->name, CarbonImmutable::now()),
+            default                                                  => $runtime->archiveKeeping($store->name, CarbonImmutable::now(), $kept),
+        };
 
         $this->events->dispatch(new StorePromoted($store->name->value, count($promoted), count($skipped), $archive));
 
-        return new PromotionReport($store->name->value, $promoted, $skipped, $archive);
+        return new PromotionReport($store->name->value, $promoted, $skipped, $archive, array_map(static fn (Record $record): string => $record->identity(), $kept));
     }
 
     /**
@@ -150,17 +160,5 @@ final readonly class PromoteStore
         }
 
         return [$promoted, $skipped];
-    }
-
-    /** The first writable JSON layer. */
-    private function runtime(Store $store): ?JsonDriver
-    {
-        foreach ($store->layers as $layer) {
-            if ($layer->driver instanceof JsonDriver && $layer->driver->isWritable()) {
-                return $layer->driver;
-            }
-        }
-
-        return null;
     }
 }

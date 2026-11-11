@@ -24,10 +24,10 @@ Gate::define('laranail-settings.update', fn (User $user) => $user->is_admin);
 ## Issue a token
 
 ```php
-$token = $user->createToken('deploy-bot', ['settings:view', 'settings:update'])->plainTextToken;
+$token = $user->createToken('deploy-bot', ['laranail-settings:view', 'laranail-settings:update'])->plainTextToken;
 ```
 
-A token's `settings:<ability>` abilities are a ceiling on top of the gates: the token above can never `forget`, `rollback` or `approve`, even for an admin. `settings:*` lifts the ceiling.
+A token's `laranail-settings:<ability>` abilities are a ceiling on top of the gates: the token above can never `forget`, `rollback` or `approve`, even for an admin. `laranail-settings:*` lifts the ceiling.
 
 ## Call it
 

@@ -10,7 +10,7 @@ use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
 
 /**
  * Everything an actor can be authorized to do: the gate `laranail-settings.<value>`, and for a
- * token-bearing actor the token ability `settings:<value>`.
+ * token-bearing actor the token ability `laranail-settings:<value>`.
  */
 enum Ability: string implements Enumerator
 {
@@ -79,7 +79,7 @@ enum Ability: string implements Enumerator
     /** The token ability a token-bearing actor must hold for this ability. */
     public function tokenAbility(): string
     {
-        return 'settings:' . $this->value;
+        return 'laranail-settings:' . $this->value;
     }
 
     /** Whether the ability only reads, so step-up verification never applies to it. */

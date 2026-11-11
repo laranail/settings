@@ -51,7 +51,7 @@ final readonly class AccessGuard
         private ?Dispatcher $events = null,
     ) {}
 
-    /** A guard that denies every actor and audits nowhere. */
+    /** A guard that denies every actor and audits nowhere, for code that must refuse everything without configuration. */
     public static function closed(): self
     {
         return new self(

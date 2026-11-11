@@ -15,7 +15,7 @@ The SPA calls `/sanctum/csrf-cookie` once, logs in, then sends `credentials: 'in
 ## A mobile app: a token with a ceiling
 
 ```php
-$token = $user->createToken('ios', ['settings:view', 'settings:update'])->plainTextToken;
+$token = $user->createToken('ios', ['laranail-settings:view', 'laranail-settings:update'])->plainTextToken;
 ```
 
 ```http

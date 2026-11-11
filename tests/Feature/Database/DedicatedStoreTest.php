@@ -82,3 +82,22 @@ it('refuses a dedicated store without one owner alias, an owner table or a polym
     'bad owner key type' => [['owners' => ['user'], 'owner' => ['table' => 'users', 'type' => 'serial']], '`type` one of'],
     'unknown mode'       => [['mode' => 'shared'], 'use [polymorphic] or [dedicated]'],
 ]);
+
+it('has doctor compare owner_id with the owner table key', function (): void {
+    useDedicatedStore();
+
+    $this->artisan('laranail::settings.doctor')->expectsOutputToContain('owner_id and users.id are both')->assertSuccessful();
+});
+
+it('has doctor warn when owner_id does not match the owner table key', function (): void {
+    // MySQL and Postgres refuse the mismatched foreign key outright; SQLite builds it, so doctor must catch it.
+    if (DB::getDriverName() !== 'sqlite') {
+        $this->markTestSkipped('Only SQLite accepts a foreign key between different column types.');
+    }
+
+    useDatabase([
+        'stores.user_settings' => ['layers' => ['database'], 'owners' => ['user'], 'mode' => 'dedicated', 'owner' => ['table' => 'users', 'type' => 'bigint']],
+    ], stores: ['user_settings'], ownerTables: ['users' => 'uuid']);
+
+    $this->artisan('laranail::settings.doctor')->expectsOutputToContain('set stores.user_settings.owner.type to match')->assertSuccessful();
+});
