@@ -13,6 +13,7 @@ use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
 use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Illuminate\Database\ConnectionResolverInterface;
@@ -225,6 +226,19 @@ final class PersistedConfiguration
      */
     private function check(string $kind, string $name, array $config, array $stores, array $layers): void
     {
+        // A php layer requires the file it names and a config layer reads application
+        // configuration: from a row anyone with manage_stores can write, either would run code or
+        // disclose secrets. They belong in the configuration file.
+        if ($kind === 'layer' && in_array($config['driver'] ?? null, [DriverType::Php->value, DriverType::Config->value], true)) {
+            throw new InvalidConfiguration(sprintf('Persisted layer [%s]: the [%s] driver reads files or configuration on the server, so it can only be defined in the configuration file.', $name, is_string($config['driver']) ? $config['driver'] : ''));
+        }
+
+        // Persisted layers only add to the file's: redefining one would move a store the file
+        // configures onto another connection, table or driver, which is promote's job.
+        if ($kind === 'layer' && array_key_exists($name, $this->configLayers)) {
+            throw new InvalidConfiguration(sprintf('Persisted layer [%s] would redefine a layer the configuration file defines; change it there, or persist a layer under a new name.', $name));
+        }
+
         $configured = $this->configStores[$name] ?? null;
 
         if ($kind === 'store' && is_array($configured) && ($configured['layers'] ?? null) !== ($config['layers'] ?? null)) {

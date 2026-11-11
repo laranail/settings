@@ -57,10 +57,27 @@ final class SettingChangeRequest extends SettingsModel
         ])->refresh()->toRequest();
     }
 
-    /** @throws UnknownChangeRequest */
+    /**
+     * The request with this id in this store; one opened in another store is unknown here, so a
+     * route naming one store can never decide another store's request.
+     *
+     * @throws UnknownChangeRequest
+     */
     public static function get(?string $connection, StoreName $store, string $id): ChangeRequest
     {
-        return self::on($connection)->find($id)?->toRequest()
+        return self::on($connection)->where('store', $store->value)->find($id)?->toRequest()
+            ?? throw new UnknownChangeRequest(sprintf('Store [%s] has no change request [%s].', $store, $id));
+    }
+
+    /**
+     * {@see get()} under a row lock, inside the caller's transaction, so concurrent approvals
+     * read each other's.
+     *
+     * @throws UnknownChangeRequest
+     */
+    public static function locked(?string $connection, StoreName $store, string $id): ChangeRequest
+    {
+        return self::on($connection)->where('store', $store->value)->whereKey($id)->lockForUpdate()->first()?->toRequest()
             ?? throw new UnknownChangeRequest(sprintf('Store [%s] has no change request [%s].', $store, $id));
     }
 

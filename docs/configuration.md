@@ -62,6 +62,7 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | Key | Default | Purpose |
 |---|---|---|
 | `writes.retry_on_conflict` | `true` | retry a plain `set()` once after a concurrent change |
+| `values.max_bytes` | `1048576` (`LARANAIL_SETTINGS_MAX_VALUE_BYTES`) | the largest value a write accepts, as its encoded payload before encryption; `null` for no limit; a larger value raises `InvalidSettingValue` |
 | `seed.enabled` | `true` (`LARANAIL_SETTINGS_SEED`) | whether `db:seed` creates the default categories |
 | `seed.stores` | `[]` | the stores to seed; empty means the default store |
 | `seed.categories` | general, appearance, localisation, mail, notifications, security | `slug => title` or `slug => [title, description, icon, parent, sort_order, translations]` |

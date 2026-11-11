@@ -64,12 +64,12 @@ Idempotency-Key: 6c0d1e8e-…
           "layer": "database", "from": "global", "version": 2, "redacted": false, "value": "Acme Ltd"}}
 ```
 
-- **ETags.** Every setting response carries an `ETag` derived from store, scope, key, locale and version. Send it back as `If-Match` and the write is checked against that version; a mismatch answers `412`.
+- **ETags.** Every setting response carries an `ETag` derived from store, scope, key, locale and version. Send it back as `If-Match` and the write or delete applies only at that version; a mismatch answers `412`.
 - **Approvals.** A write to a setting that needs approval answers `202 Accepted` with the change request.
-- **Lists** are `{"data": [...], "meta": {"next_cursor": …}}`; pass `?cursor=` for the next page and `?limit=` (1-200).
+- **Lists** are `{"data": [...], "meta": {"next_cursor": …}}`; pass `?cursor=` for the next page and `?limit=` (1-200). A cursor the list did not hand out answers `422`.
 - **Locales**: `?locale=fr`.
 - **Values the actor may not view** are left out, not masked: a list skips the key, a single setting answers `"redacted": true` without `value`.
-- **Idempotency.** A write with an `Idempotency-Key` header is answered from cache when retried (same user, method, path and key) for `http.idempotency.ttl` seconds (24 hours), with `Idempotent-Replayed: true`.
+- **Idempotency.** A write with an `Idempotency-Key` header is answered from cache when retried (same actor, host, method, path and key) for `http.idempotency.ttl` seconds (24 hours), with `Idempotent-Replayed: true`. A retry with the same key and a different body is refused with `422` and applies nothing. The stored response is encrypted with the application key, since it can hold an encrypted setting's value; without an application key, or without an actor, nothing is stored.
 
 ## Errors
 

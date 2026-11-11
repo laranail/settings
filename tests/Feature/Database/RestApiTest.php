@@ -6,12 +6,17 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Testing\TestResponse;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Schema\Blueprint;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\NewCategory;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Events\TransactionBeginning;
 use Simtabi\Laranail\Settings\Http\Support\Problems;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
@@ -19,6 +24,8 @@ use Simtabi\Laranail\Settings\Tests\Support\ApiSchemas;
 use Simtabi\Laranail\Settings\Tests\Support\JsonSchema;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
@@ -76,6 +83,26 @@ it('reads and writes a setting with ETags and If-Match', function (): void {
 
     expect(settings()->get('site.name'))->toBe('Acme Ltd')
         ->and(DB::table('settings_audit')->where('channel', 'rest')->where('action', 'update')->count())->toBe(2);
+});
+
+it('forgets on If-Match only at that version, even when the setting changes after the check', function (): void {
+    $etag = api('PUT', 'stores/settings/settings/site.name', ['value' => 'Acme'])->headers->get('ETag');
+
+    api('DELETE', 'stores/settings/settings/site.name', [], ['If-Match' => '"stale"'])->assertStatus(412);
+
+    // Another writer lands between the If-Match check and the delete, as the write's transaction opens.
+    $moved = false;
+    Event::listen(TransactionBeginning::class, static function () use (&$moved): void {
+        if (! $moved) {
+            $moved = true;
+            DB::table('settings')->where('key', 'site.name')->update(['value' => json_encode('Moved on'), 'version' => 2]);
+        }
+    });
+
+    api('DELETE', 'stores/settings/settings/site.name', [], ['If-Match' => $etag])->assertStatus(412)->assertHeader('Content-Type', 'application/problem+json');
+
+    // The simulated write ran inside the refused transaction and rolled back with it; the row is not deleted.
+    expect(DB::table('settings')->where('key', 'site.name')->count())->toBe(1);
 });
 
 it('lists, explains, locks, unlocks and forgets, for the global value and an owner', function (): void {
@@ -191,6 +218,102 @@ it('answers a retried write from the idempotency cache instead of applying it tw
     expect($retry->headers->get('Idempotent-Replayed'))->toBe('true')
         ->and($retry->getContent())->toBe($first->getContent())
         ->and(settings()->get('site.name'))->toBe('Moved on');
+});
+
+it('refuses an idempotency key reused with a different body, and applies nothing', function (): void {
+    api('PUT', 'stores/settings/settings/site.name', ['value' => 'Acme'], ['Idempotency-Key' => 'reused'])->assertOk();
+
+    test()->json('PUT', '/api/settings/v1/stores/settings/settings/site.name', ['value' => 'Other'], ['Idempotency-Key' => 'reused'])
+        ->assertUnprocessable()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertHeaderMissing('Idempotent-Replayed');
+
+    expect(settings()->get('site.name'))->toBe('Acme');
+});
+
+it('keys a replay by the resolved actor, not only by the session user', function (): void {
+    auth()->logout();
+    $this->rebootWith(['laranail.settings.http.enabled' => true, 'laranail.settings.http.middleware' => ['api']]);
+    useDatabase(['verification.driver' => 'none']);
+    allowGates(...Ability::cases());
+    // An application that finds its actor from a header rather than a Laravel guard.
+    settings()->configuration()->resolveActorsUsing(static fn ($request): ?Actor => is_numeric($request?->header('X-User'))
+        ? Actor::user(user((int) $request->header('X-User')))
+        : null);
+
+    test()->json('PUT', '/api/settings/v1/stores/settings/settings/site.name', ['value' => 'Acme'], ['Idempotency-Key' => 'shared', 'X-User' => '1'])->assertOk();
+    settings()->set('site.name', 'Moved on');
+    $other = test()->json('PUT', '/api/settings/v1/stores/settings/settings/site.name', ['value' => 'Acme'], ['Idempotency-Key' => 'shared', 'X-User' => '2'])->assertOk();
+
+    expect($other->headers->get('Idempotent-Replayed'))->toBeNull()
+        ->and($other->json('data.version'))->toBe(3);
+});
+
+it('keeps a stored idempotent response encrypted, since it can hold a secret', function (): void {
+    $directory = sys_get_temp_dir() . '/laranail-settings-idempotency-' . bin2hex(random_bytes(6));
+    config()->set('cache.stores.idempotency', ['driver' => 'file', 'path' => $directory]);
+    config()->set('laranail.settings.http.idempotency.cache', 'idempotency');
+    app(DefinitionRegistry::class)->define('mail.password')->encrypted()->register();
+    $secret = TestCredentials::secret();
+
+    api('PUT', 'stores/settings/settings/mail.password', ['value' => $secret], ['Idempotency-Key' => 'secret'])->assertOk()->assertJsonPath('data.value', $secret);
+    $replay = api('PUT', 'stores/settings/settings/mail.password', ['value' => $secret], ['Idempotency-Key' => 'secret'])->assertOk();
+
+    $files = array_filter(iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS))), static fn (SplFileInfo $file): bool => $file->isFile());
+
+    expect($replay->headers->get('Idempotent-Replayed'))->toBe('true')
+        ->and($replay->json('data.value'))->toBe($secret)
+        ->and($files)->toHaveCount(1)
+        ->and((string) file_get_contents((string) array_key_first($files)))->not->toContain($secret);
+});
+
+it('applies values.max_bytes to REST writes, imports and promotion alike', function (): void {
+    config()->set('laranail.settings.values.max_bytes', 64);
+    app()->forgetInstance(ValuePipeline::class);
+    app()->forgetScopedInstances();
+    $big = str_repeat('x', 100);
+
+    api('PUT', 'stores/settings/settings/site.name', ['value' => $big])->assertUnprocessable()
+        ->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#invalid-value');
+
+    $document = ['format' => 'laranail/settings', 'version' => 1, 'store' => 'settings', 'mode' => 'redacted', 'exported_at' => now()->toIso8601String(), 'categories' => [],
+        'settings'        => [['scope' => 'global', 'key' => 'site.name', 'locale' => '', 'value' => $big, 'encrypted' => false]]];
+    api('POST', 'stores/settings/import', ['document' => $document, 'apply' => true])->assertUnprocessable()->assertJsonPath('detail', fn (string $detail): bool => str_contains($detail, 'over the 64-byte limit'));
+
+    Storage::disk('local')->put('laranail/settings/settings.json', (string) json_encode(['records' => [
+        ['scope' => 'global', 'key' => 'site.tagline', 'locale' => '', 'payload' => json_encode($big), 'version' => 1],
+    ]]));
+
+    expect(fn (): PromotionReport => settings()->asSystem()->promote())->toThrow(InvalidSettingValue::class)
+        ->and(DB::table('settings')->count())->toBe(0);
+});
+
+it('refuses a malformed cursor instead of serving the first page', function (string $uri): void {
+    settings()->set('site.name', 'Acme');
+
+    api('GET', $uri . '?cursor=' . rawurlencode('not a cursor!'))->assertUnprocessable()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonStructure(['errors' => ['cursor']]);
+})->with([
+    'settings' => ['stores/settings/settings'],
+    'owner'    => ['stores/settings/owners/user/1/settings'],
+    'history'  => ['stores/settings/settings/site.name/history'],
+    'changes'  => ['stores/settings/changes'],
+    'audit'    => ['audit'],
+]);
+
+it('accepts the cursors its listings hand out', function (): void {
+    settings()->set('site.name', 'Acme');
+    settings()->set('site.name', 'Acme Ltd');
+    settings()->set('theme', 'dark');
+
+    $settings = api('GET', 'stores/settings/settings?limit=1')->json('meta.next_cursor');
+    $history = api('GET', 'stores/settings/settings/site.name/history?limit=1')->json('meta.next_cursor');
+    $audit = api('GET', 'audit?limit=1')->json('meta.next_cursor');
+
+    api('GET', 'stores/settings/settings?limit=1&cursor=' . rawurlencode((string) $settings))->assertOk()->assertJsonPath('data.0.key', 'theme');
+    api('GET', 'stores/settings/settings/site.name/history?limit=1&cursor=' . rawurlencode((string) $history))->assertOk()->assertJsonCount(1, 'data');
+    api('GET', 'audit?limit=1&cursor=' . rawurlencode((string) $audit))->assertOk()->assertJsonCount(1, 'data');
 });
 
 it('needs an authenticated user and switches route groups off', function (): void {
