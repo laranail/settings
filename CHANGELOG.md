@@ -7,44 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- **Runtime overrides.** `override()`, `forgetOverride()`, `hasOverride()`, `clearOverrides()` and
-  `withOverrides()` on the `Settings` handle hold a value in memory for the current request or job,
-  ahead of every stored layer. An override is keyed like a stored value (store, owner, key, locale)
-  and follows the same owner, parents and global walk, so a global override reaches every owner
-  that has none of its own. It is validated and cast as a write is (including `values.max_bytes`),
-  never written, cached, audited, versioned or encrypted, needs no write ability, wins over locks
-  and precedence, and is not exposed over the REST API. `explain()` reports the layer `override`,
-  `laranail::settings.show` marks it, typed settings `load()` reads it and `save()` never persists
-  it, and the fake supports it. The new `Services\Resolution\Overrides` is bound scoped, so Octane
-  and the queue worker drop overrides between requests and jobs. See
-  `docs/tools/runtime-overrides.md`.
-
-## [0.1.1] - 2026-11-14
-
-### Added
-
-- **Importers read from filesystem disks.** `laranail::settings.import --disk=<name>` reads an
-  export file, or the `toolkit` importer's JSON file, from any configured disk, with the source as
-  the path on it; local paths work as before. In PHP, the new `Contracts\DiskImporter` adds
-  `readFromDisk(?string $disk, ?string $path, StoreName $store)`, which `ToolkitJsonImporter`
-  implements through the injected filesystem factory. With no source, the `toolkit` importer reads
-  toolkit's own file from `laranail.toolkit.settings`' disk and path when that config is loaded,
-  otherwise `laranail/settings.json` on `local`; toolkit itself is not needed. The command's
-  `source` argument is now optional. The REST import takes a document, so it has no disk option.
-
-### Fixed
-
-- **Importers no longer overwrite colliding keys in silence.** Source keys that normalise to the
-  same settings key (differing by case, `-`, `_` or spaces, or toolkit's nested and dotted spelling
-  of one path) made the later one win with no report. The `spatie`, `toolkit` and `akaunting`
-  importers now fail with `InvalidImport` naming every colliding group
-  (`[Mail-Host, mail_host] -> mail_host`) before anything is written, in a dry run and when
-  applied. Input without collisions imports exactly as before. `ImportedKeys::values()` applies the
-  same check for a custom importer.
-
-## [0.1.0] - 2026-11-11
+## [0.1.0] - 2026-11-14
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
 `Security` matter only to a checkout taken before the first tag, and [Upgrading](docs/upgrading.md)
@@ -126,6 +89,25 @@ has the steps for one.
 - `values.max_bytes` (`LARANAIL_SETTINGS_MAX_VALUE_BYTES`, default 1 MiB, `null` for no limit):
   every write path (the PHP API, REST, import, promotion, approvals) refuses a value whose encoded
   payload is larger, with `InvalidSettingValue` (REST `422 invalid-value`).
+- **Runtime overrides.** `override()`, `forgetOverride()`, `hasOverride()`, `clearOverrides()` and
+  `withOverrides()` on the `Settings` handle hold a value in memory for the current request or job,
+  ahead of every stored layer. An override is keyed like a stored value (store, owner, key, locale)
+  and follows the same owner, parents and global walk, so a global override reaches every owner
+  that has none of its own. It is validated and cast as a write is (including `values.max_bytes`),
+  never written, cached, audited, versioned or encrypted, needs no write ability, wins over locks
+  and precedence, and is not exposed over the REST API. `explain()` reports the layer `override`,
+  `laranail::settings.show` marks it, typed settings `load()` reads it and `save()` never persists
+  it, and the fake supports it. The new `Services\Resolution\Overrides` is bound scoped, so Octane
+  and the queue worker drop overrides between requests and jobs. See
+  `docs/tools/runtime-overrides.md`.
+- **Importers read from filesystem disks.** `laranail::settings.import --disk=<name>` reads an
+  export file, or the `toolkit` importer's JSON file, from any configured disk, with the source as
+  the path on it; local paths work as before. In PHP, the new `Contracts\DiskImporter` adds
+  `readFromDisk(?string $disk, ?string $path, StoreName $store)`, which `ToolkitJsonImporter`
+  implements through the injected filesystem factory. With no source, the `toolkit` importer reads
+  toolkit's own file from `laranail.toolkit.settings`' disk and path when that config is loaded,
+  otherwise `laranail/settings.json` on `local`; toolkit itself is not needed. The command's
+  `source` argument is now optional. The REST import takes a document, so it has no disk option.
 
 ### Changed
 
@@ -194,6 +176,13 @@ Each was removed before the first tag; none was in a tagged release.
   The `StreamExport` action is new; `export()` still returns the `ExportDocument`. (SP-10)
 - Two overlapping `sync-definitions` runs no longer fail on each other's rows: the second waits up
   to five seconds for a cache lock, then reports `busy` and changes nothing. (SP-11)
+- **Importers no longer overwrite colliding keys in silence.** Source keys that normalise to the
+  same settings key (differing by case, `-`, `_` or spaces, or toolkit's nested and dotted spelling
+  of one path) made the later one win with no report. The `spatie`, `toolkit` and `akaunting`
+  importers now fail with `InvalidImport` naming every colliding group
+  (`[Mail-Host, mail_host] -> mail_host`) before anything is written, in a dry run and when
+  applied. Input without collisions imports exactly as before. `ImportedKeys::values()` applies the
+  same check for a custom importer.
 
 ### Security
 

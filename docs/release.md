@@ -4,7 +4,7 @@ How `laranail/settings` is versioned and released.
 
 ## Versioning
 
-Semantic versioning. Every release is a new, increasing tag (`v0.1.0`, `v0.1.1`, …). A published
+Semantic versioning. Every release is a new, increasing tag (`v0.1.0`, then `v0.1.1`, …). A published
 tag is never moved, deleted or reused: the next fix gets the next number. Breaking changes before
 1.0 bump the minor version and are listed in [Upgrading](upgrading.md).
 
