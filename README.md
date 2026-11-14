@@ -13,6 +13,22 @@ Requires PHP 8.4.1+ or 8.5 and Laravel 13. Works on MySQL, PostgreSQL and SQLite
 > **Pre-1.0.** 0.1.0 is the first tagged release. Before 1.0 a minor release may change the API;
 > [Upgrading](docs/upgrading.md) and the [CHANGELOG](CHANGELOG.md) say what changed.
 
+```mermaid
+flowchart LR
+    php["PHP API: facade, settings(), HasSettings, typed classes"] --> actions
+    rest["REST API, opt-in"] --> actions
+    cli["Artisan commands"] --> actions
+    actions["the same actions: authorize, validate, write, audit"] --> stores
+    subgraph stores ["Stores, each holding values per owner: the application, a user, a tenant, a product"]
+        direction LR
+        database["database layer"] --> runtime["runtime JSON file"] --> shipped["shipped defaults file"]
+    end
+```
+
+Reads walk a store's layers in order. While the application installs, a store in bootstrap mode
+is answered by its files, and `promote` later moves what was written to them into the database. [Architecture](docs/architecture.md)
+has the read and write paths and the tables.
+
 ## Install
 
 ```bash

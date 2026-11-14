@@ -18,6 +18,164 @@ database exists, and after it does.
 - **Categories.** A shared `settings_categories` table, scoped per store, organises settings for
   people and interfaces; `group` remains a lightweight code namespace.
 
+## How a read resolves
+
+`Services\Resolution\Resolver` walks the cascade one scope at a time: the owner, then its parents
+(only when the definition, or else the store, inherits), then the global value. At each scope it
+tries the requested locale, the fallback locale and no locale, and within each the store's layers
+in their configured order; the first stored value wins, and a stored `null` is an answer. Nothing
+stored anywhere falls through to the definition's default, then to the default passed to `get()`.
+The diagram shows the default store's layers; a store lists its own.
+
+```mermaid
+flowchart TD
+    read["get('ui.theme') on a handle for user:7"] --> owner["owner scope, user:7"]
+    owner -->|nothing stored| parents["parent scopes, e.g. team:3, when the setting inherits"]
+    parents -->|nothing stored| global["global scope"]
+    global -->|nothing stored| definition["the definition's default"]
+    definition -->|no default| caller["the default passed to get()"]
+    owner -.-> layers
+    parents -.-> layers
+    global -.-> layers
+    subgraph layers ["At each scope and locale, the store's layers in order; the first stored value wins"]
+        direction LR
+        database["database"] --> runtime["runtime JSON file"] --> shipped["shipped PHP file"]
+    end
+    subgraph loading ["How the database layer loads a scope"]
+        direction LR
+        preloaded["rows preloaded this request"] -->|miss| bag["cached bag for the scope"] -->|miss or old generation| query["one query on the values table"]
+    end
+    database -.-> preloaded
+```
+
+The cache sits inside the database layer (`Drivers\CachingDriver`), never in front of a resolved
+value, so a write invalidates one scope's bag (see [Why cache raw bags?](#why-cache-raw-bags)). A
+store in bootstrap mode skips its database layer while an install is under way, and the files answer.
+
+## How a write runs
+
+Every write, from any channel, is one action. The sequence below is `set()`; `forget()`, `lock()`,
+`unlock()`, a rollback and an approved change request take the same path.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller as Caller, from PHP, REST or a command
+    participant Guard as SetSetting and WriteGuard
+    participant Access as AccessGuard
+    participant Writer as SettingWriter
+    participant Values as ValuePipeline
+    participant Db as Database layer
+    Caller->>Guard: set key to value
+    Guard->>Access: authorize update, token ceiling then authorizer then step-up
+    alt the setting needs approval
+        Guard-->>Caller: a change request is opened instead, nothing is written
+    end
+    Guard->>Db: begin AuditedTransaction
+    Guard->>Writer: write
+    Writer->>Writer: refuse a locked row or an owner alias the store does not list
+    Writer->>Db: read the current row, FOR UPDATE on the retry
+    Writer->>Writer: compare the expected version, ConcurrentModification on a mismatch
+    Writer->>Values: validate, cast, encode, check values.max_bytes, encrypt
+    Writer->>Db: UPDATE at the version, else restore a trashed row, else INSERT in a savepoint
+    Writer->>Db: append the settings_history row
+    Guard->>Db: append the settings_audit row, outcome allowed
+    Guard->>Db: commit
+    Db-->>Caller: after commit, rotate the scope's cache generation and dispatch SettingSaved
+```
+
+A plain `set()` that loses a race retries once (`writes.retry_on_conflict`); a write naming an
+expected version (`If-Match`) never does. A failure rolls the change, its history and its audit
+row back together, and records a `failed` audit entry outside the transaction. A store without a
+database layer writes to its first writable file layer, with no history row.
+
+## The tables
+
+The one migration creates these tables, on the store's connection. `settings` is the default
+store's values table; each database store has its own, of the same shape. `settings_definitions`
+and `settings_stores` live on the default store's connection only. A dedicated store has an
+`owner_id` foreign key to its owner table instead of `settable_type` and `settable_id`, and in
+`column` tenancy every table except those two gains a `tenant` column that leads its keys.
+
+```mermaid
+erDiagram
+    settings_categories |o--o{ settings_categories : "parent_id"
+    settings_categories |o--o{ settings : "category_id, category_store"
+    settings_categories |o--o{ settings_definitions : "category_id"
+    settings ||..o{ settings_history : "uid is setting_ref"
+    settings ||..o{ settings_change_requests : "store, scope, key, locale"
+    settings_change_requests ||..o{ settings_audit : "change_request"
+    settings_categories {
+        ulid id PK
+        string store UK
+        string slug UK
+        ulid parent_id FK
+        json title
+        boolean is_system
+    }
+    settings {
+        ulid id PK
+        string scope UK "global or alias:id"
+        string key UK
+        string locale UK
+        ulid uid UK
+        string settable_type
+        string settable_id
+        ulid category_id FK
+        longText value
+        boolean is_encrypted
+        boolean is_locked
+        int version
+        timestamp deleted_at
+    }
+    settings_definitions {
+        ulid id PK
+        string store UK
+        string key UK
+        string slug UK
+        ulid category_id FK
+        string type
+        boolean is_system
+    }
+    settings_history {
+        ulid id PK
+        string setting_ref
+        string scope
+        string key
+        int version
+        longText old_value
+        longText new_value
+    }
+    settings_change_requests {
+        ulid id PK
+        string scope
+        string key
+        longText payload
+        int base_version
+        string status
+        timestamp expires_at
+    }
+    settings_audit {
+        ulid id PK
+        timestamp occurred_at
+        string action
+        string outcome
+        string scope
+        string key
+        string change_request
+        string channel
+    }
+    settings_stores {
+        ulid id PK
+        string kind UK
+        string name UK
+        json config
+    }
+```
+
+Solid lines are foreign keys; dotted lines are joins the package makes without one. Every column
+is listed in [Database](tools/database.md).
+
 ## How the code is layered
 
 | Layer | Holds | Examples |

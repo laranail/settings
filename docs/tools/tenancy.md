@@ -19,6 +19,22 @@ two tenants can hold the same key, and `''` is the central application's rows. T
 Definitions are shared by every tenant: they describe settings, they hold no tenant's values. In
 `column` mode, synced definitions link to the central (`''`) categories.
 
+```mermaid
+flowchart TD
+    call["a read or a write"] --> mode{"tenancy.mode"}
+    mode -->|none| single["one set of rows, no tenant column"]
+    mode -->|column| current["the TenantDiscriminator names the current tenant, or '' outside one"]
+    current --> stamp["each write stamps the tenant column"]
+    current --> filter["each query adds where tenant is the current one, in the driver and the models' tenant scope"]
+    stamp --> unique["tenant leads the unique keys, so two tenants can hold the same key"]
+    mode -->|database| connection["the tenancy package switches the connection"]
+    connection --> own["the store queries the current tenant's own tables"]
+    single --> cache["cache keys and preloaded rows are partitioned by tenant in every mode"]
+    unique --> cache
+    filter --> cache
+    own --> cache
+```
+
 ## Who the current tenant is
 
 ```php
