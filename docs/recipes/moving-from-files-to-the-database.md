@@ -111,6 +111,33 @@ Settings::store('settings')->asSystem('installer')->promoteWhenReady();
 It promotes at once when it can, and otherwise sets the store to `auto` for the rest of the
 request, job or command.
 
+## The lifecycle
+
+Manual and automatic promotion are the same action, `Actions\PromoteStore`; they differ in what
+starts it and in how a held lock is reported.
+
+```mermaid
+flowchart TD
+    install["Bootstrap mode: writes go to the runtime file"] --> migrate["php artisan migrate"]
+    migrate --> mode{"the store's promote mode"}
+    mode -->|manual| command["laranail::settings.promote, or promote() in code"]
+    mode -->|auto| triggers["MigrationsEnded, each request once the response is sent, each queued job"]
+    code["promoteWhenReady() in code"] --> ready
+    triggers --> ready{"the file holds a selected value, the database answers and the table exists"}
+    ready -->|no| later["nothing runs; promoteWhenReady() sets the store to auto for the rest of the request"]
+    ready -->|yes| lock{"the promote lock"}
+    command --> lock
+    lock -->|held elsewhere| held["automatic: skipped quietly. Command: PromotionLocked"]
+    lock -->|taken| copy["copy the selected values in one audited transaction, skipping keys already in the database and, in a strict store, undefined keys"]
+    copy -->|fails| failed["automatic: a warning is logged, the file keeps answering, the next run retries"]
+    copy --> left{"values the selection left out"}
+    left -->|none| archive["archive the file as settings.promoted-timestamp.json"]
+    left -->|some| remainder["archive the original, rewrite the file with the remainder"]
+    left -->|all of them| untouched["the file is left as it is"]
+    archive --> done["reads come from the database"]
+    remainder --> done
+```
+
 ## Leaving bootstrap mode
 
 Once the values are in the database, remove `LARANAIL_SETTINGS_BOOTSTRAP`. From then on an unreachable database raises

@@ -9,7 +9,7 @@ Nineteen Artisan commands, all named `laranail::settings.<command>`.
 | `laranail::settings.install` | publishes the config and the package's one migration, syncs definitions once the table exists; refuses to run over a foreign table of the same name |
 | `laranail::settings.make-store {store} [--owner=*] [--connection=]` | writes a new store's migration (a copy of the package migration pinned to that store) and prints its configuration entry |
 | `laranail::settings.promote [store] [--force] [--from=] [--only=] [--owner=]` | copies values written before install from the runtime file into the database; `--only=settings,owners` and `--owner=user,team` copy only some (default: the store's resolved `promote` options), and the rest stay in the file |
-| `laranail::settings.doctor [--json] [--fix]` | checks readiness, missing columns and rows the database cannot guard; `--fix` syncs definitions first |
+| `laranail::settings.doctor [--json] [--fix]` | checks each database store's readiness, waiting automatic promotion, columns, owner key type, scopes, encryption, overdue change requests and categories, then definitions and persisted configuration; `--fix` syncs definitions first |
 | `laranail::settings.show {key} [--store=] [--owner=] [--locale=] [--reveal]` | prints how one setting resolves: value, layer, scope, type, version, flags and the latest audit entry |
 | `laranail::settings.sync-definitions` | copies code and config definitions into the definitions table as system rows |
 | `laranail::settings.prune-orphans [--dry-run]` | removes the settings of owners that no longer exist |

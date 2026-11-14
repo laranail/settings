@@ -46,6 +46,40 @@ Every route, with request and response examples, status codes and problem types,
 
 Each route runs the same action the PHP API runs, and a test reading the live router fails if a route names no controller method, a controller method is not routed, or one does not delegate to an action.
 
+## How a request is handled
+
+A write, end to end. A read takes the same path without the idempotency middleware, `If-Match`
+or a change request.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Mw as http.middleware, throttle and IdempotentWrites
+    participant Ctl as SettingsController
+    participant Access as ApiActor and AccessGuard
+    participant Action as SetSetting
+    Client->>Mw: PUT /api/settings/v1/stores/settings/settings/site.name
+    Mw->>Mw: authenticate, rate limit
+    alt Idempotency-Key already answered
+        Mw-->>Client: the stored response, Idempotent-Replayed true
+    end
+    Mw->>Ctl: the request
+    Ctl->>Access: resolve the actor on the rest channel, 401 for nobody or the system actor
+    Ctl->>Ctl: If-Match against the current ETag, 412 on a mismatch
+    Ctl->>Action: handle the write with the actor and the expected version
+    Action->>Access: token ability laranail-settings:update, then the authorizer, then step-up
+    alt written
+        Ctl-->>Mw: 200 with the setting and its new ETag
+    else the setting needs approval
+        Ctl-->>Mw: 202 with the change request
+    else refused or invalid
+        Ctl-->>Mw: problem+json, e.g. 403, 412, 422, 423 or 428
+    end
+    Mw->>Mw: store the response under the Idempotency-Key, unless it is a 5xx
+    Mw-->>Client: the response
+```
+
 ## Requests and responses
 
 A setting:

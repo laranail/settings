@@ -65,6 +65,29 @@ The last approval applies the change through the normal write pipeline, with the
 | `stale` | the setting changed first; nothing written |
 | `expired` | not decided in time; nothing written |
 
+```mermaid
+stateDiagram-v2
+    [*] --> open: propose(), or a write that needs approval
+    state open {
+        [*] --> pending
+        pending --> approved: an approval, more still needed
+        approved --> approved: another approval, more still needed
+    }
+    open --> applied: the last approval, setting still at its base version
+    open --> stale: the last approval, setting changed since
+    open --> rejected: reject() by an approver
+    open --> cancelled: cancel() by the requester
+    open --> expired: past expires_at, found on a decision or by prune-changes
+    applied --> [*]
+    stale --> [*]
+    rejected --> [*]
+    cancelled --> [*]
+    expired --> [*]
+```
+
+`pending` and `approved` are open; every other status is final, and `prune-changes` deletes a
+final request once it is older than `approvals.keep_days`.
+
 Events, all dispatched after commit and carrying identifiers only: `ChangeRequested`, `ChangeApproved` (with how many approvals remain), `ChangeApplied` (with the new version), `ChangeRejected`, `ChangeCancelled`, `ChangeStale`. The audit trail records the proposal (`propose`, outcome `pending`), each approval, the rejection or cancellation, and a self-approval refused, each with the change request's id.
 
 ## Where requests are kept
