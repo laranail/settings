@@ -1,0 +1,131 @@
+name: Static analysis
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      paths:
+        description: Comma-separated src/ files to mutate (empty = everything)
+        required: false
+        default: ''
+  # The whole-package mutation run (every src file) is weekly; pull requests skip it.
+  schedule:
+    - cron: '23 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: static-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Pint · PHPStan · Rector
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: dom, curl, libxml, mbstring, zip, fileinfo
+          coverage: none
+
+      - name: Cache Composer files
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/composer/files
+          key: composer-static-${{ hashFiles('composer.json') }}
+          restore-keys: composer-static-
+
+      - name: Drop cached laranail archives
+        # laranail/* resolve through a single MOVING v0.1.0 tag, so composer's
+        # dist cache is keyed on a name whose contents change underneath it. A
+        # restored archive is then silently stale: `composer install` reports
+        # success and unpacks whatever was cached the first time. That is how
+        # `vendor/bin/laranail-pint` went missing here while the tag carried it.
+        # Everything else is immutable per version and stays cached.
+        # POSIX command: Windows runners default to PowerShell, where this
+        # is a Remove-Item parse error rather than a no-op. Git Bash ships on
+        # the Windows images, so one line makes the step portable.
+        shell: bash
+        run: rm -rf "$(composer config cache-files-dir)/laranail"
+
+      - name: Install dependencies
+        run: composer update --prefer-stable --no-interaction --no-progress
+
+      - name: Pint (code style)
+        run: vendor/bin/laranail-pint --test
+
+      - name: PHPStan (level max)
+        run: vendor/bin/phpstan analyse --no-progress --error-format=github
+
+      - name: Rector (dry run)
+        run: vendor/bin/rector process --dry-run --no-progress-bar
+
+  mutation:
+    name: Mutation testing (Pest)
+    # Weekly and on dispatch only (owner decision, 2026-11-10): pull requests skip it to keep CI
+    # spend down. The scheduled run mutates the whole package and fails below 70 %. A dispatch
+    # with `paths` set mutates only those files.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: dom, curl, libxml, mbstring, zip, fileinfo, pdo, sqlite3, pdo_sqlite
+          # Pest mutation testing needs a coverage driver; PCOV is several times faster than Xdebug.
+          coverage: pcov
+
+      - name: Install dependencies
+        run: composer update --prefer-stable --no-interaction --no-progress
+
+      # Pest caches each mutant's result by the code and tests it depends on; restoring it means
+      # a re-run (a fix pushed to the same pull request) only tests what changed.
+      - name: Restore the mutation cache
+        uses: actions/cache@v6
+        with:
+          path: /tmp/pest-mutate-cache
+          key: pest-mutate-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            pest-mutate-${{ github.head_ref || github.ref_name }}-
+            pest-mutate-main-
+
+      - name: Choose what to mutate
+        id: scope
+        env:
+          INPUT_PATHS: ${{ github.event.inputs.paths }}
+        run: |
+          echo "paths=${INPUT_PATHS}" >> "$GITHUB_OUTPUT"
+          echo "Mutating: ${INPUT_PATHS:-everything}"
+
+      - name: Mutation testing (minimum score 70)
+        # Pest's own mutator, not Infection: Infection has no Pest adapter, reads Pest's
+        # version as PHPUnit's, writes a config PHPUnit 12 rejects, and cannot map Pest's
+        # generated test classes to its JUnit report. Group `shared-app` writes into the
+        # testbench application every process shares, so it is left out; the Tests workflow
+        # runs it. It also carries group `mutation-excluded`, which is what is excluded: under
+        # --parallel Pest honours only the first --exclude-group.
+        env:
+          MUTATE_PATHS: ${{ steps.scope.outputs.paths }}
+        run: |
+          if [ -n "$MUTATE_PATHS" ]; then
+            vendor/bin/pest --mutate --path="$MUTATE_PATHS" --parallel --processes=8 --exclude-group=mutation-excluded --ignore-min-score-on-zero-mutations --min=70
+          else
+            vendor/bin/pest --mutate --everything --parallel --processes=8 --exclude-group=mutation-excluded --min=70
+          fi

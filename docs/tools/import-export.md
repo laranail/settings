@@ -1,0 +1,65 @@
+# Import and export
+
+A store as one portable JSON document: categories by slug, settings by scope, key and locale, never by a numeric id.
+
+## The document
+
+```json
+{
+    "format": "laranail/settings",
+    "version": 1,
+    "store": "settings",
+    "mode": "redacted",
+    "exported_at": "2026-11-10T09:00:00+00:00",
+    "categories": [{"slug": "mail", "title": "Mail"}, {"slug": "smtp", "title": "SMTP", "parent": "mail"}],
+    "settings": [
+        {"scope": "global", "key": "mail.port", "locale": "", "value": 587},
+        {"scope": "global", "key": "mail.password", "locale": "", "redacted": true, "encrypted": true},
+        {"scope": "user:7", "key": "theme", "locale": "", "value": "dark", "locked": true}
+    ]
+}
+```
+
+A value is the stored JSON exactly as it is, so nothing is lost whatever its type. Only the current tenant's rows are exported.
+
+## Secrets
+
+| Mode | Encrypted values | How |
+|---|---|---|
+| `redacted` (default) | left out | `export()` / `laranail::settings.export` |
+| `ciphertext` | the stored ciphertext: importable only under the same `APP_KEY`, or one in `APP_PREVIOUS_KEYS` | `ExportMode::Ciphertext` / `--with-secrets` |
+| `plaintext` | decrypted; needs `view_sensitive` too | `ExportMode::Plaintext` / `--decrypt`, which asks you to type the store name (or `--confirm=<store>`) |
+
+Nothing is ever logged, and the audit entry records the mode and the counts only.
+
+## Exporting, comparing, importing
+
+```php
+$document = $settings->as($admin)->export();                    // needs export
+$diff = $settings->as($admin)->compare($document);              // added, removed, changed, unchanged, unknown
+$preview = $settings->as($admin)->previewImport($document);      // what an import would do
+$report = $settings->as($admin)->import($document);             // needs import
+```
+
+```bash
+php artisan laranail::settings.export storage/settings.json --with-secrets
+php artisan laranail::settings.diff storage/settings.json          # exits 1 when they differ
+php artisan laranail::settings.import storage/settings.json         # a dry run
+php artisan laranail::settings.import storage/settings.json --apply
+php artisan laranail::settings.import storage/settings.json --apply --trusted
+php artisan laranail::settings.import exports/settings.json --disk=s3 --apply   # read the file from a disk
+```
+
+`--disk=<name>` reads the file from any configured filesystem disk, with the source as the path on that disk; without it the source is a local path, as before. The REST import takes the document in the request body, so it has no disk option.
+
+The console command and `POST /stores/{store}/export` stream the document, reading 500 rows at a time, so a large store is never held in memory; the bytes are the ones `export()->toJson()` gives. In PHP, the `StreamExport` action (`handle($request, $stream, $actor)`) writes to any stream; `export()` still returns the whole `ExportDocument`.
+
+An import creates missing categories first, by slug, parents before children, then writes each setting through the normal write pipeline as the actor: validated and cast under the destination's definition, encrypted, with history and one audit entry per key. A setting that needs approval opens a change request instead (the report lists them). Everything runs in one transaction, so one failed write leaves the store as it was. Redacted values, owners the store does not accept and global values for a dedicated store are skipped, each with its reason in the report.
+
+Locks and system categories in a document are applied only by a trusted import (`--trusted` on the console); the PHP `import()` and the REST API never apply them. `import` needs step-up verification by default (`verification.abilities`).
+
+Other packages' settings are read by [importers](importers.md).
+
+---
+
+[← Docs index](../../README.md#documentation)

@@ -1,0 +1,12 @@
+{
+    "name": "laranail/settings-phpbench",
+    "description": "phpbench for laranail/settings' benchmarks, installed apart from the package so its dependencies (doctrine/annotations, abandoned) never enter the package's tree or its composer audit.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "phpbench/phpbench": "^1.4"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

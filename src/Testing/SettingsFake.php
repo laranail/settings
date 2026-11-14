@@ -1,0 +1,399 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Simtabi\Laranail\Settings\Testing;
+
+use Illuminate\Http\Request;
+use PHPUnit\Framework\Assert;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Lookup;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Data\HistoryDiff;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
+use Simtabi\Laranail\Settings\History\HistoryQuery;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
+use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+
+/**
+ * The real engine over in-memory layers, recording writes and audit entries for assertions.
+ * Installed by `Settings::fake()`, before the code under test resolves `Settings`.
+ */
+final readonly class SettingsFake implements Settings
+{
+    /** @param FakeLog $log shared by every handle derived from this fake */
+    public function __construct(
+        private Settings $inner,
+        private FakeLog $log = new FakeLog,
+    ) {}
+
+    public function store(string $name): static
+    {
+        return new self($this->inner->store($name), $this->log);
+    }
+
+    public function for(Settable|OwnerRef $owner): static
+    {
+        return new self($this->inner->for($owner), $this->log);
+    }
+
+    public function locale(string $locale): static
+    {
+        return new self($this->inner->locale($locale), $this->log);
+    }
+
+    public function as(Authenticatable|Actor $actor): static
+    {
+        return new self($this->inner->as($actor), $this->log);
+    }
+
+    public function asSystem(?string $reason = null): static
+    {
+        return new self($this->inner->asSystem($reason), $this->log);
+    }
+
+    public function asCurrentActor(?Request $request = null): static
+    {
+        return new self($this->inner->asCurrentActor($request), $this->log);
+    }
+
+    public function because(string $reason): static
+    {
+        return new self($this->inner->because($reason), $this->log);
+    }
+
+    public function actor(): ?Actor
+    {
+        return $this->inner->actor();
+    }
+
+    public function configuration(): RuntimeConfiguration
+    {
+        return $this->inner->configuration();
+    }
+
+    public function withConfiguration(callable $change, callable $run): mixed
+    {
+        return $this->inner->withConfiguration($change, $run);
+    }
+
+    /** Held in memory by the real engine; not recorded, so assertSaved() never sees it. */
+    public function override(string|array $key, mixed $value = null): void
+    {
+        $this->inner->override($key, $value);
+    }
+
+    public function forgetOverride(string $key): void
+    {
+        $this->inner->forgetOverride($key);
+    }
+
+    public function hasOverride(string $key): bool
+    {
+        return $this->inner->hasOverride($key);
+    }
+
+    public function clearOverrides(): void
+    {
+        $this->inner->clearOverrides();
+    }
+
+    public function withOverrides(array $values, callable $run): mixed
+    {
+        return $this->inner->withOverrides($values, $run);
+    }
+
+    public function get(string $key, mixed $default = null): mixed
+    {
+        return $this->inner->get($key, $default);
+    }
+
+    public function lookup(string $key): Lookup
+    {
+        return $this->inner->lookup($key);
+    }
+
+    public function has(string $key): bool
+    {
+        return $this->inner->has($key);
+    }
+
+    public function missing(string $key): bool
+    {
+        return $this->inner->missing($key);
+    }
+
+    public function many(array $keys): array
+    {
+        return $this->inner->many($keys);
+    }
+
+    public function all(?string $prefix = null): array
+    {
+        return $this->inner->all($prefix);
+    }
+
+    public function definitions(): array
+    {
+        return $this->inner->definitions();
+    }
+
+    public function string(string $key): string
+    {
+        return $this->inner->string($key);
+    }
+
+    public function integer(string $key): int
+    {
+        return $this->inner->integer($key);
+    }
+
+    public function float(string $key): float
+    {
+        return $this->inner->float($key);
+    }
+
+    public function boolean(string $key): bool
+    {
+        return $this->inner->boolean($key);
+    }
+
+    public function array(string $key): array
+    {
+        return $this->inner->array($key);
+    }
+
+    public function explain(string $key): Explanation
+    {
+        return $this->inner->explain($key);
+    }
+
+    public function set(string $key, mixed $value): void
+    {
+        $this->inner->set($key, $value);
+        $this->log->saved[] = [$key, $value];
+    }
+
+    public function forget(string $key): void
+    {
+        $this->inner->forget($key);
+        $this->log->forgotten[] = $key;
+    }
+
+    /** Routed through set() so assertSaved() sees every key. */
+    public function setMany(array $values): void
+    {
+        foreach ($values as $key => $value) {
+            $this->set($key, $value);
+        }
+    }
+
+    /** Routed through forget() so assertForgotten() sees every key. */
+    public function forgetMany(iterable $keys): void
+    {
+        foreach ($keys as $key) {
+            $this->forget($key);
+        }
+    }
+
+    /** Routed through set() so assertSaved() sees the write. */
+    public function remember(string $key, callable $value): mixed
+    {
+        $lookup = $this->inner->lookup($key);
+
+        if ($lookup->isFound()) {
+            return $lookup->value();
+        }
+
+        $computed = $value();
+        $this->set($key, $computed);
+
+        return $this->inner->get($key, $computed);
+    }
+
+    public function lock(string $key): void
+    {
+        $this->inner->lock($key);
+    }
+
+    public function unlock(string $key): void
+    {
+        $this->inner->unlock($key);
+    }
+
+    /** Assert the key was saved, and with exactly this value when one is given. */
+    public function flush(): void
+    {
+        $this->inner->flush();
+    }
+
+    public function clearCache(): void
+    {
+        $this->inner->clearCache();
+    }
+
+    public function warmCache(): int
+    {
+        return $this->inner->warmCache();
+    }
+
+    public function preload(iterable $owners): void
+    {
+        $this->inner->preload($owners);
+    }
+
+    public function categories(): CategoryManager
+    {
+        return $this->inner->categories();
+    }
+
+    public function promote(?PromotionRequest $request = null): PromotionReport
+    {
+        return $this->inner->promote($request);
+    }
+
+    public function promoteWhenReady(?PromotionSelection $only = null): ?PromotionReport
+    {
+        return $this->inner->promoteWhenReady($only);
+    }
+
+    public function promotion(): PromotionSettings
+    {
+        return $this->inner->promotion();
+    }
+
+    public function audit(): AuditQuery
+    {
+        return $this->inner->audit();
+    }
+
+    public function history(): HistoryQuery
+    {
+        return $this->inner->history();
+    }
+
+    public function rollback(string $key, int $toVersion): int
+    {
+        return $this->inner->rollback($key, $toVersion);
+    }
+
+    public function historyDiff(string $key, int $from, int $to): HistoryDiff
+    {
+        return $this->inner->historyDiff($key, $from, $to);
+    }
+
+    public function propose(string $key, mixed $value): ChangeRequest
+    {
+        return $this->inner->propose($key, $value);
+    }
+
+    public function approvals(): Approvals
+    {
+        return $this->inner->approvals();
+    }
+
+    public function export(ExportMode $mode = ExportMode::Redacted): ExportDocument
+    {
+        return $this->inner->export($mode);
+    }
+
+    public function import(ExportDocument $document): ImportReport
+    {
+        return $this->inner->import($document);
+    }
+
+    public function previewImport(ExportDocument $document): ImportReport
+    {
+        return $this->inner->previewImport($document);
+    }
+
+    public function compare(ExportDocument $document): StoreDiff
+    {
+        return $this->inner->compare($document);
+    }
+
+    public function persistedConfiguration(): PersistedConfigurationEditor
+    {
+        return $this->inner->persistedConfiguration();
+    }
+
+    public function assertSaved(string $key, mixed ...$value): void
+    {
+        $checksValue = $value !== [];
+        $expected = $value[0] ?? null;
+        $matches = array_filter(
+            $this->log->saved,
+            static fn (array $write): bool => $write[0] === $key && (! $checksValue || $write[1] === $expected),
+        );
+
+        Assert::assertNotEmpty($matches, sprintf('Setting [%s] was not saved%s.', $key, $checksValue ? ' with the expected value' : ''));
+    }
+
+    public function assertNotSaved(string $key): void
+    {
+        $matches = array_filter($this->log->saved, static fn (array $write): bool => $write[0] === $key);
+
+        Assert::assertEmpty($matches, sprintf('Setting [%s] was saved unexpectedly.', $key));
+    }
+
+    public function assertForgotten(string $key): void
+    {
+        Assert::assertContains($key, $this->log->forgotten, sprintf('Setting [%s] was not forgotten.', $key));
+    }
+
+    /** @return list<AuditEntry> every entry recorded so far */
+    public function auditEntries(): array
+    {
+        return $this->log->audit->entries();
+    }
+
+    /** Assert an audit entry for this action exists, optionally with this outcome and key. */
+    public function assertAudited(AuditAction $action, ?AuditOutcome $outcome = null, ?string $key = null): void
+    {
+        $matches = array_filter(
+            $this->auditEntries(),
+            static fn (AuditEntry $entry): bool => $entry->action === $action
+                && (! $outcome instanceof AuditOutcome || $entry->outcome === $outcome)
+                && ($key === null || $entry->key === $key),
+        );
+
+        Assert::assertNotEmpty($matches, sprintf(
+            'No [%s]%s audit entry%s was recorded.',
+            $action->value,
+            $outcome instanceof AuditOutcome ? ' ' . $outcome->value : '',
+            $key === null ? '' : ' for [' . $key . ']',
+        ));
+    }
+
+    /** Assert an access to this key was denied (and audited), optionally for this ability. */
+    public function assertDenied(string $key, ?Ability $ability = null): void
+    {
+        $matches = array_filter(
+            $this->auditEntries(),
+            static fn (AuditEntry $entry): bool => $entry->outcome === AuditOutcome::Denied
+                && $entry->key === $key
+                && (! $ability instanceof Ability || $entry->action === AuditAction::fromAbility($ability)),
+        );
+
+        Assert::assertNotEmpty($matches, sprintf('No denial%s was recorded for [%s].', $ability instanceof Ability ? ' of [' . $ability->value . ']' : '', $key));
+    }
+}

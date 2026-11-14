@@ -1,0 +1,723 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Simtabi\Laranail\Settings;
+
+use LogicException;
+use Illuminate\Http\Request;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\Lookup;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Data\HistoryDiff;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Simtabi\Laranail\Settings\Actions\WarmCache;
+use Simtabi\Laranail\Settings\Data\HistoryEntry;
+use Simtabi\Laranail\Settings\Data\SettingWrite;
+use Simtabi\Laranail\Settings\Actions\ClearCache;
+use Simtabi\Laranail\Settings\Actions\FlushScope;
+use Simtabi\Laranail\Settings\Actions\QueryAudit;
+use Simtabi\Laranail\Settings\Actions\SetSetting;
+use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Data\HistoryFilter;
+use Simtabi\Laranail\Settings\Data\SettingTarget;
+use Simtabi\Laranail\Settings\Actions\DiffHistory;
+use Simtabi\Laranail\Settings\Actions\LockSetting;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
+use Simtabi\Laranail\Settings\Data\ChangeProposal;
+use Simtabi\Laranail\Settings\Actions\PromoteStore;
+use Simtabi\Laranail\Settings\Actions\QueryHistory;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
+use Simtabi\Laranail\Settings\History\HistoryQuery;
+use Simtabi\Laranail\Settings\Actions\ForgetSetting;
+use Simtabi\Laranail\Settings\Actions\UnlockSetting;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
+use Simtabi\Laranail\Settings\Enums\ChangeOperation;
+use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
+use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Actions\RollbackSetting;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
+use Simtabi\Laranail\Settings\Actions\PromoteWhenReady;
+use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
+use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
+use Simtabi\Laranail\Settings\Actions\Transfer\DiffStore;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
+use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
+use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Actions\Transfer\ExportStore;
+use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
+use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
+use Simtabi\Laranail\Settings\Services\Resolution\ScopeKeys;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+
+/**
+ * The {@see Settings} implementation: an immutable handle over a store, owner, locale and actor.
+ * Fluent methods return a copy.
+ */
+final class SettingsManager implements Settings
+{
+    private ?StoreName $storeName = null;
+
+    private ?OwnerRef $owner = null;
+
+    /** @var list<OwnerRef> */
+    private array $parents = [];
+
+    private ?Locale $selectedLocale = null;
+
+    private ?Actor $actingAs = null;
+
+    private ?string $reason = null;
+
+    public function __construct(
+        private readonly StoreRegistry $stores,
+        private readonly DefinitionRegistry $registry,
+        private readonly Definitions $definitions,
+        private readonly Resolver $resolver,
+        private readonly AccessGuard $access,
+        private readonly RuntimeConfiguration $runtime,
+        private readonly SetSetting $set,
+        private readonly ForgetSetting $forget,
+        private readonly LockSetting $lock,
+        private readonly UnlockSetting $unlock,
+        private readonly FlushScope $flushScope,
+        private readonly ClearCache $clearCache,
+        private readonly WarmCache $warmCache,
+        private readonly PromoteStore $promote,
+        private readonly QueryAudit $auditQuery,
+        private readonly QueryHistory $historyQuery,
+        private readonly RollbackSetting $rollback,
+        private readonly DiffHistory $diffHistory,
+        private readonly ProposeChange $propose,
+        private readonly ExportStore $export,
+        private readonly ImportStore $import,
+        private readonly DiffStore $diffStore,
+        private readonly ListDefinitions $listDefinitions,
+        private readonly CategoryManager $categories,
+        private readonly Approvals $approvals,
+        private readonly PersistedConfigurationEditor $configurationEditor,
+        private readonly PromoteWhenReady $promoteWhenReady,
+        private readonly Overrides $overrides,
+        private readonly ValuePipeline $pipeline,
+    ) {}
+
+    public function store(string $name): static
+    {
+        return $this->with(storeName: new StoreName($name));
+    }
+
+    public function for(Settable|OwnerRef $owner): static
+    {
+        [$ref, $parents] = $owner instanceof Settable ? [$owner->settingsOwner(), $owner->settingsParents()] : [$owner, []];
+
+        return $this->with(owner: $ref, parents: $parents);
+    }
+
+    public function locale(string $locale): static
+    {
+        return $this->with(locale: new Locale($locale));
+    }
+
+    public function as(Authenticatable|Actor $actor): static
+    {
+        $actor = $actor instanceof Actor ? $actor : Actor::user($actor);
+
+        return $this->with(actor: $this->reason === null ? $actor : $actor->withReason($this->reason));
+    }
+
+    public function asSystem(?string $reason = null): static
+    {
+        return $this->with(actor: Actor::system($reason ?? $this->reason));
+    }
+
+    public function asCurrentActor(?Request $request = null): static
+    {
+        $actor = $this->access->resolveActor($request);
+
+        return $actor instanceof Actor
+            ? $this->as($actor)
+            : throw new ActorRequired('No authenticated actor could be resolved for this request.');
+    }
+
+    public function because(string $reason): static
+    {
+        return $this->with(actor: $this->actingAs?->withReason($reason), reason: $reason);
+    }
+
+    public function actor(): ?Actor
+    {
+        return $this->actingAs;
+    }
+
+    public function configuration(): RuntimeConfiguration
+    {
+        return $this->runtime;
+    }
+
+    public function withConfiguration(callable $change, callable $run): mixed
+    {
+        return $this->configuration()->temporarily($change, $run);
+    }
+
+    public function override(string|array $key, mixed $value = null): void
+    {
+        foreach (is_array($key) ? $key : [$key => $value] as $name => $one) {
+            [$store, $settingKey, $locale, $definition] = $this->overrideTarget(is_string($name) ? $name : throw new InvalidKey('override() takes a key and a value, or key => value pairs.'));
+
+            $this->overrides->put($store->name, $this->scope(), $settingKey, $locale, $this->pipeline->inMemory($settingKey, $one, $definition));
+        }
+    }
+
+    public function forgetOverride(string $key): void
+    {
+        [$store, $settingKey, $locale] = $this->overrideTarget($key);
+
+        $this->overrides->forget($store->name, $this->scope(), $settingKey, $locale);
+    }
+
+    public function hasOverride(string $key): bool
+    {
+        [$store, $settingKey, $locale] = $this->overrideTarget($key);
+
+        return $this->overrides->has($store->name, $this->scope(), $settingKey, $locale);
+    }
+
+    public function clearOverrides(): void
+    {
+        $this->overrides->clear();
+    }
+
+    public function withOverrides(array $values, callable $run): mixed
+    {
+        $before = $this->overrides->snapshot();
+
+        try {
+            $this->override($values);
+
+            return $run();
+        } finally {
+            $this->overrides->restore($before);
+        }
+    }
+
+    public function get(string $key, mixed $default = null): mixed
+    {
+        return $this->lookup($key)->valueOr($default);
+    }
+
+    public function lookup(string $key): Lookup
+    {
+        [$store, $settingKey, $definition, $subject] = $this->readTarget($key);
+
+        if ($subject->sensitive) {
+            $this->access->authorize($this->actingAs, Ability::ViewSensitive, $subject);
+        }
+
+        $lookup = $this->resolve($store, $settingKey, $definition)->lookup;
+
+        // A value stored encrypted stays a secret after its definition stops saying so.
+        if (! $subject->sensitive && $lookup->isEncrypted()) {
+            $this->access->authorize($this->actingAs, Ability::ViewSensitive, $subject);
+        }
+
+        return $lookup;
+    }
+
+    public function has(string $key): bool
+    {
+        return $this->lookup($key)->isFound();
+    }
+
+    public function missing(string $key): bool
+    {
+        return ! $this->has($key);
+    }
+
+    public function many(array $keys): array
+    {
+        $values = [];
+
+        foreach ($keys as $key => $default) {
+            if (is_int($key)) {
+                $key = is_string($default) ? $default : throw new InvalidKey('many() takes setting keys, or key => default pairs.');
+                $default = null;
+            }
+
+            $values[$key] = $this->get($key, $default);
+        }
+
+        return $values;
+    }
+
+    public function all(?string $prefix = null): array
+    {
+        $store = $this->targetStore();
+        $prefix = $prefix === null ? null : new Key(rtrim($prefix, '.'))->value;
+        $values = [];
+
+        $keys = new ScopeKeys($this->registry)->keys($store, $this->scope());
+        $keys = array_values(array_unique([...$keys, ...$this->overrides->keys($this->overrideStore($store)->name, $this->scope())]));
+        sort($keys);
+
+        foreach ($keys as $key) {
+            if ($prefix !== null && $key !== $prefix && ! str_starts_with($key, $prefix . '.')) {
+                continue;
+            }
+
+            try {
+                $lookup = $this->lookup($key);
+            } catch (AccessDenied|UnknownSetting) {
+                continue;
+            }
+
+            if ($lookup->isFound()) {
+                $values[$key] = $lookup->value();
+            }
+        }
+
+        return $values;
+    }
+
+    public function definitions(): array
+    {
+        return $this->listDefinitions->handle($this->targetStore(), $this->actingAs);
+    }
+
+    public function string(string $key): string
+    {
+        $value = $this->required($key);
+
+        return is_string($value) ? $value : throw $this->mismatch($key, 'a string');
+    }
+
+    public function integer(string $key): int
+    {
+        $value = $this->required($key);
+
+        return is_int($value) ? $value : throw $this->mismatch($key, 'an integer');
+    }
+
+    public function float(string $key): float
+    {
+        $value = $this->required($key);
+
+        return is_float($value) || is_int($value) ? (float) $value : throw $this->mismatch($key, 'a float');
+    }
+
+    public function boolean(string $key): bool
+    {
+        $value = $this->required($key);
+
+        return is_bool($value) ? $value : throw $this->mismatch($key, 'a boolean');
+    }
+
+    public function array(string $key): array
+    {
+        $value = $this->required($key);
+
+        return is_array($value) ? $value : throw $this->mismatch($key, 'an array');
+    }
+
+    public function explain(string $key): Explanation
+    {
+        [$store, $settingKey, $definition, $subject] = $this->readTarget($key);
+        $explanation = $this->resolve($store, $settingKey, $definition);
+
+        if (($subject->sensitive || $explanation->lookup->isEncrypted()) && $this->actingAs instanceof Actor && ! $this->access->allows($this->actingAs, Ability::ViewSensitive, $subject)) {
+            return $explanation->redacted();
+        }
+
+        return $explanation;
+    }
+
+    public function set(string $key, mixed $value): void
+    {
+        $target = $this->writeTarget($key);
+
+        try {
+            $this->set->handle(new SettingWrite($target, $value), $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
+    }
+
+    public function forget(string $key): void
+    {
+        $target = $this->writeTarget($key);
+
+        try {
+            $this->forget->handle($target, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
+    }
+
+    public function setMany(array $values): void
+    {
+        foreach ($values as $key => $value) {
+            $this->set($key, $value);
+        }
+    }
+
+    public function forgetMany(iterable $keys): void
+    {
+        foreach ($keys as $key) {
+            $this->forget($key);
+        }
+    }
+
+    public function remember(string $key, callable $value): mixed
+    {
+        $lookup = $this->lookup($key);
+
+        if ($lookup->isFound()) {
+            return $lookup->value();
+        }
+
+        $computed = $value();
+        $this->set($key, $computed);
+
+        return $this->get($key, $computed);
+    }
+
+    public function lock(string $key): void
+    {
+        $target = $this->writeTarget($key);
+
+        try {
+            $this->lock->handle($target, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
+    }
+
+    public function unlock(string $key): void
+    {
+        $target = $this->writeTarget($key);
+
+        try {
+            $this->unlock->handle($target, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
+    }
+
+    public function flush(): void
+    {
+        $store = $this->targetStore();
+        $owner = $this->owner ?? throw new LogicException('flush() removes one owner\'s values; call for($owner) first.');
+
+        try {
+            $this->flushScope->handle($store, $owner, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($store, $this->scope());
+        }
+    }
+
+    public function clearCache(): void
+    {
+        $this->clearCache->handle($this->targetStore(), $this->owner, $this->actingAs);
+    }
+
+    public function warmCache(): int
+    {
+        return $this->warmCache->handle($this->targetStore(), $this->owner, $this->actingAs);
+    }
+
+    public function preload(iterable $owners): void
+    {
+        $groups = [];
+
+        foreach ($owners as $owner) {
+            [$ref, $parents] = $owner instanceof Settable ? [$owner->settingsOwner(), $owner->settingsParents()] : [$owner, []];
+            $store = $this->storeName instanceof StoreName ? $this->stores->get($this->storeName) : $this->stores->forOwner($ref->alias);
+
+            $groups[$store->name->value][0] = $store;
+            $groups[$store->name->value][1][$ref->scope()->value] = $ref->scope();
+            $groups[$store->name->value][1][Scope::GLOBAL] = Scope::global();
+
+            foreach ($parents as $parent) {
+                $parentStore = $this->stores->forOwner($parent->alias);
+                $groups[$parentStore->name->value][0] = $parentStore;
+                $groups[$parentStore->name->value][1][$parent->scope()->value] = $parent->scope();
+            }
+        }
+
+        $this->resolver->preload(array_values(array_map(
+            static fn (array $group): array => [$group[0], array_values($group[1])],
+            $groups,
+        )));
+    }
+
+    public function categories(): CategoryManager
+    {
+        return $this->categories->in($this->targetStore(), $this->actingAs);
+    }
+
+    public function promote(?PromotionRequest $request = null): PromotionReport
+    {
+        return $this->promote->handle($this->targetStore(), $request ?? new PromotionRequest, $this->actingAs);
+    }
+
+    public function promoteWhenReady(?PromotionSelection $only = null): ?PromotionReport
+    {
+        $store = $this->targetStore();
+
+        if (! $store->hasDatabaseLayer()) {
+            throw new StoreNotWritable(sprintf('Store [%s] has no database layer to promote into.', $store->name));
+        }
+
+        $report = $this->promoteWhenReady->handle($store, $this->actingAs, $only);
+
+        if (! $report instanceof PromotionReport) {
+            $this->runtime->promote($store->name->value, 'auto', $only);
+        }
+
+        return $report;
+    }
+
+    public function promotion(): PromotionSettings
+    {
+        return new PromotionSettings($this->runtime, $this->targetStore()->name->value);
+    }
+
+    public function audit(): AuditQuery
+    {
+        $query = new AuditQuery($this->auditQuery, $this->actingAs);
+
+        return $this->storeName instanceof StoreName ? $query->store($this->storeName->value) : $query;
+    }
+
+    public function history(): HistoryQuery
+    {
+        $store = $this->targetStore();
+        $filter = new HistoryFilter($store->name, $this->owner instanceof OwnerRef ? $this->scope() : null, locale: $this->selectedLocale);
+        $actor = $this->actingAs;
+
+        return new HistoryQuery(
+            $this->historyQuery,
+            $actor,
+            $filter,
+            $actor instanceof Actor ? function (HistoryEntry $entry) use ($actor): bool {
+                $store = $this->stores->get(new StoreName($entry->store));
+                $key = new Key($entry->key);
+                $definition = $this->definition($store, $key);
+                $subject = Subject::of($store->name, $key, new Locale($entry->locale), Scope::fromString($entry->scope)?->owner(), $definition);
+
+                return ! ($subject->sensitive || $entry->oldEncrypted || $entry->newEncrypted) || $this->access->allows($actor, Ability::ViewSensitive, $subject);
+            } : null,
+        );
+    }
+
+    public function rollback(string $key, int $toVersion): int
+    {
+        $target = $this->writeTarget($key);
+
+        try {
+            return $this->rollback->handle($target, $toVersion, $this->actingAs);
+        } finally {
+            $this->resolver->forgetPreloaded($target->store, $this->scope());
+        }
+    }
+
+    public function historyDiff(string $key, int $from, int $to): HistoryDiff
+    {
+        return $this->diffHistory->handle($this->writeTarget($key), $from, $to, $this->actingAs);
+    }
+
+    public function propose(string $key, mixed $value): ChangeRequest
+    {
+        return $this->propose->handle(new ChangeProposal($this->writeTarget($key), ChangeOperation::Set, $value), $this->actingAs);
+    }
+
+    public function approvals(): Approvals
+    {
+        return $this->approvals->in($this->targetStore(), $this->actingAs);
+    }
+
+    public function export(ExportMode $mode = ExportMode::Redacted): ExportDocument
+    {
+        return $this->export->handle(new ExportRequest($this->targetStore(), $mode), $this->actingAs);
+    }
+
+    public function import(ExportDocument $document): ImportReport
+    {
+        return $this->import->handle(new ImportRequest($this->targetStore(), $document, apply: true, reason: $this->reason ?? $this->actingAs?->context->reason), $this->actingAs);
+    }
+
+    public function previewImport(ExportDocument $document): ImportReport
+    {
+        return $this->import->handle(new ImportRequest($this->targetStore(), $document), $this->actingAs);
+    }
+
+    public function compare(ExportDocument $document): StoreDiff
+    {
+        return $this->diffStore->handle($this->targetStore(), $document, $this->actingAs);
+    }
+
+    public function persistedConfiguration(): PersistedConfigurationEditor
+    {
+        return $this->configurationEditor->in($this->targetStore(), $this->actingAs);
+    }
+
+    private function scope(): Scope
+    {
+        return Scope::of($this->owner);
+    }
+
+    /**
+     * The store, key, definition and subject of a read, after the access and strict-store checks.
+     *
+     * @return array{Store, Key, ?Definition, Subject}
+     */
+    private function readTarget(string $key): array
+    {
+        $settingKey = new Key($key);
+        $store = $this->targetStore();
+        $definition = $this->definition($store, $settingKey);
+        $subject = Subject::of($store->name, $settingKey, $this->activeLocale(), $this->owner, $definition);
+
+        $this->access->authorize($this->actingAs, Ability::View, $subject);
+
+        if (! $definition instanceof Definition && $store->strict) {
+            throw new UnknownSetting(sprintf('Store [%s] is strict and has no definition for [%s].', $store->name, $settingKey));
+        }
+
+        return [$store, $settingKey, $definition, $subject];
+    }
+
+    private function resolve(Store $store, Key $key, ?Definition $definition): Explanation
+    {
+        return $this->resolver->resolve($store, $key, $this->activeLocale(), $this->owner, $this->parents, $definition);
+    }
+
+    /**
+     * Where an override of the key is held: the store a read of this handle's scope looks in (a
+     * dedicated store's global step reads its fallback store), the key, the locale (none for a
+     * key whose definition is not localised) and the definition.
+     *
+     * @return array{Store, Key, Locale, ?Definition}
+     */
+    private function overrideTarget(string $key): array
+    {
+        $settingKey = new Key($key);
+        $store = $this->targetStore();
+        $definition = $this->definition($store, $settingKey);
+
+        if (! $definition instanceof Definition && $store->strict) {
+            throw new UnknownSetting(sprintf('Store [%s] is strict and has no definition for [%s].', $store->name, $settingKey));
+        }
+
+        $locale = $definition instanceof Definition && ! $definition->localised ? Locale::none() : $this->activeLocale();
+
+        return [$this->overrideStore($store), $settingKey, $locale, $definition];
+    }
+
+    /** The store the resolver reads this handle's scope from. */
+    private function overrideStore(Store $store): Store
+    {
+        return $this->owner instanceof OwnerRef ? $store : $this->stores->globalOf($store);
+    }
+
+    private function writeTarget(string $key): SettingTarget
+    {
+        $settingKey = new Key($key);
+        $store = $this->targetStore();
+
+        return new SettingTarget(
+            $store,
+            $settingKey,
+            $this->activeLocale(),
+            $this->owner,
+            $this->definition($store, $settingKey),
+            $this->reason ?? $this->actingAs?->context->reason,
+        );
+    }
+
+    private function targetStore(): Store
+    {
+        if ($this->storeName instanceof StoreName) {
+            $store = $this->stores->get($this->storeName);
+
+            if ($this->owner instanceof OwnerRef && ! $store->accepts($this->owner->alias)) {
+                throw new OwnerNotAllowed(sprintf('Store [%s] does not accept owner alias [%s].', $store->name, $this->owner->alias));
+            }
+
+            return $store;
+        }
+
+        return $this->owner instanceof OwnerRef ? $this->stores->forOwner($this->owner->alias) : $this->stores->default();
+    }
+
+    private function activeLocale(): Locale
+    {
+        return $this->selectedLocale ?? Locale::none();
+    }
+
+    /** Runtime definitions win over the registry; the definitions table answers only for the rest. */
+    private function definition(Store $store, Key $key): ?Definition
+    {
+        return $this->definitions->find($store, $key);
+    }
+
+    private function required(string $key): mixed
+    {
+        $lookup = $this->lookup($key);
+
+        return $lookup->isFound() ? $lookup->value() : throw new TypeMismatch(sprintf('Setting [%s] has no value.', $key));
+    }
+
+    private function mismatch(string $key, string $expected): TypeMismatch
+    {
+        return new TypeMismatch(sprintf('Setting [%s] is not %s.', $key, $expected));
+    }
+
+    /** @param list<OwnerRef>|null $parents */
+    private function with(
+        ?StoreName $storeName = null,
+        ?OwnerRef $owner = null,
+        ?array $parents = null,
+        ?Locale $locale = null,
+        ?Actor $actor = null,
+        ?string $reason = null,
+    ): self {
+        $handle = clone $this;
+        $handle->storeName = $storeName ?? $this->storeName;
+        $handle->owner = $owner ?? $this->owner;
+        $handle->parents = $parents ?? $this->parents;
+        $handle->selectedLocale = $locale ?? $this->selectedLocale;
+        $handle->actingAs = $actor ?? $this->actingAs;
+        $handle->reason = $reason ?? $this->reason;
+
+        return $handle;
+    }
+}
