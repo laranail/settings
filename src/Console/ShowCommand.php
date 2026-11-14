@@ -23,6 +23,7 @@ use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Actions\Reads\ExplainSetting;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
@@ -30,7 +31,8 @@ use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 /**
  * Show how one setting resolves: value, layer, type, version, flags and the latest audit entry.
  * For a cached answer it also reads the stored row past the cache and flags a stale cache.
- * Sensitive values print as `[protected]` unless `--reveal` is given.
+ * Sensitive values print as `[protected]` unless `--reveal` is given. An answer from a runtime
+ * override, set earlier in the same process, is marked as one.
  */
 final class ShowCommand extends Command
 {
@@ -72,6 +74,7 @@ final class ShowCommand extends Command
             ['Locale', $address->locale === '' ? '-' : $address->locale],
             ['Value', $this->value($explanation, $sensitive)],
             ['Layer', $lookup->layer() ?? '-'],
+            ...$this->overrideRows($lookup->layer()),
             ['From scope', $lookup->scope()->value ?? '-'],
             ['Type', $record->type ?? $definition->type ?? '-'],
             ['Version', $record instanceof Record ? (string) $record->version : '-'],
@@ -166,6 +169,12 @@ final class ShowCommand extends Command
             ['Stored', 'version ' . $version($stored)],
             ['Cache', $stale ? 'stale: run laranail::settings.clear-cache' : 'current'],
         ];
+    }
+
+    /** @return list<array{string, string}> a row marking an answer from a runtime override, which no store holds */
+    private function overrideRows(?string $layer): array
+    {
+        return $layer === Overrides::LAYER ? [['Override', 'yes: held in memory for this request or job, not stored']] : [];
     }
 
     private function value(Explanation $explanation, bool $sensitive): string

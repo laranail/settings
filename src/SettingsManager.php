@@ -68,8 +68,10 @@ use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
 use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
+use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
 use Simtabi\Laranail\Settings\Services\Resolution\ScopeKeys;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
 use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
@@ -124,6 +126,8 @@ final class SettingsManager implements Settings
         private readonly Approvals $approvals,
         private readonly PersistedConfigurationEditor $configurationEditor,
         private readonly PromoteWhenReady $promoteWhenReady,
+        private readonly Overrides $overrides,
+        private readonly ValuePipeline $pipeline,
     ) {}
 
     public function store(string $name): static
@@ -184,6 +188,47 @@ final class SettingsManager implements Settings
         return $this->configuration()->temporarily($change, $run);
     }
 
+    public function override(string|array $key, mixed $value = null): void
+    {
+        foreach (is_array($key) ? $key : [$key => $value] as $name => $one) {
+            [$store, $settingKey, $locale, $definition] = $this->overrideTarget(is_string($name) ? $name : throw new InvalidKey('override() takes a key and a value, or key => value pairs.'));
+
+            $this->overrides->put($store->name, $this->scope(), $settingKey, $locale, $this->pipeline->inMemory($settingKey, $one, $definition));
+        }
+    }
+
+    public function forgetOverride(string $key): void
+    {
+        [$store, $settingKey, $locale] = $this->overrideTarget($key);
+
+        $this->overrides->forget($store->name, $this->scope(), $settingKey, $locale);
+    }
+
+    public function hasOverride(string $key): bool
+    {
+        [$store, $settingKey, $locale] = $this->overrideTarget($key);
+
+        return $this->overrides->has($store->name, $this->scope(), $settingKey, $locale);
+    }
+
+    public function clearOverrides(): void
+    {
+        $this->overrides->clear();
+    }
+
+    public function withOverrides(array $values, callable $run): mixed
+    {
+        $before = $this->overrides->snapshot();
+
+        try {
+            $this->override($values);
+
+            return $run();
+        } finally {
+            $this->overrides->restore($before);
+        }
+    }
+
     public function get(string $key, mixed $default = null): mixed
     {
         return $this->lookup($key)->valueOr($default);
@@ -239,7 +284,11 @@ final class SettingsManager implements Settings
         $prefix = $prefix === null ? null : new Key(rtrim($prefix, '.'))->value;
         $values = [];
 
-        foreach (new ScopeKeys($this->registry)->keys($store, $this->scope()) as $key) {
+        $keys = new ScopeKeys($this->registry)->keys($store, $this->scope());
+        $keys = array_values(array_unique([...$keys, ...$this->overrides->keys($this->overrideStore($store)->name, $this->scope())]));
+        sort($keys);
+
+        foreach ($keys as $key) {
             if ($prefix !== null && $key !== $prefix && ! str_starts_with($key, $prefix . '.')) {
                 continue;
             }
@@ -569,6 +618,34 @@ final class SettingsManager implements Settings
     private function resolve(Store $store, Key $key, ?Definition $definition): Explanation
     {
         return $this->resolver->resolve($store, $key, $this->activeLocale(), $this->owner, $this->parents, $definition);
+    }
+
+    /**
+     * Where an override of the key is held: the store a read of this handle's scope looks in (a
+     * dedicated store's global step reads its fallback store), the key, the locale (none for a
+     * key whose definition is not localised) and the definition.
+     *
+     * @return array{Store, Key, Locale, ?Definition}
+     */
+    private function overrideTarget(string $key): array
+    {
+        $settingKey = new Key($key);
+        $store = $this->targetStore();
+        $definition = $this->definition($store, $settingKey);
+
+        if (! $definition instanceof Definition && $store->strict) {
+            throw new UnknownSetting(sprintf('Store [%s] is strict and has no definition for [%s].', $store->name, $settingKey));
+        }
+
+        $locale = $definition instanceof Definition && ! $definition->localised ? Locale::none() : $this->activeLocale();
+
+        return [$this->overrideStore($store), $settingKey, $locale, $definition];
+    }
+
+    /** The store the resolver reads this handle's scope from. */
+    private function overrideStore(Store $store): Store
+    {
+        return $this->owner instanceof OwnerRef ? $store : $this->stores->globalOf($store);
     }
 
     private function writeTarget(string $key): SettingTarget

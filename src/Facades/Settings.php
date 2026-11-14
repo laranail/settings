@@ -41,6 +41,7 @@ use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
 use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
+use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
@@ -63,6 +64,11 @@ use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
  * @method static Actor|null actor()
  * @method static RuntimeConfiguration configuration()
  * @method static mixed withConfiguration(callable $change, callable $run)
+ * @method static void override(string|array<string, mixed> $key, mixed $value = null)
+ * @method static void forgetOverride(string $key)
+ * @method static bool hasOverride(string $key)
+ * @method static void clearOverrides()
+ * @method static mixed withOverrides(array<string, mixed> $values, callable $run)
  * @method static mixed get(string $key, mixed $default = null)
  * @method static Lookup lookup(string $key)
  * @method static bool has(string $key)
@@ -125,9 +131,12 @@ final class Settings extends Facade
         $access = $access->withAuditor($access->auditor()->alsoTo($log->audit));
         $guard = new WriteGuard($access, $app->make(SettingWriter::class), $app->make(ProposeChange::class));
 
+        // The engine and its resolver share the request's overrides, so they end with the request.
+        $overrides = $app->make(Overrides::class);
         $fake = new SettingsFake($app->make(SettingsManager::class, [
             'stores'          => $stores,
-            'resolver'        => new Resolver($stores, $app->make(ValuePipeline::class), self::fallbackLocale($app->make('config')->get('app.fallback_locale'))),
+            'overrides'       => $overrides,
+            'resolver'        => new Resolver($stores, $app->make(ValuePipeline::class), $overrides, self::fallbackLocale($app->make('config')->get('app.fallback_locale'))),
             'access'          => $access,
             'set'             => $app->make(SetSetting::class, ['guard' => $guard]),
             'forget'          => $app->make(ForgetSetting::class, ['guard' => $guard]),

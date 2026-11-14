@@ -93,6 +93,43 @@ interface Settings
      */
     public function withConfiguration(callable $change, callable $run): mixed;
 
+    /**
+     * Override a value in memory for the rest of the request or job: reads of this handle's store,
+     * owner and locale answer with it ahead of every stored layer, and owners below a global
+     * override see it too unless they hold their own. Nothing is written, cached, audited or
+     * versioned, and no ability is checked. The value is validated and cast as a write is.
+     *
+     * @param string|array<string, mixed> $key one key, or `key => value` pairs
+     *
+     * @throws InvalidKey when a key is not a valid setting key
+     * @throws InvalidSettingValue when a value fails the definition's rules or `values.max_bytes`
+     * @throws UnknownSetting when the store is strict and has no definition for a key
+     * @throws OwnerNotAllowed when the store does not accept the handle's owner
+     */
+    public function override(string|array $key, mixed $value = null): void;
+
+    /** Drop this handle's own override of the key; reads fall back to what is stored. */
+    public function forgetOverride(string $key): void;
+
+    /** Whether this handle (its store, owner and locale) holds its own override of the key. */
+    public function hasOverride(string $key): bool;
+
+    /** Drop every override held for the current request or job, whatever handle set it. */
+    public function clearOverrides(): void;
+
+    /**
+     * Override values while `$run` runs, then put every override back as it was, also when `$run`
+     * throws. Calls nest.
+     *
+     * @template TResult
+     *
+     * @param array<string, mixed> $values `key => value` pairs, as {@see override()} takes
+     * @param callable(): TResult $run
+     *
+     * @return TResult
+     */
+    public function withOverrides(array $values, callable $run): mixed;
+
     /** The value, or `$default` when nothing is stored and the definition has no default. */
     public function get(string $key, mixed $default = null): mixed;
 

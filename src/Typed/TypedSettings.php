@@ -14,6 +14,7 @@ use Simtabi\Laranail\Settings\Typed\Attributes\Group;
 use Simtabi\Laranail\Settings\Typed\Attributes\Store;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
+use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
@@ -41,6 +42,9 @@ abstract class TypedSettings
     /** @var array<string, mixed> each property's stored form as loaded */
     private array $loaded = [];
 
+    /** @var array<string, true> the properties a runtime override answered, which save() leaves unwritten until changed */
+    private array $overridden = [];
+
     final public function __construct() {}
 
     /**
@@ -59,6 +63,10 @@ abstract class TypedSettings
 
             if ($lookup->isFound()) {
                 $property->property->setValue($instance, $property->fromStored($lookup->value()));
+            }
+
+            if ($lookup->layer() === Overrides::LAYER) {
+                $instance->overridden[$name] = true;
             }
 
             if ($property->property->isInitialized($instance)) {
@@ -133,7 +141,8 @@ abstract class TypedSettings
 
     /**
      * Write the properties changed since `load()`. Given a handle, write every property through it
-     * instead.
+     * instead, except one a runtime override answered and that is unchanged: an override is never
+     * persisted.
      */
     public function save(?Settings $settings = null): void
     {
@@ -147,9 +156,13 @@ abstract class TypedSettings
 
             $stored = $property->toStored($property->property->getValue($this));
 
-            if (! $given && array_key_exists($name, $this->loaded) && $this->loaded[$name] === $stored) {
+            $unchanged = array_key_exists($name, $this->loaded) && $this->loaded[$name] === $stored;
+
+            if ($unchanged && (! $given || isset($this->overridden[$name]))) {
                 continue;
             }
+
+            unset($this->overridden[$name]);
 
             $handle->set($property->key, $stored);
             $this->loaded[$name] = $stored;

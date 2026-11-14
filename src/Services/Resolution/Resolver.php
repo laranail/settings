@@ -23,8 +23,9 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 /**
  * Resolves a read through the cascade: owner, parents, global value, then the definition default.
  *
- * Layers are tried in order at each step, and a stored null is an answer. Each store is read
- * once per resolution.
+ * Runtime overrides are tried first, along the same owner, parents and global walk, and answer
+ * without reading a store. Then layers are tried in order at each step, and a stored null is an
+ * answer. Each store is read once per resolution.
  */
 #[Scoped]
 final readonly class Resolver
@@ -32,6 +33,7 @@ final readonly class Resolver
     public function __construct(
         private StoreRegistry $stores,
         private ValuePipeline $pipeline,
+        private Overrides $overrides,
         #[Config('app.fallback_locale', 'en')]
         private string $fallbackLocale,
         private PreloadedRecords $preloaded = new PreloadedRecords,
@@ -60,9 +62,15 @@ final readonly class Resolver
     public function resolve(Store $store, Key $key, Locale $locale, ?OwnerRef $owner, array $parents, ?Definition $definition): Explanation
     {
         $plan = $this->plan($store, $owner, $parents, $definition);
+        $steps = [];
+        $overridden = $this->overridden($plan, $key, $locale, $definition, $steps);
+
+        if ($overridden instanceof Lookup) {
+            return new Explanation($overridden, $steps);
+        }
+
         $loaded = $this->loadAll($plan);
         $precedence = $definition->precedence ?? Precedence::Store;
-        $steps = [];
 
         foreach ($plan as [$stepStore, $scope]) {
             foreach ($this->locales($locale, $definition) as $candidate) {
@@ -87,6 +95,33 @@ final readonly class Resolver
             $definition instanceof Definition && $definition->hasDefault ? Lookup::fromDefault($definition->default) : Lookup::missing(),
             $steps,
         );
+    }
+
+    /**
+     * The runtime override that answers this read, walking the plan's scopes and locales in order;
+     * null when none does. Adds a step per override tried, and none when no override is held, so
+     * an explanation reads as before for code that never overrides.
+     *
+     * @param list<array{Store, Scope}> $plan
+     * @param list<string> $steps
+     */
+    private function overridden(array $plan, Key $key, Locale $locale, ?Definition $definition, array &$steps): ?Lookup
+    {
+        if ($this->overrides->isEmpty()) {
+            return null;
+        }
+
+        foreach ($plan as [$stepStore, $scope]) {
+            foreach ($this->locales($locale, $definition) as $candidate) {
+                $steps[] = sprintf('%s / %s / %s / %s', $stepStore->name, $scope, $candidate->value === '' ? '(none)' : $candidate, Overrides::LAYER);
+
+                if ($this->overrides->has($stepStore->name, $scope, $key, $candidate)) {
+                    return Lookup::found($this->overrides->get($stepStore->name, $scope, $key, $candidate), Overrides::LAYER, $scope);
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
