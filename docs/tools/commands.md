@@ -106,6 +106,11 @@ definition, or show `-`. `Last audit` is the newest entry for that key and scope
 audit trail is not stored in the database. The command runs as the system actor, through the same
 `Actions\Reads\ExplainSetting` action as `explain()` and the REST API.
 
+When a [runtime override](runtime-overrides.md) answered, `Layer` reads `override` and an
+`Override` row says the value is held in memory for the request or job and not stored. Overrides
+belong to the process that set them, so this shows only when the command is called from that code
+(for example `Artisan::call()` in a test); a separate `php artisan` run has none.
+
 When the answer came through the settings cache, `Stored` is the version of the row read past the
 cache, and `Cache` says `stale: run laranail::settings.clear-cache` when the two differ (a row
 edited by hand, say).

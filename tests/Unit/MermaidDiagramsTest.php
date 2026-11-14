@@ -61,9 +61,9 @@ it('keeps every mermaid diagram in the README and docs well formed', function ()
     $blocks = mermaidBlocks();
     $count = array_sum(array_map(count(...), $blocks));
 
-    // 54 files (README and 53 pages) and 8 diagrams, counted 2026-11-14; fewer means a broken glob.
-    expect(count($blocks))->toBeGreaterThanOrEqual(54)
-        ->and($count)->toBeGreaterThanOrEqual(8);
+    // 56 files (README and 55 pages) and 9 diagrams, counted 2026-11-14; fewer means a broken glob.
+    expect(count($blocks))->toBeGreaterThanOrEqual(56)
+        ->and($count)->toBeGreaterThanOrEqual(9);
 
     foreach ($blocks as $file => $diagrams) {
         foreach ($diagrams as $index => $diagram) {

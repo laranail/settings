@@ -20,7 +20,12 @@ database exists, and after it does.
 
 ## How a read resolves
 
-`Services\Resolution\Resolver` walks the cascade one scope at a time: the owner, then its parents
+`Services\Resolution\Resolver` first asks the request's runtime overrides
+(`Services\Resolution\Overrides`), walking the same scopes and locales described below; the first
+override found answers, and no store is read. Overrides are held in memory for the request or job
+only, so they come first and never reach the cache (see [Runtime overrides](tools/runtime-overrides.md)).
+
+Then it walks the cascade one scope at a time: the owner, then its parents
 (only when the definition, or else the store, inherits), then the global value. At each scope it
 tries the requested locale, the fallback locale and no locale, and within each the store's layers
 in their configured order; the first stored value wins, and a stored `null` is an answer. Nothing
@@ -29,7 +34,8 @@ The diagram shows the default store's layers; a store lists its own.
 
 ```mermaid
 flowchart TD
-    read["get('ui.theme') on a handle for user:7"] --> owner["owner scope, user:7"]
+    read["get('ui.theme') on a handle for user:7"] --> override["runtime overrides for this request or job, owner then parents then global"]
+    override -->|no override| owner["owner scope, user:7"]
     owner -->|nothing stored| parents["parent scopes, e.g. team:3, when the setting inherits"]
     parents -->|nothing stored| global["global scope"]
     global -->|nothing stored| definition["the definition's default"]
@@ -398,6 +404,19 @@ queries for ten reads); with it, one request costs one query cold and none warm,
 the queries saved. On a local SQLite file a query is cheap, so against a database across a network
 each saved query is a round trip and the gain is larger. A shared cache store (Redis) costs two
 round trips per store on the first read of a request and none after it.
+
+## Why runtime overrides sit in memory, first
+
+An override is for a value that should differ for one request, job or block of code: a preview, an
+import that must not send mail, a support session, a test. Writing it to a store would make it
+durable, audited, versioned and visible to every other request, which is the opposite of what the
+caller asked for. So `Overrides` is a plain scoped object (one instance per request or job, dropped
+by `forgetScopedInstances()` under Octane and the queue worker), the resolver asks it before any
+layer, and it is keyed like a stored value so the owner, parents, global and locale walk is the
+same. It is a different thing from `RuntimeConfiguration`, which changes the configuration (stores,
+layers, definitions, access) rather than a value. Overrides are a code-level call: they need no
+write ability, ignore locks and precedence, and are not exposed over the REST API, because a value
+that is never stored changes nothing another caller can see.
 
 ## Why headless?
 
