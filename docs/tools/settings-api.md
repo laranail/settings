@@ -35,6 +35,7 @@ $settings->store('user_settings')->for($user)->locale('fr')->as($admin)->because
 | Scoping (return a handle) | [`store()`](#store), [`for()`](#for), [`locale()`](#locale), [`as()`](#as), [`asSystem()`](#assystem), [`asCurrentActor()`](#ascurrentactor), [`because()`](#because) |
 | Reading | [`get()`](#get), [`lookup()`](#lookup), [`has()`](#has), [`missing()`](#missing), [`many()`](#many), [`all()`](#all), [`string()`, `integer()`, `float()`, `boolean()`, `array()`](#typed-getters), [`explain()`](#explain), [`definitions()`](#definitions) |
 | Writing | [`set()`](#set), [`setMany()`](#setmany), [`remember()`](#remember), [`forget()`](#forget), [`forgetMany()`](#forgetmany), [`lock()`, `unlock()`](#lock-and-unlock), [`flush()`](#flush) |
+| Runtime overrides (in memory, this request or job) | [`override()`](#override), [`forgetOverride()`](#forgetoverride), [`hasOverride()`](#hasoverride), [`clearOverrides()`](#clearoverrides), [`withOverrides()`](#withoverrides) |
 | Cache and loading | [`preload()`](#preload), [`warmCache()`](#warmcache), [`clearCache()`](#clearcache) |
 | History | [`history()`](#history), [`historyDiff()`](#historydiff), [`rollback()`](#rollback) |
 | Approvals | [`propose()`](#propose), [`approvals()`](#approvals) |
@@ -216,7 +217,7 @@ $explanation->lookup;     // the answer, as lookup() returns it
 $explanation->steps;      // every layer and scope tried, in order, as text
 ```
 
-How a read resolves: every step tried and the answer. For an actor without `view_sensitive` on a sensitive key, the answer is redacted (`isRedacted()`), the steps are kept.
+How a read resolves: every step tried and the answer. For an actor without `view_sensitive` on a sensitive key, the answer is redacted (`isRedacted()`), the steps are kept. When a [runtime override](runtime-overrides.md) answered, `lookup->layer()` is `override` and the override steps come first.
 
 ### `definitions()`
 
@@ -315,6 +316,67 @@ $settings->for($user)->asSystem('account closed')->flush();
 ```
 
 Removes every value the handle's owner holds in its store, as when an owner is deleted (`HasSettings` does this for you). Needs `for($owner)` (a `LogicException` otherwise) and `forget`. Throws `AccessDenied`, `StoreNotWritable`. Fires `ScopeFlushing` and `ScopeFlushed`.
+
+## Runtime overrides
+
+An override is a value held in memory for the current request or job that answers ahead of every stored layer. Nothing is written, cached, audited or versioned, no ability is checked, and no event fires; reads still need `view` and, for a sensitive key, `view_sensitive`. The full reference, with precedence and lifetime, is [Runtime overrides](runtime-overrides.md).
+
+### `override()`
+
+```php
+public function override(string|array $key, mixed $value = null): void
+
+$settings->override('mail.default', 'log');                    // global: every owner sees it, unless it has its own
+$settings->for($user)->override('ui.theme', 'high-contrast');   // this owner only
+$settings->override(['features.beta' => true, 'limits.seats' => 50]);
+```
+
+Holds the value for this handle's store, owner and locale until the request or job ends. Validated and cast as `set()` would, including `values.max_bytes`, so typed getters return the definition's type. Overrides a locked setting too.
+
+- **Throws** `InvalidKey`, `InvalidSettingValue`, `UnknownSetting` (strict store), `OwnerNotAllowed`.
+
+### `forgetOverride()`
+
+```php
+public function forgetOverride(string $key): void
+
+$settings->for($user)->forgetOverride('ui.theme');   // reads fall back to the stored value
+```
+
+Drops this handle's own override of the key; an override at a parent or the global scope still answers. Throws as `override()` does for the key.
+
+### `hasOverride()`
+
+```php
+public function hasOverride(string $key): bool
+
+$settings->for($user)->hasOverride('ui.theme');
+```
+
+Whether this handle (store, owner, locale) holds its own override. It does not walk to parents or the global scope; `lookup()->layer() === 'override'` says whether a read is answered by one.
+
+### `clearOverrides()`
+
+```php
+public function clearOverrides(): void
+
+$settings->clearOverrides();
+```
+
+Drops every override held for the request or job, whichever handle set it.
+
+### `withOverrides()`
+
+```php
+public function withOverrides(array $values, callable $run): mixed
+
+$preview = $settings->withOverrides(
+    ['site.name' => $draft->name, 'ui.theme' => $draft->theme],
+    fn (): string => view('home')->render(),
+);
+```
+
+Overrides the values while `$run` runs, then puts every override back exactly as it was, also when `$run` throws; calls nest. Returns `$run`'s result.
 
 ## Cache and loading
 

@@ -96,6 +96,32 @@ final readonly class SettingsFake implements Settings
         return $this->inner->withConfiguration($change, $run);
     }
 
+    /** Held in memory by the real engine; not recorded, so assertSaved() never sees it. */
+    public function override(string|array $key, mixed $value = null): void
+    {
+        $this->inner->override($key, $value);
+    }
+
+    public function forgetOverride(string $key): void
+    {
+        $this->inner->forgetOverride($key);
+    }
+
+    public function hasOverride(string $key): bool
+    {
+        return $this->inner->hasOverride($key);
+    }
+
+    public function clearOverrides(): void
+    {
+        $this->inner->clearOverrides();
+    }
+
+    public function withOverrides(array $values, callable $run): mixed
+    {
+        return $this->inner->withOverrides($values, $run);
+    }
+
     public function get(string $key, mixed $default = null): mixed
     {
         return $this->inner->get($key, $default);

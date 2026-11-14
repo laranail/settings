@@ -2,6 +2,8 @@
 
 `$settings->configuration()` changes stores, layers, definitions, drivers and access for the current request only.
 
+To change a setting's **value** for the request instead, use a [runtime override](runtime-overrides.md).
+
 ## Scope
 
 `RuntimeConfiguration` is bound `scoped`: Octane and queue workers flush it between requests and jobs, so nothing set here outlives the request that set it. Store and layer entries merge over `laranail.settings.stores` and `.layers`; the runtime entry wins.

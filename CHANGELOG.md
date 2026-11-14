@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Runtime overrides.** `override()`, `forgetOverride()`, `hasOverride()`, `clearOverrides()` and
+  `withOverrides()` on the `Settings` handle hold a value in memory for the current request or job,
+  ahead of every stored layer. An override is keyed like a stored value (store, owner, key, locale)
+  and follows the same owner, parents and global walk, so a global override reaches every owner
+  that has none of its own. It is validated and cast as a write is (including `values.max_bytes`),
+  never written, cached, audited, versioned or encrypted, needs no write ability, wins over locks
+  and precedence, and is not exposed over the REST API. `explain()` reports the layer `override`,
+  `laranail::settings.show` marks it, typed settings `load()` reads it and `save()` never persists
+  it, and the fake supports it. The new `Services\Resolution\Overrides` is bound scoped, so Octane
+  and the queue worker drop overrides between requests and jobs. See
+  `docs/tools/runtime-overrides.md`.
+
 ## [0.1.1] - 2026-11-14
 
 ### Added

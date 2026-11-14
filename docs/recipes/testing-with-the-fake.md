@@ -45,6 +45,20 @@ it('refuses a non-admin', function () {
 
 `auditEntries()` returns every recorded entry.
 
+## Fake or override?
+
+Use the fake when the test is about what the code **writes**: it replaces every layer with memory and records each save, forget and audit entry for the assertions above. Use a [runtime override](../tools/runtime-overrides.md) when the test only needs one value to **read** differently and the engine can stay real:
+
+```php
+it('hides the beta banner when the feature is off', function () {
+    Settings::override('features.beta', false);
+
+    $this->get('/')->assertDontSee('Try the beta');
+});
+```
+
+An override is never recorded as saved, so with the fake installed, `assertNotSaved()` still passes for an overridden key. The two combine: `Settings::fake()` first, then `Settings::override()` or `Settings::withOverrides()` on top. The [override recipe](overriding-a-setting-for-one-request.md) covers overrides outside tests.
+
 ---
 
 [← Docs index](../../README.md#documentation)

@@ -101,6 +101,9 @@ errors and what to run.
 - [Caching](tools/caching.md), [History](tools/history.md) and [Approvals](tools/approvals.md) for
   production use.
 - [Tenancy](tools/tenancy.md) before the first migration of a multi-tenant application.
+- [Runtime overrides](tools/runtime-overrides.md) to change what settings read for one request or
+  job without writing anything; the [recipe](recipes/overriding-a-setting-for-one-request.md) shows
+  middleware, a queued job and a feature switch.
 
 ---
 

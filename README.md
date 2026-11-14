@@ -126,6 +126,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Access control](docs/tools/access-control.md) — actors, abilities, authorizers, guarded locks, sensitive reads and step-up verification.
 - [Audit and logging](docs/tools/audit-and-logging.md) — the audit trail, its sinks and the operational log.
 - [Runtime configuration](docs/tools/runtime-configuration.md) — stores, definitions and access changed in code for one request.
+- [Runtime overrides](docs/tools/runtime-overrides.md) — a value held in memory for one request or job, ahead of every stored layer; never written, cached or audited.
 - [Audit queries](docs/tools/audit-queries.md) — reading the audit trail from PHP, gated by `view_audit`.
 - [Tenancy](docs/tools/tenancy.md) — tenant column or database per tenant, the discriminator, and the stancl and spatie adapters.
 - [Models and factories](docs/tools/models-and-factories.md) — Eloquent models and factories for tests, seeding and admin screens.
@@ -146,6 +147,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 
 - [Ship defaults with the application](docs/recipes/shipped-defaults.md) — a versioned defaults file instead of `.env`.
 - [Test code that uses settings](docs/recipes/testing-with-the-fake.md) — `Settings::fake()` and its assertions.
+- [Override a setting for one request](docs/recipes/overriding-a-setting-for-one-request.md) — middleware, a queued job and a feature switch, with nothing written.
 - [Act as a user](docs/recipes/acting-as-a-user.md) — authorize and audit changes made on a user's behalf.
 - [Move from files to the database](docs/recipes/moving-from-files-to-the-database.md) — bootstrap mode during install, then promotion.
 - [Seed the default categories](docs/recipes/seeding-default-categories.md) — the shipped set, your own set, and per tenant.
