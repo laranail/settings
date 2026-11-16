@@ -38,6 +38,7 @@ The service provider registers itself through package discovery.
 ```bash
 php artisan laranail::settings.install
 php artisan migrate
+php artisan laranail::settings.sync-definitions
 ```
 
 Install publishes `config/laranail/settings.php` (tag `laranail::settings-config`) and the
@@ -49,6 +50,10 @@ package's one migration (tag `laranail::settings-migrations`,
 `tenancy.mode`, the table names and any dedicated stores before migrating. The default store
 reads the database first, so run the migrations before the first read; until then a read raises
 `DriverUnavailable`.
+
+`sync-definitions` copies the definitions declared in code and config into the definitions
+table. Install runs it too, but on a fresh application the table does not exist yet, so install
+says "Definitions were not synced" and the step above does it once the migration has run.
 
 ## Default categories
 
@@ -64,8 +69,17 @@ notifications, security) as system categories and changes nothing when run again
 ## When install refuses
 
 Install refuses to publish anything when a table of the same name already exists and is not
-this package's (a `settings` table of your own, say). Rename the package's tables with
-`tables.prefix`, `stores.settings.table`, `tables.categories` or `tables.audit` and run it again.
+this package's (a `settings` table of your own, say). Nothing is published yet, so the quickest
+fix needs no config file: prefix every package table from `.env` and install again.
+
+```bash
+LARANAIL_SETTINGS_TABLE_PREFIX=laranail_
+```
+
+To rename single tables instead (`stores.settings.table`, `tables.categories`, `tables.audit`),
+publish the config first with `php artisan vendor:publish --tag=laranail::settings-config`, edit
+it, and install again. Keep the published file whole: the package's defaults are merged one
+level deep, so a file holding only part of `tables` replaces the whole `tables` array.
 
 ## Without a database
 
