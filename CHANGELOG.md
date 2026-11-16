@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- When install refuses over a same-named table, its message now names the fix that needs no
-  config file, `LARANAIL_SETTINGS_TABLE_PREFIX`, and the publish command for renaming single
-  tables; it used to point at config keys in a file that had not been published yet. The
-  installation guide says the same, warns that a partly published config replaces the whole
-  `tables` array, and lists `sync-definitions` after `migrate`.
-
 ## [0.1.0] - 2026-11-16
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
@@ -208,6 +200,11 @@ Each was removed before the first tag; none was in a tagged release.
   only when the setting inherits, encrypted history payloads answered as `null`, recipe snippets
   that missed a gate, an import or a `register()` call, and the stated reason SQL Server is not
   supported. `make-store --connection`'s help now names every shared table it creates.
+- When install refuses over a same-named table, its message now names the fix that needs no
+  config file, `LARANAIL_SETTINGS_TABLE_PREFIX`, and the publish command for renaming single
+  tables; it used to point at config keys in a file that had not been published yet. The
+  installation guide says the same, warns that a partly published config replaces the whole
+  `tables` array, and lists `sync-definitions` after `migrate`.
 
 ### Security
 
