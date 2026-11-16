@@ -141,7 +141,7 @@ public function lookup(string $key): Lookup
 
 $lookup = $settings->lookup('site.name');
 $lookup->isFound();      // true when stored or defaulted
-$lookup->value();        // throws when not found
+$lookup->value();        // throws SettingsMisuse when not found or redacted
 $lookup->valueOr('x');
 $lookup->layer();        // 'database', 'runtime', 'shipped', 'default' …
 $lookup->scope();        // the scope the value came from (an owner, a parent, global)
@@ -315,7 +315,7 @@ public function flush(): void
 $settings->for($user)->asSystem('account closed')->flush();
 ```
 
-Removes every value the handle's owner holds in its store, as when an owner is deleted (`HasSettings` does this for you). Needs `for($owner)` (a `LogicException` otherwise) and `forget`. Throws `AccessDenied`, `StoreNotWritable`. Fires `ScopeFlushing` and `ScopeFlushed`.
+Removes every value the handle's owner holds in its store, as when an owner is deleted (`HasSettings` does this for you). Needs `for($owner)` (a `SettingsMisuse` otherwise) and `forget`. Throws `AccessDenied`, `StoreNotWritable`. Fires `ScopeFlushing` and `ScopeFlushed`.
 
 ## Runtime overrides
 

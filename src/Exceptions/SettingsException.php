@@ -7,10 +7,11 @@ namespace Simtabi\Laranail\Settings\Exceptions;
 use RuntimeException;
 
 /**
- * Base of every exception this package throws. Messages name the store, key and scope, never a
- * value.
+ * Base of every run-time failure this package throws. Messages name the store, key and scope, never
+ * a value. A call the package cannot serve throws {@see SettingsMisuse} instead; catch
+ * {@see SettingsError} for both.
  */
-abstract class SettingsException extends RuntimeException
+abstract class SettingsException extends RuntimeException implements SettingsError
 {
     /** The HTTP status the REST API answers with. */
     public const int STATUS = 500;

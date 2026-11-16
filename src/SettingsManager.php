@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings;
 
-use LogicException;
 use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
@@ -54,6 +53,7 @@ use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Actions\PromoteWhenReady;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Actions\Transfer\DiffStore;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
@@ -434,7 +434,7 @@ final class SettingsManager implements Settings
     public function flush(): void
     {
         $store = $this->targetStore();
-        $owner = $this->owner ?? throw new LogicException('flush() removes one owner\'s values; call for($owner) first.');
+        $owner = $this->owner ?? throw new SettingsMisuse('flush() removes one owner\'s values; call for($owner) first.');
 
         try {
             $this->flushScope->handle($store, $owner, $this->actingAs);

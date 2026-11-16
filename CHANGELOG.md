@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still applies. An architecture test now refuses `now()` and `today()` outside the providers and
   facades.
 
+### Added
+
+- `SettingsError`, an interface every exception the package throws implements, so one
+  `catch (SettingsError $e)` takes them all.
+- `SettingsMisuse`, a `LogicException` that also implements `SettingsError`, for a call the package
+  cannot serve: `value()` on a missing or redacted lookup, `flush()` without `for($owner)`,
+  `Settings::fake()` with no application, and a settings migration before the provider is
+  registered. These threw a plain `LogicException` before; a `catch (LogicException $e)` still
+  catches them, and the messages are unchanged.
+
 ## [0.1.0] - 2026-11-14
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
