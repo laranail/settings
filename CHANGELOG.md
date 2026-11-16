@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The settings cache reads the time through `Support\Clock`, like the rest of the package, instead of
+  the global `now()` helper. Behaviour is unchanged: both read Laravel's date seam, so `travelTo()`
+  still applies. An architecture test now refuses `now()` and `today()` outside the providers and
+  facades.
+
 ## [0.1.0] - 2026-11-14
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and

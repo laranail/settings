@@ -44,6 +44,14 @@ arch('nothing outside Providers and Facades reaches into the container')
         'Simtabi\Laranail\Settings\Facades',
     ]);
 
+arch('the time is read through Support\Clock, never the global helpers')
+    ->expect('Simtabi\Laranail\Settings')
+    ->not->toUse(['now', 'today'])
+    ->ignoring([
+        'Simtabi\Laranail\Settings\Providers',
+        'Simtabi\Laranail\Settings\Facades',
+    ]);
+
 arch('no debugging calls ship')
     ->expect(['dd', 'dump', 'ray', 'var_dump', 'print_r'])
     ->not->toBeUsed();

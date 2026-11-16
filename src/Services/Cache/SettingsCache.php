@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Illuminate\Cache\Repository;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\CacheTarget;
 use Simtabi\Laranail\Settings\Support\BagCodec;
@@ -44,6 +45,7 @@ final class SettingsCache
         private readonly ?TenantDiscriminator $tenant = null,
         private readonly ?OperationalLogger $log = null,
         private readonly BagCodec $codec = new BagCodec,
+        private readonly Clock $clock = new Clock,
     ) {
         if ($prefix === '' || $ttl < 1 || $stale < 0) {
             throw new InvalidConfiguration('laranail.settings.cache: `prefix` must be a non-empty string, `ttl` at least 1 and `stale` at least 0 (seconds).');
@@ -158,7 +160,7 @@ final class SettingsCache
             }
 
             // Stale: flexible() answers it and refreshes under this key's tokens, never over a newer write.
-            if ($created + $this->ttl <= now()->getTimestamp()) {
+            if ($created + $this->ttl <= $this->clock->now()->getTimestamp()) {
                 $entry = $this->cache->flexible($key, [$this->ttl, $this->lifetime()], fn (): array => $this->codec->encode($this->only($load([$scope]), $scope)));
             }
 
@@ -181,7 +183,7 @@ final class SettingsCache
     private function put(array $keys, array $bags): void
     {
         $entries = [];
-        $now = now()->getTimestamp();
+        $now = $this->clock->now()->getTimestamp();
 
         foreach ($keys as $index => $key) {
             $this->bags[$key] = $bags[$index];
