@@ -55,6 +55,14 @@ it('refuses to install over a table of the same name that is not its own', funct
     expect(fn () => $this->artisan('laranail::settings.install')->run())->toThrow(InvalidConfiguration::class, DB::getDefaultConnection() . '.settings')
         ->and(settingsMigrations())->toBe([]);
 
+    // Nothing is published yet, so the message names the fix that needs no config file.
+    try {
+        $this->artisan('laranail::settings.install')->run();
+    } catch (InvalidConfiguration $refusal) {
+        expect($refusal->getMessage())->toContain('LARANAIL_SETTINGS_TABLE_PREFIX')
+            ->toContain('--tag=laranail::settings-config');
+    }
+
     // The package's own tables are not foreign: installing again over them is fine.
     Schema::drop('settings');
     useDatabase();

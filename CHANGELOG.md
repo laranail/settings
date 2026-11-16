@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- When install refuses over a same-named table, its message now names the fix that needs no
+  config file, `LARANAIL_SETTINGS_TABLE_PREFIX`, and the publish command for renaming single
+  tables; it used to point at config keys in a file that had not been published yet. The
+  installation guide says the same, warns that a partly published config replaces the whole
+  `tables` array, and lists `sync-definitions` after `migrate`.
+
 ## [0.1.0] - 2026-11-16
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
