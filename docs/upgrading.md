@@ -12,10 +12,10 @@ what to do, and this page lists the steps.
 ## If you installed 0.1.0 or 0.1.1 before 2026-11-16
 
 The first `v0.1.0` (2026-11-11) and `v0.1.1` (2026-11-14) were withdrawn, and the history was
-squashed into a single `v0.1.0`, published 2026-11-14, that holds everything both carried, plus runtime
-overrides. That tag was moved on 2026-11-16 to add `SettingsMisuse` and `SettingsError`. Composer
-caches an archive per version name, so an install from an earlier tag keeps the old code until the
-cache is cleared:
+squashed into a single `v0.1.0`, published 2026-11-14, that holds everything both carried, plus
+runtime overrides. That tag was moved on 2026-11-16 to add `SettingsMisuse` and `SettingsError`, and
+again the same day to carry corrected documentation. Composer caches an archive per version name, so
+an install from an earlier tag keeps the old code until the cache is cleared:
 
 ```bash
 composer clear-cache && composer update laranail/settings
