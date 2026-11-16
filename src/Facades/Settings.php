@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Facades;
 
-use LogicException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Facade;
 use Simtabi\Laranail\Settings\Data\Actor;
@@ -35,6 +34,7 @@ use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
@@ -122,7 +122,7 @@ final class Settings extends Facade
         $app = self::getFacadeApplication();
 
         if ($app === null) {
-            throw new LogicException('Settings::fake() needs a booted application.');
+            throw new SettingsMisuse('Settings::fake() needs a booted application.');
         }
 
         $stores = $app->make(StoreRegistry::class)->withEveryLayer(new ArrayDriver);

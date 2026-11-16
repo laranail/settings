@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Typed;
 
 use Closure;
-use LogicException;
 use Illuminate\Database\Migrations\Migration;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
 
 /**
  * A migration that changes settings rather than tables: renames, moves, deletions and new
@@ -41,6 +41,6 @@ abstract class SettingsMigration extends Migration
 
     protected function settings(): SettingsMigrator
     {
-        return (self::$migrator ?? throw new LogicException('Settings migrations need laranail/settings\' service provider to be registered.'))();
+        return (self::$migrator ?? throw new SettingsMisuse('Settings migrations need laranail/settings\' service provider to be registered.'))();
     }
 }

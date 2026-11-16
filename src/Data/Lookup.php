@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-use LogicException;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
 
 /** The result of a read: found (the value may be null) or missing. */
 final readonly class Lookup
@@ -56,15 +56,15 @@ final readonly class Lookup
         return $this->found;
     }
 
-    /** @throws LogicException when nothing was found; check {@see isFound()} or use {@see valueOr()} */
+    /** @throws SettingsMisuse when nothing was found; check {@see isFound()} or use {@see valueOr()} */
     public function value(): mixed
     {
         if (! $this->found) {
-            throw new LogicException('The setting was not found; call isFound() or valueOr() first.');
+            throw new SettingsMisuse('The setting was not found; call isFound() or valueOr() first.');
         }
 
         if ($this->redacted) {
-            throw new LogicException('The value is redacted: the actor may not view this setting.');
+            throw new SettingsMisuse('The value is redacted: the actor may not view this setting.');
         }
 
         return $this->value;

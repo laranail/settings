@@ -1,6 +1,6 @@
 # Exceptions
 
-Thirty exception classes in `Simtabi\Laranail\Settings\Exceptions`, all extending `SettingsException`, with when each is raised and how the REST API answers it.
+Thirty-one exception classes in `Simtabi\Laranail\Settings\Exceptions`, with when each is raised and how the REST API answers it. Thirty extend `SettingsException` (a `RuntimeException`) and report run-time failures; `SettingsMisuse` (a `LogicException`) reports a call the package cannot serve. All of them implement `SettingsError`, so one catch takes them all.
 
 ## Catching them
 
@@ -22,13 +22,28 @@ try {
 }
 ```
 
+`SettingsException` covers run-time failures only. To catch every settings exception, the misuse
+one included, catch the interface:
+
+```php
+use Simtabi\Laranail\Settings\Exceptions\SettingsError;
+
+try {
+    $value = $settings->lookup('mail.host')->value();
+} catch (SettingsError $e) {
+    report($e);
+}
+```
+
 Messages name the store, key, scope and ability involved, never a value, so they are safe to log and to show an administrator. A write that opens a change request does not throw; it returns normally (PHP) or answers `202` (REST).
 
 ## Reference
 
 | Exception | Extends | Raised when | REST |
 |---|---|---|---|
-| `SettingsException` | `RuntimeException` | the base of every exception below; catch it to catch them all | `500 settings-error` for a subtype not listed |
+| `SettingsError` | `Throwable` (interface) | implemented by every exception on this page; catch it to catch them all | as the exception |
+| `SettingsException` | `RuntimeException` | the base of every run-time failure below; catch it to catch those | `500 settings-error` for a subtype not listed |
+| `SettingsMisuse` | `LogicException` | the package was called in a way it cannot serve: `value()` on a lookup that found nothing or is redacted, `flush()` without `for($owner)`, `Settings::fake()` with no application, a settings migration before the provider is registered. Fix the calling code | `500 settings-error` (never raised by a REST route) |
 | `AccessDenied` | `SettingsException` | an actor may not perform the ability on the subject; carries the ability, store and key | `403 access-denied` |
 | `ActorRequired` | `SettingsException` | a call has no actor while `authorization.require_actor` is on, or `asCurrentActor()` finds nobody | `401 actor-required` |
 | `VerificationRequired` | `SettingsException` | the actor is allowed but must verify again (step-up), for an ability in `verification.abilities` or a definition that `requiresVerification()` | `428 verification-required` |
@@ -58,8 +73,6 @@ Messages name the store, key, scope and ability involved, never a value, so they
 | `UndecryptableValue` | `SettingsException` | an encrypted value cannot be decrypted with the current or previous keys (run `reencrypt` after a key rotation) | `500 settings-error` |
 | `DriverUnavailable` | `SettingsException` | a required layer is unreachable (the database is down, its table missing) and no bootstrap evidence lets the store skip it; never a silent fall back to defaults | `503 unavailable` |
 | `DriverFailure` | `SettingsException` | a storage layer failed; the underlying exception is the previous one | `500 settings-error` |
-
-`LogicException` (PHP's own) is thrown for a programming error rather than a runtime condition: `flush()` without `for($owner)`.
 
 Each exception names its HTTP status and problem type itself (`STATUS` and `TYPE` constants), and `Http\Support\Problems` renders them; anything without its own is a `500 settings-error`; [Problem types](#problem-types) below lists every problem type.
 
