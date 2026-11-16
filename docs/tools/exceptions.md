@@ -1,6 +1,6 @@
 # Exceptions
 
-Thirty-one exception classes in `Simtabi\Laranail\Settings\Exceptions`, with when each is raised and how the REST API answers it. Thirty extend `SettingsException` (a `RuntimeException`) and report run-time failures; `SettingsMisuse` (a `LogicException`) reports a call the package cannot serve. All of them implement `SettingsError`, so one catch takes them all.
+Thirty-one exception classes in `Simtabi\Laranail\Settings\Exceptions`, with when each is raised and how the REST API answers it. `SettingsException` (a `RuntimeException`) and the twenty-nine that extend it report run-time failures; `SettingsMisuse` (a `LogicException`) reports a call the package cannot serve. All of them implement `SettingsError`, so one catch takes them all.
 
 ## Catching them
 

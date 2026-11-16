@@ -1,6 +1,6 @@
 # Commands
 
-Nineteen Artisan commands, all named `laranail::settings.<command>`.
+Eighteen Artisan commands, all named `laranail::settings.<command>`.
 
 ## The commands
 
@@ -38,8 +38,8 @@ php artisan migrate
 It writes one file, `…_create_settings_user_settings_table.php`: a copy of the package migration
 whose `$only` line names the store, so it creates that store's values table and nothing else.
 With `--connection=archive` the copy's `$pinnedConnection` line names the connection too, and it
-also creates that connection's categories and audit tables (each skipped when it already
-exists); it prints the layer to add. It refuses a store that already has a migration.
+also creates that connection's categories, audit, history and change requests tables (each
+skipped when it already exists); it prints the layer to add. It refuses a store that already has a migration.
 
 ## Seeding
 

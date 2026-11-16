@@ -13,13 +13,13 @@ Every `set`, `forget`, `lock` and `unlock`, allowed or failed, and every refusal
 | Field | Meaning |
 |---|---|
 | `id`, `occurredAt` | a ULID and the time, from `Str::ulid()` and `now()` |
-| `action` | `AuditAction`: each ability, plus `configure` |
+| `action` | `AuditAction`: each ability, plus `configure`, `propose`, `reject`, `cancel`, `reencrypt`, `rescope` and `migrate` |
 | `outcome` | `AuditOutcome`: `allowed`, `denied`, `pending`, `failed` |
 | `store`, `scope`, `key`, `locale` | what was addressed |
 | `versionFrom`, `versionTo` | the row's version before and after |
 | `actorType`, `actorAlias`, `actorId`, `channel` | who, through which surface; `system` without an actor |
 | `ip`, `userAgent`, `requestId`, `reason` | the actor's context and the reason given with `because()` |
-| `meta` | identifiers only: `refusal`, `detail`, `error`, `override_lock`, `change` |
+| `meta` | identifiers only, never a value: for example `refusal`, `detail`, `error`, `override_lock`, `change`, `operation` |
 
 ```php
 Settings::as($user)->because('INC-123')->set('mail.from.address', 'ap@acme.test');

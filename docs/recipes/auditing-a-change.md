@@ -42,7 +42,7 @@ GET /api/settings/v1/stores/settings/settings/mail.from.address/history
 ## Make every change carry a reason
 
 ```php
-$settings->as($request->user())->because($request->input('ticket'))->set('mail.from.address', $address);
+$settings->as($request->user())->because((string) $request->input('ticket'))->set('mail.from.address', $address);
 ```
 
 Over HTTP send `"reason"` in the body. A reason costs nothing and is the first thing an auditor asks for.

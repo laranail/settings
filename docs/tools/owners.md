@@ -33,7 +33,7 @@ Each store lists the aliases it holds in `owners`, and each alias belongs to one
 
 ## Inheritance
 
-Off by default. When a definition says `inherits()`, or the store sets `inherits => true` for keys without a definition, a read for an owner tries:
+Off by default. When a definition says `inherits()`, or the store sets `inherits => true` for keys whose definition does not say either way (and keys without one), a read for an owner tries:
 
 1. the owner's own value;
 2. each parent's value, in the parent's own store;

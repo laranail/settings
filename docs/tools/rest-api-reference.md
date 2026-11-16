@@ -151,7 +151,7 @@ Status: `200`, `401`, `403`, `404`.
 
 Owner form: `GET /stores/{store}/owners/{alias}/{id}/settings/{key}/history`.
 
-`settings.history`, ability `view_history`. The setting's versions, newest first, paginated (`limit`, `cursor`, `locale`). Payloads are as stored (encrypted values encrypted) and are removed for an actor without `view_sensitive`.
+`settings.history`, ability `view_history`. The setting's versions, newest first, paginated (`limit`, `cursor`, `locale`). Encrypted payloads are always `null` (`old_encrypted` and `new_encrypted` say which); the others are as stored, and are removed for an actor without `view_sensitive`.
 
 ```json
 {"data": [{"id": "01JC…", "store": "settings", "setting_ref": "site.name", "scope": "global", "key": "site.name", "locale": "",

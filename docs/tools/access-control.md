@@ -46,7 +46,7 @@ When nobody is authenticated, `asCurrentActor()` raises `ActorRequired` rather t
 
 ## Abilities
 
-`Enums\Ability`: `view`, `view_sensitive`, `update`, `forget`, `lock`, `unlock`, `override_lock`, `approve`, `view_history`, `rollback`, `view_audit`, `export`, `import`, `promote`, `manage_categories`, `manage_definitions`, `manage_stores`. This release checks the first seven; the rest are reserved for the features that use them.
+`Enums\Ability`: `view`, `view_sensitive`, `update`, `forget`, `lock`, `unlock`, `override_lock`, `approve`, `view_history`, `rollback`, `view_audit`, `export`, `import`, `promote`, `manage_categories`, `manage_definitions`, `manage_stores`, `prune`. The table below covers the value operations; the rest check their own ability: approving a change `approve`, history `view_history` and `rollback`, audit queries `view_audit`, transfer `export` and `import`, promotion `promote`, categories `manage_categories`, definitions `manage_definitions`, store, configuration and cache management `manage_stores`, and the prune commands `prune`.
 
 | Operation | Abilities |
 |---|---|

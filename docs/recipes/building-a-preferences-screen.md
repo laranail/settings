@@ -47,11 +47,15 @@ public function update(UpdatePreferencesRequest $request, Settings $settings): R
 }
 ```
 
-Let users change only their own values with a gate that compares the owner:
+Let users read and change only their own values with gates that compare the owner. An ability with no gate is denied (`authorization.undefined` is `deny`), so define each one the screen uses: `view` to read, `update` to save, `forget` to reset:
 
 ```php
-Gate::define('laranail-settings.update', fn (User $user, Subject $subject) =>
-    $subject->owner?->alias === 'user' && (string) $subject->owner->id === (string) $user->getKey());
+$ownValues = fn (User $user, Subject $subject): bool =>
+    $subject->owner?->alias === 'user' && (string) $subject->owner->id === (string) $user->getKey();
+
+foreach (['view', 'update', 'forget'] as $ability) {
+    Gate::define('laranail-settings.' . $ability, $ownValues);
+}
 ```
 
 ## Reset to the default

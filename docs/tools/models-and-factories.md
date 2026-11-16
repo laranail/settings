@@ -1,6 +1,6 @@
 # Models and factories
 
-Four Eloquent models, `Setting`, `SettingCategory`, `SettingDefinition` and `SettingAuditEntry`, with factories for tests, seeding and admin screens.
+Six Eloquent models, four of them (`Setting`, `SettingCategory`, `SettingDefinition`, `SettingAuditEntry`) with factories for tests, seeding and admin screens; `SettingHistory` and `SettingChangeRequest` have none.
 
 ## The models
 

@@ -10,7 +10,7 @@ Thirty events, all `final readonly` classes in `Simtabi\Laranail\Settings\Events
 | `SettingForgetting` / `SettingForgotten` | around a forget | the same; `version` is the removed one |
 | `SettingLocked` / `SettingUnlocked` | after a lock or unlock | the same, with the new `version` |
 | `SettingRolledBack` | after a rollback | the same, plus `toVersion` (the version returned to) and `version` (the new one) |
-| `ScopeFlushing` / `ScopeFlushed` | around `flush()` | `store`, `scope` |
+| `ScopeFlushing` / `ScopeFlushed` | around `flush()` | `store`, `scope`; `ScopeFlushed` adds `removed` |
 | `StorePromoting` / `StorePromoted` | around a promotion | counts, the archive path |
 | `CategorySaving` / `CategorySaved` | around a category create, rename or move | `store`, `slug` |
 | `CategoryMoved` | after a move, besides `CategorySaved` | `store`, `slug`, `parent` (null: top level) |
