@@ -7,24 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- The settings cache reads the time through `Support\Clock`, like the rest of the package, instead of
-  the global `now()` helper. Behaviour is unchanged: both read Laravel's date seam, so `travelTo()`
-  still applies. An architecture test now refuses `now()` and `today()` outside the providers and
-  facades.
-
-### Added
-
-- `SettingsError`, an interface every exception the package throws implements, so one
-  `catch (SettingsError $e)` takes them all.
-- `SettingsMisuse`, a `LogicException` that also implements `SettingsError`, for a call the package
-  cannot serve: `value()` on a missing or redacted lookup, `flush()` without `for($owner)`,
-  `Settings::fake()` with no application, and a settings migration before the provider is
-  registered. These threw a plain `LogicException` before; a `catch (LogicException $e)` still
-  catches them, and the messages are unchanged.
-
-## [0.1.0] - 2026-11-14
+## [0.1.0] - 2026-11-16
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
 `Security` matter only to a checkout taken before the first tag, and [Upgrading](docs/upgrading.md)
@@ -125,6 +108,13 @@ has the steps for one.
   toolkit's own file from `laranail.toolkit.settings`' disk and path when that config is loaded,
   otherwise `laranail/settings.json` on `local`; toolkit itself is not needed. The command's
   `source` argument is now optional. The REST import takes a document, so it has no disk option.
+- `SettingsError`, an interface every exception the package throws implements, so one
+  `catch (SettingsError $e)` takes them all.
+- `SettingsMisuse`, a `LogicException` that also implements `SettingsError`, for a call the package
+  cannot serve: `value()` on a missing or redacted lookup, `flush()` without `for($owner)`,
+  `Settings::fake()` with no application, and a settings migration before the provider is
+  registered. These threw a plain `LogicException` before; a `catch (LogicException $e)` still
+  catches them, and the messages are unchanged.
 
 ### Changed
 
@@ -142,6 +132,10 @@ has the steps for one.
 - Configuration is read with typed getters: a value of the wrong type is an error, not the default.
 - Typed settings classes listed in `typed.classes` are bound at boot; one not listed resolves
   unloaded.
+- The settings cache reads the time through `Support\Clock`, like the rest of the package, instead of
+  the global `now()` helper. Behaviour is unchanged: both read Laravel's date seam, so `travelTo()`
+  still applies. An architecture test now refuses `now()` and `today()` outside the providers and
+  facades.
 
 ### Removed
 
