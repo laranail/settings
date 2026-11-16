@@ -67,7 +67,7 @@ The value of version 3 is read back from the history, decrypted and decoded, the
 Every store with an active database layer keeps history. For a store on file layers only,
 `history()`, `rollback()` and `historyDiff()` raise `HistoryUnavailable`.
 
-`reencrypt` (rewriting payloads after a key rotation, history included) is not part of this release.
+`laranail::settings.reencrypt` rewrites history payloads too after a key rotation; see [Re-encryption and rescoping](reencryption.md).
 
 ---
 

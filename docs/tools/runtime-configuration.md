@@ -50,7 +50,7 @@ $report = $settings->withConfiguration(
 );
 ```
 
-Persisted configuration, saved in the database and edited through the API, arrives with the governance release.
+Configuration saved in the database and edited through the API is covered by [Persisted configuration](persisted-configuration.md).
 
 ---
 

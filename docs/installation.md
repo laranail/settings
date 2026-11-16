@@ -92,8 +92,8 @@ Settings::store('settings')->asSystem('installer')->promoteWhenReady();
 
 The values the installer writes go to the runtime file. When its `migrate` call finishes, the
 store is promoted in the same process. To keep doing this after the install, on every server, set
-`'promote' => 'auto'` on the store or `LARANAIL_SETTINGS_PROMOTE=auto`; `promote.include` and
-`promote.owners` limit what is moved (see [Configuration](configuration.md)).
+`'promote' => 'auto'` on the store or `LARANAIL_SETTINGS_PROMOTE=auto`; the store's `promote.include`
+and `promote.owners` limit what is moved (see [Configuration](configuration.md)).
 
 ## The REST API
 
@@ -104,7 +104,7 @@ host's authentication middleware (`auth:sanctum` when laravel/sanctum is install
 ## Supported databases
 
 The package is tested on SQLite, MySQL 8.4 and PostgreSQL 17. SQL Server is not supported in
-0.x: it allows one `NULL` per unique index, which breaks the `unique(uid)` index.
+0.x: it is not in the test matrix, so nothing shows the migration and the queries work there.
 
 ---
 

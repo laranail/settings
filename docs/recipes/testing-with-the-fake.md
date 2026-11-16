@@ -31,6 +31,8 @@ Actors work in the fake exactly as in the engine, so gates you define in the tes
 ```php
 use Illuminate\Support\Facades\Gate;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Facades\Settings;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 
 it('refuses a non-admin', function () {
     $settings = Settings::fake();

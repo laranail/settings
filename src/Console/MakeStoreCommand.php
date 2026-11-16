@@ -19,7 +19,7 @@ final class MakeStoreCommand extends Command
 
     protected $signature = 'laranail::settings.make-store
         {store : The store name, [a-z][a-z0-9_]*}
-        {--connection= : A database connection of its own (its categories and audit tables are generated too)}
+        {--connection= : A database connection of its own (its categories, audit, history and change requests tables are generated too)}
         {--owner=* : A morph alias the store holds values for (repeat for several)}';
 
     protected $description = 'Generate the migration and configuration for a new settings store';

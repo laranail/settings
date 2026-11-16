@@ -14,7 +14,7 @@ The mode is the one switch in the table shape: the migration adds the column, an
 reads the same key, so set it before migrating and change it only with a migration. In `column` mode the tenant leads the unique keys
 (`unique(tenant, scope, key, locale)` on values, `unique(tenant, store, slug)` on categories), so
 two tenants can hold the same key, and `''` is the central application's rows. The column is
-`string(64)` and binary-collated, like `scope`.
+`string(64)`, binary-collated on the values, history and change-request tables, like `scope`.
 
 Definitions are shared by every tenant: they describe settings, they hold no tenant's values. In
 `column` mode, synced definitions link to the central (`''`) categories.

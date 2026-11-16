@@ -208,7 +208,7 @@ The layering above names a service as a stateful collaborator that owns I/O or a
 but before 0.1 the services sat beside whatever they served: `SettingWriter` next to `Store` and
 `Layer`, `ValuePipeline` among the stateless helpers it is not one of. Reading a directory did not
 say which kind of class it held. Every service now lives under `Services\` (`Database`, `Stores`, `Resolution`, `Access`,
-`Configuration`, `Definitions`, `Tenancy`, `Casting`, `Values`, `Drivers`, `Cache`),
+`Configuration`, `Definitions`, `Tenancy`, `Casting`, `Values`, `Drivers`, `Cache`, `Transfer`),
 and the classes left in their old directories are value objects, contract implementations and
 entry points.
 
@@ -321,7 +321,7 @@ database is the reason to choose one. `doctor` checks that every column the pack
 ## Why one migration?
 
 Every table the package uses is created by one migration file, in dependency order (categories,
-definitions, each store's values, audit, history), with a `down()` that drops them in reverse. Four
+definitions, each store's values, audit, history, change requests, stores), with a `down()` that drops them in reverse. Four
 migration stubs used to do this, each repeating the same connection and shape lookups, and a new
 store meant copying a stub. Nothing in the migration varies per application beyond table names
 and `tenancy.mode`, so it ships as a real PHP file. Its table definitions stay inline,

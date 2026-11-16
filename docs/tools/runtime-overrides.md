@@ -31,7 +31,7 @@ use Simtabi\Laranail\Settings\Contracts\Settings;
 
 public function handle(Settings $settings): void
 {
-    // One key, global: every owner reads it, unless the owner has an override of its own.
+    // One key, global: owners read it too when the setting inherits, unless they have their own.
     $settings->override('mail.default', 'log');
 
     // Several keys at once.
@@ -152,7 +152,7 @@ flowchart TD
 
 Three consequences worth knowing:
 
-- **A global override beats a stored owner value.** `$settings->override('ui.theme', 'dark')` makes every user read `dark`, including a user who saved `light`, unless that user has an override of their own. This is what "override" means here: it sits above the database, not beside the global row.
+- **A global override beats a stored owner value.** `$settings->override('ui.theme', 'dark')` makes every user read `dark` when `ui.theme` inherits, including a user who saved `light`, unless that user has an override of their own. This is what "override" means here: it sits above the database, not beside the global row.
 - **Inheritance is the definition's.** An owner reaches parent and global overrides only when the setting inherits (its definition's `inherits()`, or else the store's `inherits`), exactly as it reaches parent and global stored values. A setting that does not inherit sees only the owner's own override.
 - **Precedence and locks do not apply.** A definition's `precedence` (`file` or `config`) chooses between stored layers, and a lock stops writes; an override is neither, so it answers for a locked setting and for one whose shipped file normally wins. That is deliberate: the override is a code-level decision made by the application for this request, and it changes nothing anyone else can see. If a value must never differ, do not override it.
 

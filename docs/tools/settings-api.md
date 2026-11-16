@@ -44,7 +44,7 @@ $settings->store('user_settings')->for($user)->locale('fr')->as($admin)->because
 
 Abilities are named in the [access control](access-control.md) reference. A handle **without** an actor is trusted code: it is not authorized, and it is audited as `system` (unless `authorization.require_actor` is on, when it throws `ActorRequired`). A handle **with** an actor is authorized for every operation, reads included, and every refusal fires `AccessWasDenied`.
 
-Every exception extends `Simtabi\Laranail\Settings\Exceptions\SettingsException`; the [exceptions reference](exceptions.md) says when each is raised and how the REST API answers it.
+Every exception implements `Simtabi\Laranail\Settings\Exceptions\SettingsError`, and all but `SettingsMisuse` (a `LogicException` for a call the package cannot serve) extend `SettingsException`; the [exceptions reference](exceptions.md) says when each is raised and how the REST API answers it.
 
 ## Scoping
 
@@ -237,7 +237,7 @@ The store's definitions from code, configuration and the definitions table, in k
 
 ## Writing
 
-A write by an actor needs the ability named below, and step-up verification when `verification.abilities` lists it or the definition `requiresVerification()` (`VerificationRequired`, with `VerificationWasRequired` fired). A write to a setting that needs approval opens a change request instead (`ChangeRequested`), and the method still returns normally; on a store that cannot hold change requests it throws `ApprovalUnavailable`.
+A write by an actor needs the ability named below, and step-up verification when `verification.abilities` lists it or the definition requires it (`requiresVerification()` when defining it) (`VerificationRequired`, with `VerificationWasRequired` fired). A write to a setting that needs approval opens a change request instead (`ChangeRequested`), and the method still returns normally; on a store that cannot hold change requests it throws `ApprovalUnavailable`.
 
 ### `set()`
 
@@ -326,7 +326,7 @@ An override is a value held in memory for the current request or job that answer
 ```php
 public function override(string|array $key, mixed $value = null): void
 
-$settings->override('mail.default', 'log');                    // global: every owner sees it, unless it has its own
+$settings->override('mail.default', 'log');                    // global; an owner sees it when the setting inherits
 $settings->for($user)->override('ui.theme', 'high-contrast');   // this owner only
 $settings->override(['features.beta' => true, 'limits.seats' => 50]);
 ```
@@ -606,7 +606,7 @@ The handle's actor, or `null` for trusted code.
 ```php
 public function configuration(): RuntimeConfiguration
 
-$settings->configuration()->define('beta.enabled')->ofType('boolean')->withDefault(false);
+$settings->configuration()->define('beta.enabled')->ofType('boolean')->withDefault(false)->register();
 $settings->configuration()->authorizeUsing(fn ($actor, $ability, $subject) => …);
 ```
 
@@ -627,7 +627,7 @@ Applies the changes for the duration of `$run` only, then restores them; returns
 
 ## The facade
 
-`Simtabi\Laranail\Settings\Facades\Settings` proxies every method above (its docblock lists them for IDEs). It is application sugar; the package's own classes never use it.
+`Simtabi\Laranail\Settings\Facades\Settings` proxies every method above (its docblock lists them for IDEs). It is application sugar: the package's classes take the contract, except the `HasSettings` trait, which runs inside the application's own models and so calls the facade.
 
 ```php
 use Simtabi\Laranail\Settings\Facades\Settings;

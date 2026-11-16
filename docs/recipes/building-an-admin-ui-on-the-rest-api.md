@@ -31,7 +31,7 @@ const api = (path, init = {}) =>
 
 const [categories, definitions, values] = await Promise.all([
   api('/stores/settings/categories').then((r) => r.json()),
-  api('/stores/settings/definitions?limit=200').then((r) => r.json()),
+  api('/stores/settings/definitions').then((r) => r.json()),
   api('/stores/settings/settings?limit=200').then((r) => r.json()),
 ]);
 
@@ -44,7 +44,7 @@ const sections = categories.data.map((category) => ({
 }));
 ```
 
-Map `type` to an input (`boolean` to a toggle, `integer` to a number field, `email` to an email field), and render `sensitive` fields as write-only: the listing leaves out values the user may not read. Follow `meta.next_cursor` when a store holds more than 200 keys.
+Map `type` to an input (`boolean` to a toggle, `integer` to a number field, `email` to an email field), and render `sensitive` fields as write-only: the listing leaves out values the user may not read. Definitions come back in one response; for values, follow `meta.next_cursor` when a store holds more than 200 keys.
 
 ## Save one field at a time, with its ETag
 

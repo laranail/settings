@@ -20,7 +20,7 @@ use Simtabi\Laranail\Settings\Contracts\Settings;
 public function update(UpdateMailRequest $request, Settings $settings): RedirectResponse
 {
     $settings->asCurrentActor()
-        ->because($request->string('reason'))
+        ->because($request->string('reason')->toString())
         ->set('mail.from.address', $request->validated('address'));
 
     return back();

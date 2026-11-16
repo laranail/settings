@@ -16,7 +16,7 @@ Encrypted values are left out by default, so the file is safe to commit or attac
 php artisan laranail::settings.diff storage/settings-staging.json --store=settings
 ```
 
-The diff lists keys `added`, `removed`, `changed` and `unchanged`, never values, and exits 1 when the two differ, so it can gate a deploy.
+The diff lists keys added (`+`), removed (`-`), changed (`~`) and unknown to this release (`?`), never values, and exits 1 when keys are added, removed or changed, so it can gate a deploy. With no difference it prints how many keys are unchanged.
 
 ## Import, dry run first
 

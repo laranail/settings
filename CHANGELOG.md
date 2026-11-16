@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Documentation checked page by page against the code, and 30 statements corrected: stale counts
+  (18 commands, 29 `SettingsException` subclasses, six models), features described as unreleased
+  that ship (approvals, re-encryption, persisted configuration), global overrides reaching owners
+  only when the setting inherits, encrypted history payloads answered as `null`, recipe snippets
+  that missed a gate, an import or a `register()` call, and the stated reason SQL Server is not
+  supported. `make-store --connection`'s help now names every shared table it creates.
+
 ## [0.1.0] - 2026-11-16
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
