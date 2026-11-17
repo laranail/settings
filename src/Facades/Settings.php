@@ -38,6 +38,7 @@ use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
 use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
 use Simtabi\Laranail\Settings\Categories\CategoryManager;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
@@ -52,6 +53,8 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
 use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
 use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
+use Simtabi\Laranail\Settings\Contracts\ModuleSettingsContributor;
+use Simtabi\Laranail\Settings\Contracts\PackageSettingsContributor;
 use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
 use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
 use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
@@ -171,7 +174,23 @@ final class Settings extends Facade
         $app = self::application('Settings::useConfigurator()');
         $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0];
 
-        return ConfiguratorRegistry::of($app)->register($configurator, $caller['file'] ?? 'unknown', $caller['line'] ?? 0, self::reporter($app));
+        return ConfiguratorRegistry::of($app)->register($configurator, $caller['file'] ?? 'unknown', $caller['line'] ?? 0, self::reporter($app), ConfiguratorScope::Application);
+    }
+
+    /**
+     * Register a configurator or contributor from a service provider's `register()`: the
+     * application's configurator, a package's contributor or a module's, told apart by the
+     * contract the class implements. Each is recorded with its call site and identity; a second
+     * registration of one class or one identity throws, naming both.
+     *
+     * @param class-string<SettingsConfigurator|PackageSettingsContributor|ModuleSettingsContributor> $class
+     */
+    public static function register(string $class): ConfiguratorRegistration
+    {
+        $app = self::application('Settings::register()');
+        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0];
+
+        return ConfiguratorRegistry::of($app)->register($class, $caller['file'] ?? 'unknown', $caller['line'] ?? 0, self::reporter($app));
     }
 
     /** Where the application's configurator was registered, or null without one. */

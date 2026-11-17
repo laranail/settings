@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sites; a change after the application has booted throws and is reported. With config cached,
   the cached values (captured from the same configurator) stand. `Settings::configuratorRegistration()`
   says where it was registered.
+- **Package and module contributors.** A package implements `Contracts\PackageSettingsContributor`
+  (identified by its Composer name) and a module `Contracts\ModuleSettingsContributor` (identified
+  by `moduleName()`); either registers with `Settings::register()`, which also accepts the
+  application's configurator. In the default `Loose` mode packages apply first, then modules, then
+  the application; in `Strict` mode (`$settings->mode(ConfiguratorMode::Strict)`) only the
+  application applies, and each refused contributor is reported. Every name has one owner: a store
+  or layer, or any other setting path, declared by two owners throws naming both, whoever runs
+  later. Tables, tenancy, HTTP, the default store, the mode and exclusions are the application's
+  alone, and the application can leave a contributor out with `exclude(package:)` or
+  `exclude(module:)` to take its names.
 
 ## [0.1.0] - 2026-11-17
 

@@ -96,7 +96,7 @@ it('refuses a second configurator, naming both registration sites', function ():
 });
 
 it('refuses a class that is not a configurator', function (): void {
-    expect(fn (): ConfiguratorRegistration => Settings::useConfigurator(stdClass::class))->toThrow(SettingsMisuse::class, 'is not a class implementing');
+    expect(fn (): ConfiguratorRegistration => Settings::useConfigurator(stdClass::class))->toThrow(SettingsMisuse::class, 'must implement exactly one of');
 });
 
 it('refuses a registration from boot(), naming the call site', function (): void {

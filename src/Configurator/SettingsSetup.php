@@ -6,6 +6,8 @@ namespace Simtabi\Laranail\Settings\Configurator;
 
 use Closure;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
@@ -21,6 +23,7 @@ final readonly class SettingsSetup
     /** `default`: the store `Settings::get()` reads without `->store()`. */
     public function defaultStore(string $name): self
     {
+        $this->values->applicationOnly('defaultStore()');
         $this->values->set('default', SetupValues::name('defaultStore()', 'default', $name));
 
         return $this;
@@ -54,6 +57,8 @@ final readonly class SettingsSetup
         ?string $changeRequests = null,
         ?string $stores = null,
     ): self {
+        $this->values->applicationOnly('tables()');
+
         if ($prefix !== null) {
             $this->values->set('tables.prefix', $this->validated(static fn (): string => new SchemaNames(prefix: $prefix)->prefix, 'tables()', 'tables.prefix'));
         }
@@ -103,6 +108,7 @@ final readonly class SettingsSetup
     /** @param Closure(TenancySetup): mixed $setup `tenancy.*` */
     public function tenancy(Closure $setup): self
     {
+        $this->values->applicationOnly('tenancy()');
         $setup(new TenancySetup($this->values));
 
         return $this;
@@ -127,6 +133,7 @@ final readonly class SettingsSetup
     /** @param Closure(HttpSetup): mixed $setup `http.*` */
     public function http(Closure $setup): self
     {
+        $this->values->applicationOnly('http()');
         $setup(new HttpSetup($this->values));
 
         return $this;
@@ -160,6 +167,39 @@ final readonly class SettingsSetup
     public function alerts(Closure $setup): self
     {
         $setup(new AlertsSetup($this->values));
+
+        return $this;
+    }
+
+    /**
+     * Who may contribute: `Loose` (the default) applies packages, then modules, then this
+     * configurator; `Strict` applies this configurator only and reports each refused contributor.
+     * Application only.
+     */
+    public function mode(ConfiguratorMode $mode): self
+    {
+        $this->values->setMode($mode);
+
+        return $this;
+    }
+
+    /**
+     * Leave a package (by Composer name) or a module (by module name) out entirely, on the record:
+     * nothing it declares is applied, and the names it would have owned are free for this
+     * configurator. Application only.
+     */
+    public function exclude(?string $package = null, ?string $module = null): self
+    {
+        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0];
+        $site = ($caller['file'] ?? 'unknown') . ':' . ($caller['line'] ?? 0);
+
+        if (($package === null) === ($module === null)) {
+            $this->values->applicationOnly('exclude()');
+
+            throw new InvalidConfiguration('exclude(): name exactly one package or one module.');
+        }
+
+        $this->values->exclude($package !== null ? ConfiguratorScope::Package : ConfiguratorScope::Module, (string) ($package ?? $module), $site);
 
         return $this;
     }
