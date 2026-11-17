@@ -71,6 +71,29 @@ it('refuses to install over a table of the same name that is not its own', funct
     $this->artisan('laranail::settings.install')->assertSuccessful();
 });
 
+it('ships vendor-prefixed table names, so it installs beside an application\'s own settings table', function (): void {
+    $shipped = require dirname(__DIR__, 3) . '/config/settings.php';
+
+    expect($shipped['tables']['prefix'])->toBe('laranail_');
+
+    config()->set('laranail.settings.tables.prefix', 'laranail_');
+    config()->set('laranail.settings.stores.settings.layers', ['database', 'runtime', 'shipped']);
+    app()->forgetScopedInstances();
+    Schema::create('settings', static function (Blueprint $table): void {
+        $table->id();
+        $table->string('name');
+    });
+
+    $this->artisan('laranail::settings.install')->assertSuccessful();
+    $this->artisan('migrate', ['--path' => database_path('migrations'), '--realpath' => true])->assertSuccessful();
+
+    foreach (['settings', 'settings_categories', 'settings_definitions', 'settings_audit', 'settings_history', 'settings_change_requests', 'settings_stores'] as $table) {
+        expect(Schema::hasTable('laranail_' . $table))->toBeTrue();
+    }
+
+    expect(Schema::getColumnListing('settings'))->toBe(['id', 'name']);
+});
+
 it('generates a store\'s migration and prints its configuration', function (): void {
     $this->artisan('laranail::settings.make-store', ['store' => 'user_settings', '--owner' => ['user']])
         ->expectsOutputToContain('create_settings_user_settings_table.php')

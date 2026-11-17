@@ -91,7 +91,7 @@ function useDatabase(array $config = [], array $stores = [], array $ownerTables 
 
     if (is_dir($directory)) {
         Artisan::call('migrate:fresh', ['--path' => $directory, '--realpath' => true]);
-        app(SchemaReadinessInterface::class)->flush();
+        migrated();
 
         return;
     }
@@ -127,7 +127,18 @@ function useDatabase(array $config = [], array $stores = [], array $ownerTables 
     }
 
     Artisan::call('migrate:fresh', ['--path' => $directory, '--realpath' => true]);
+    migrated();
+}
+
+/**
+ * After a migration run: the package syncs definitions on `migrate`, which resolves the store
+ * registry and other request-scoped services under the config at that moment. Drop them, so a test
+ * that changes config afterwards reads it fresh, as a new request would.
+ */
+function migrated(): void
+{
     app(SchemaReadinessInterface::class)->flush();
+    app()->forgetScopedInstances();
 }
 
 /**

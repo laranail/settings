@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Schema\ColumnDefinition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Database\Migrations\Migration;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Illuminate\Database\Schema\ColumnDefinition;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 
 /*
@@ -71,10 +71,10 @@ return new class extends Migration
                     $table->json('meta')->nullable();
                     $table->timestamps();
 
-                    $table->unique($this->withTenant(['store', 'slug']), $name . '_store_slug_unique');
-                    $table->unique(['id', 'store'], $name . '_id_store_unique');
-                    $table->index('parent_id', $name . '_parent_index');
-                    $table->foreign('parent_id', $name . '_parent_foreign')->references('id')->on($name)->nullOnDelete();
+                    $table->unique($this->withTenant(['store', 'slug']), $name.'_store_slug_unique');
+                    $table->unique(['id', 'store'], $name.'_id_store_unique');
+                    $table->index('parent_id', $name.'_parent_index');
+                    $table->foreign('parent_id', $name.'_parent_foreign')->references('id')->on($name)->nullOnDelete();
                 });
             }
 
@@ -103,10 +103,10 @@ return new class extends Migration
                     $table->json('meta')->nullable();
                     $table->timestamps();
 
-                    $table->unique(['store', 'key'], $name . '_store_key_unique');
-                    $table->unique(['store', 'slug'], $name . '_store_slug_unique');
-                    $table->index('category_id', $name . '_category_index');
-                    $table->foreign('category_id', $name . '_category_foreign')->references('id')->on($names->categories())->nullOnDelete();
+                    $table->unique(['store', 'key'], $name.'_store_key_unique');
+                    $table->unique(['store', 'slug'], $name.'_store_slug_unique');
+                    $table->index('category_id', $name.'_category_index');
+                    $table->foreign('category_id', $name.'_category_foreign')->references('id')->on($names->categories())->nullOnDelete();
                 });
             }
 
@@ -148,9 +148,9 @@ return new class extends Migration
                     $table->text('reason')->nullable();
                     $table->json('meta')->nullable();
 
-                    $table->index('occurred_at', $name . '_occurred_index');
-                    $table->index($this->withTenant(['store', 'scope', 'key']), $name . '_subject_index');
-                    $table->index(['actor_alias', 'actor_id'], $name . '_actor_index');
+                    $table->index('occurred_at', $name.'_occurred_index');
+                    $table->index($this->withTenant(['store', 'scope', 'key']), $name.'_subject_index');
+                    $table->index(['actor_alias', 'actor_id'], $name.'_actor_index');
                 });
             }
 
@@ -185,8 +185,8 @@ return new class extends Migration
                     $table->text('reason')->nullable();
                     $table->timestamp('created_at');
 
-                    $table->index($this->withTenant(['store', 'scope', 'key', 'locale', 'version']), $name . '_subject_index');
-                    $table->index('created_at', $name . '_created_index');
+                    $table->index($this->withTenant(['store', 'scope', 'key', 'locale', 'version']), $name.'_subject_index');
+                    $table->index('created_at', $name.'_created_index');
                 });
             }
 
@@ -225,9 +225,9 @@ return new class extends Migration
                     $table->timestamp('expires_at')->nullable();
                     $table->timestamps();
 
-                    $table->index($this->withTenant(['status', 'store']), $name . '_status_index');
-                    $table->index($this->withTenant(['store', 'scope', 'key', 'locale']), $name . '_subject_index');
-                    $table->index('expires_at', $name . '_expires_index');
+                    $table->index($this->withTenant(['status', 'store']), $name.'_status_index');
+                    $table->index($this->withTenant(['store', 'scope', 'key', 'locale']), $name.'_subject_index');
+                    $table->index('expires_at', $name.'_expires_index');
                 });
             }
 
@@ -240,7 +240,7 @@ return new class extends Migration
                     $table->json('config');
                     $table->timestamps();
 
-                    $table->unique(['kind', 'name'], $names->stores() . '_kind_name_unique');
+                    $table->unique(['kind', 'name'], $names->stores().'_kind_name_unique');
                 });
             }
         }
@@ -282,7 +282,7 @@ return new class extends Migration
      * two rows on MySQL as they do elsewhere. A dedicated store keeps an `owner_id` foreign key to
      * its owner table instead of the polymorphic `settable_type` and `settable_id`.
      *
-     * @param array{table: string, connection: ?string, owner: ?array{table: string, key: string, type: string}} $store
+     * @param  array{table: string, connection: ?string, owner: ?array{table: string, key: string, type: string}}  $store
      */
     private function valuesTable(Blueprint $table, array $store, SchemaNames $names, bool $tenant, ?string $binary): void
     {
@@ -300,8 +300,8 @@ return new class extends Migration
             $table->string('settable_id', 36)->nullable();
         } else {
             match ($owner['type']) {
-                'uuid'  => $table->char('owner_id', 36),
-                'ulid'  => $table->char('owner_id', 26),
+                'uuid' => $table->char('owner_id', 36),
+                'ulid' => $table->char('owner_id', 26),
                 default => $table->unsignedBigInteger('owner_id'),
             };
         }
@@ -327,19 +327,19 @@ return new class extends Migration
         $table->timestamps();
         $table->timestamp('deleted_at')->nullable();
 
-        $table->unique($this->withTenant(['scope', 'key', 'locale']), $index . '_identity_unique');
-        $table->unique('uid', $index . '_uid_unique');
+        $table->unique($this->withTenant(['scope', 'key', 'locale']), $index.'_identity_unique');
+        $table->unique('uid', $index.'_uid_unique');
 
         if ($owner === null) {
-            $table->index(['settable_type', 'settable_id'], $index . '_settable_index');
+            $table->index(['settable_type', 'settable_id'], $index.'_settable_index');
         } else {
-            $table->index('owner_id', $index . '_owner_index');
-            $table->foreign('owner_id', $index . '_owner_foreign')->references($owner['key'])->on($owner['table'])->cascadeOnDelete();
+            $table->index('owner_id', $index.'_owner_index');
+            $table->foreign('owner_id', $index.'_owner_foreign')->references($owner['key'])->on($owner['table'])->cascadeOnDelete();
         }
 
-        $table->index('category_id', $index . '_category_index');
-        $table->index(['autoload', 'scope'], $index . '_autoload_index');
-        $table->foreign(['category_id', 'category_store'], $index . '_category_foreign')
+        $table->index('category_id', $index.'_category_index');
+        $table->index(['autoload', 'scope'], $index.'_autoload_index');
+        $table->foreign(['category_id', 'category_store'], $index.'_category_foreign')
             ->references(['id', 'store'])->on($names->categories())->nullOnDelete();
     }
 
@@ -391,7 +391,7 @@ return new class extends Migration
      */
     private function store(StoreName $name): array
     {
-        $store = config('laranail.settings.stores.' . $name->value);
+        $store = config('laranail.settings.stores.'.$name->value);
         $store = is_array($store) ? $store : [];
         $table = $store['table'] ?? null;
         $layer = $this->databaseLayer($store);
@@ -403,29 +403,28 @@ return new class extends Migration
 
             $owner = [
                 'table' => $store['owner']['table'],
-                'key'   => is_string($store['owner']['key'] ?? null) ? $store['owner']['key'] : 'id',
-                'type'  => is_string($type) ? strtolower($type) : 'bigint',
+                'key' => is_string($store['owner']['key'] ?? null) ? $store['owner']['key'] : 'id',
+                'type' => is_string($type) ? strtolower($type) : 'bigint',
             ];
         }
 
         return [
-            'table'      => $this->names()->store($name, is_string($table) ? $table : null),
+            'table' => $this->names()->store($name, is_string($table) ? $table : null),
             'connection' => is_string($connection) ? $connection : null,
-            'owner'      => $owner,
+            'owner' => $owner,
         ];
     }
 
     /**
      * The store's first database layer, or null.
      *
-     * @param array<array-key, mixed> $store
-     *
+     * @param  array<array-key, mixed>  $store
      * @return array<array-key, mixed>|null
      */
     private function databaseLayer(array $store): ?array
     {
         foreach ((array) ($store['layers'] ?? []) as $layer) {
-            $config = is_string($layer) ? config('laranail.settings.layers.' . $layer) : null;
+            $config = is_string($layer) ? config('laranail.settings.layers.'.$layer) : null;
 
             if (is_array($config) && ($config['driver'] ?? null) === 'database') {
                 return $config;
@@ -454,16 +453,15 @@ return new class extends Migration
     {
         return match (DB::connection($connection)->getDriverName()) {
             'mysql', 'mariadb' => 'utf8mb4_bin',
-            'pgsql'            => 'C',
-            default            => null,
+            'pgsql' => 'C',
+            default => null,
         };
     }
 
     /**
      * Index columns, led by `tenant` in column-mode tenancy.
      *
-     * @param list<string> $columns
-     *
+     * @param  list<string>  $columns
      * @return list<string>
      */
     private function withTenant(array $columns): array

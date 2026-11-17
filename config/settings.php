@@ -79,10 +79,12 @@ return [
 
     /*
     | Table names. `prefix` is prepended to every table, including each store's
-    | values table.
+    | values table, so the defaults are `laranail_settings`, `laranail_settings_audit`
+    | and so on, clear of an application's own `settings` table. Set the prefix to ''
+    | for the bare names.
     */
     'tables' => [
-        'prefix'          => env('LARANAIL_SETTINGS_TABLE_PREFIX', ''),
+        'prefix'          => env('LARANAIL_SETTINGS_TABLE_PREFIX', 'laranail_'),
         'categories'      => 'settings_categories',
         'audit'           => 'settings_audit',
         'definitions'     => 'settings_definitions',

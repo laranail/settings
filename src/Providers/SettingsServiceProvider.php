@@ -64,6 +64,7 @@ use Simtabi\Laranail\Settings\Console\HistoryCommand;
 use Simtabi\Laranail\Settings\Console\PromoteCommand;
 use Simtabi\Laranail\Settings\Console\RescopeCommand;
 use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
+use Simtabi\Laranail\Settings\Support\ConfigDefaults;
 use Simtabi\Laranail\Settings\Typed\SettingsMigrator;
 use Simtabi\Laranail\Settings\Actions\MigrateSettings;
 use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
@@ -76,6 +77,7 @@ use Simtabi\Laranail\Settings\Console\MakeStoreCommand;
 use Simtabi\Laranail\Settings\Console\ReencryptCommand;
 use Simtabi\Laranail\Settings\Console\WarmCacheCommand;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
+use Illuminate\Contracts\Foundation\CachesConfiguration;
 use Simtabi\Laranail\Settings\Actions\FindForeignTables;
 use Simtabi\Laranail\Settings\Console\ClearCacheCommand;
 use Simtabi\Laranail\Settings\Console\PruneAuditCommand;
@@ -185,6 +187,8 @@ final class SettingsServiceProvider extends PackageServiceProvider
     #[Override]
     public function packageRegistered(): void
     {
+        $this->mergeNestedConfigDefaults();
+
         $this->app->scoped(Settings::class, SettingsManager::class);
 
         $this->registerTenancy();
@@ -207,6 +211,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
         $this->bootReadinessFlush($config);
         $this->bootAutoPromotion();
+        $this->bootDefinitionSync();
         $this->bootTypedBindings($config);
 
         if (filter_var($config->get('laranail.settings.http.enabled', false), FILTER_VALIDATE_BOOL)) {
@@ -225,7 +230,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
         if ($foreign !== []) {
             throw new InvalidConfiguration(sprintf(
-                'These tables already exist and are not laranail/settings tables: %s. Nothing was published. Set LARANAIL_SETTINGS_TABLE_PREFIX (for example laranail_) in .env and install again; to rename single tables instead, publish the config with `php artisan vendor:publish --tag=laranail::settings-config`, set stores.<name>.table, tables.categories or tables.audit, and install again.',
+                'These tables already exist and are not laranail/settings tables: %s. Nothing was published. Choose another prefix with LARANAIL_SETTINGS_TABLE_PREFIX in .env (for example acme_) and install again; to rename single tables instead, publish the config with `php artisan vendor:publish --tag=laranail::settings-config`, set stores.<name>.table, tables.categories or tables.audit, and install again.',
                 implode(', ', $foreign),
             ));
         }
@@ -237,7 +242,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
         try {
             $report = $command->getLaravel()->make(SyncDefinitions::class)->handle(Actor::system('laranail::settings.install'));
         } catch (SettingsException) {
-            $command->comment('Definitions were not synced (run the migrations, then laranail::settings.sync-definitions).');
+            $command->comment('Definitions are synced when the migrations run.');
 
             return;
         }
@@ -372,6 +377,25 @@ final class SettingsServiceProvider extends PackageServiceProvider
         return $global === 'auto'
             || filter_var($config->get('laranail.settings.configuration.persisted', false), FILTER_VALIDATE_BOOL)
             || array_any($stores, static fn (mixed $store): bool => is_array($store) && in_array('auto', [$store['promote'] ?? null, is_array($store['promote'] ?? null) ? $store['promote']['mode'] ?? null : null], true));
+    }
+
+    /**
+     * Fill the keys a published config leaves out of a section (`mergeConfigFrom()` merges one
+     * level deep); see {@see ConfigDefaults}. A cached configuration was merged when it was cached.
+     */
+    private function mergeNestedConfigDefaults(): void
+    {
+        if ($this->app instanceof CachesConfiguration && $this->app->configurationIsCached()) {
+            return;
+        }
+
+        $config = $this->app->make(Repository::class);
+        $defaults = require dirname(__DIR__, 2) . '/config/settings.php';
+        $application = $config->get('laranail.settings', []);
+
+        if (is_array($defaults)) {
+            $config->set('laranail.settings', ConfigDefaults::merge($defaults, is_array($application) ? $application : []));
+        }
     }
 
     // Registration -------------------------------------------------------------------------
@@ -727,6 +751,33 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $events->listen(MigrationsEnded::class, static fn () => $run(Channel::Console));
         $events->listen(JobProcessed::class, static fn () => $run(Channel::Queue));
         $app->terminating(static fn () => $run($app->runningInConsole() ? Channel::Console : Channel::Php));
+    }
+
+    /**
+     * Copy code and config definitions into the definitions table after each `migrate`, so a fresh
+     * install needs no separate `sync-definitions` step. Install runs before the tables exist, so
+     * this is where the first sync happens. It runs only when code or config declares definitions,
+     * so an application without any gets no sync and no audit entry per deploy. A store without
+     * the table is skipped; any other failure is reported, never thrown, so a migration run is not
+     * failed by it.
+     */
+    private function bootDefinitionSync(): void
+    {
+        $app = $this->app;
+
+        $app->make(Dispatcher::class)->listen(MigrationsEnded::class, static function (MigrationsEnded $event) use ($app): void {
+            if ($event->method !== 'up' || $app->make(DefinitionRegistry::class)->all() === []) {
+                return;
+            }
+
+            try {
+                $app->make(SyncDefinitions::class)->handle(Actor::system('migrate'));
+            } catch (SettingsException) {
+                // No definitions table on this connection yet: nothing to sync.
+            } catch (Throwable $exception) {
+                $app->make(ExceptionHandler::class)->report($exception);
+            }
+        });
     }
 
     /** Each typed settings class in `typed.classes` resolves loaded, through the request's handle. */

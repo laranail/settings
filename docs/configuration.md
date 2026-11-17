@@ -32,7 +32,7 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 
 | Key | Default | Purpose |
 |---|---|---|
-| `tables.prefix` | `''` (`LARANAIL_SETTINGS_TABLE_PREFIX`) | put in front of every package table, `[a-z0-9_]`, at most 32 characters |
+| `tables.prefix` | `laranail_` (`LARANAIL_SETTINGS_TABLE_PREFIX`) | put in front of every package table, `[a-z0-9_]`, at most 32 characters, so the defaults are `laranail_settings`, `laranail_settings_audit` and so on; `''` for the bare names |
 | `tables.categories` | `settings_categories` | the categories table, one per connection |
 | `tables.audit` | `settings_audit` | the audit table, one per connection |
 | `tables.definitions` | `settings_definitions` | the definitions table |
@@ -116,7 +116,7 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `approvals.allow_self` | `false` | let the requester approve their own request |
 | `approvals.expire_after` | `7` | days before an open request expires; null for never |
 | `approvals.keep_days` | `90` | days `prune-changes` keeps decided requests; null for ever |
-| `configuration.persisted` | `false` (`LARANAIL_SETTINGS_PERSISTED_CONFIGURATION`) | read and write the stores and layers saved in `settings_stores` |
+| `configuration.persisted` | `false` (`LARANAIL_SETTINGS_PERSISTED_CONFIGURATION`) | read and write the stores and layers saved in the `laranail_settings_stores` table |
 | `configuration.sources` | `['config', 'database', 'runtime']` | merge order of the file, persisted entries and runtime changes; later wins |
 | `importers` | `spatie`, `toolkit`, `akaunting` | importers `import --from=` can use, name => class |
 | `typed.classes` | `[]` | typed settings classes whose properties are registered as definitions |

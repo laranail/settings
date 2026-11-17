@@ -90,8 +90,14 @@
             "@rector"
         ],
         "composer-audit": "@composer audit --no-interaction",
-        "pint": "@php vendor/bin/laranail-pint --test",
-        "pint-fix": "@php vendor/bin/laranail-pint --parallel",
+        "pint": [
+            "@php vendor/bin/laranail-pint --test benchmarks config database/factories database/seeders helpers resources routes src tests/Arch tests/Feature tests/Support tests/Unit tests/Pest.php tests/TestCase.php rector.php",
+            "@php vendor/bin/pint --preset laravel --test database/migrations"
+        ],
+        "pint-fix": [
+            "@php vendor/bin/laranail-pint --parallel benchmarks config database/factories database/seeders helpers resources routes src tests/Arch tests/Feature tests/Support tests/Unit tests/Pest.php tests/TestCase.php rector.php",
+            "@php vendor/bin/pint --preset laravel database/migrations"
+        ],
         "phpstan": "vendor/bin/phpstan analyse --no-progress",
         "rector": "vendor/bin/rector process --dry-run",
         "rector-fix": "vendor/bin/rector process",
@@ -144,5 +150,3 @@
         }
     ]
 }
-
-

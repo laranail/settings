@@ -15,7 +15,7 @@ database exists, and after it does.
 - **Owners.** A setting belongs to the application or to a model (`settable_type` /
   `settable_id`, Laravel's `*able` naming). Owners can inherit from parents (user → team →
   tenant) when a setting's definition allows it.
-- **Categories.** A shared `settings_categories` table, scoped per store, organises settings for
+- **Categories.** A shared `laranail_settings_categories` table, scoped per store, organises settings for
   people and interfaces; `group` remains a lightweight code namespace.
 
 ## How a read resolves
@@ -97,9 +97,11 @@ database layer writes to its first writable file layer, with no history row.
 
 ## The tables
 
-The one migration creates these tables, on the store's connection. `settings` is the default
-store's values table; each database store has its own, of the same shape. `settings_definitions`
-and `settings_stores` live on the default store's connection only. A dedicated store has an
+The one migration creates these tables, on the store's connection. Every name carries
+`tables.prefix`, `laranail_` by default, so the package never claims a bare `settings` table.
+`laranail_settings` is the default store's values table; each database store has its own, of the
+same shape. `laranail_settings_definitions` and `laranail_settings_stores` live on the default
+store's connection only. A dedicated store has an
 `owner_id` foreign key to its owner table instead of `settable_type` and `settable_id`, and in
 `column` tenancy every table except those two gains a `tenant` column that leads its keys.
 
@@ -487,7 +489,9 @@ the file keeps answering reads, and the next run retries.
 
 ## Why install checks for foreign tables
 
-A bare `settings` table plausibly belongs to the application. Installing over it would fail half
+A bare `settings` table plausibly belongs to the application, which is why the package's names
+carry the `laranail_` prefix by default. An application that sets the prefix to `''`, or names a
+table itself, can still collide: installing over a table that is not the package's would fail half
 way or write into it, so `install` recognises the package's tables by columns only they have and
 refuses to run over anything else. An unreachable database is not reported as foreign.
 

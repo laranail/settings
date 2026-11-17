@@ -13,7 +13,7 @@ Stores, layers and definitions saved in the database and edited through the PHP 
 'definitions' => ['sources' => ['code', 'config', 'database']], // read saved definitions
 ```
 
-The migration always creates `settings_stores` and `settings_definitions`.
+The migration always creates `laranail_settings_stores` and `laranail_settings_definitions` (names after `tables.prefix`).
 
 ## Editing
 

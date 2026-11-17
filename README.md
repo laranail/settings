@@ -42,9 +42,12 @@ composer require laranail/settings
 
 ### Getting started
 
-Publish the config and the package's one migration (it creates `settings_categories`, a values
-table per database store, `settings_audit`, `settings_history`, `settings_change_requests`,
-`settings_definitions` and `settings_stores`), migrate, and optionally seed the default categories.
+Publish the config and the package's one migration (it creates `laranail_settings_categories`, a
+values table per database store, `laranail_settings_audit`, `laranail_settings_history`,
+`laranail_settings_change_requests`, `laranail_settings_definitions` and
+`laranail_settings_stores`, clear of an application's own `settings` table), migrate, and
+optionally seed the default categories. Migrating also syncs the definitions declared in code and
+config.
 The default store reads the database first, then its runtime file, then shipped defaults from
 `settings/defaults.php` when that file exists.
 
