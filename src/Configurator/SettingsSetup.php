@@ -5,9 +5,22 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Configurator;
 
 use Closure;
+use Throwable;
+use Psr\Log\LoggerInterface;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Contracts\Caster;
+use Simtabi\Laranail\Settings\Contracts\Driver;
+use Simtabi\Laranail\Settings\Data\LayerConfig;
+use Simtabi\Laranail\Settings\Enums\DriverType;
+use Simtabi\Laranail\Settings\Contracts\Importer;
+use Simtabi\Laranail\Settings\Contracts\Verifier;
+use Simtabi\Laranail\Settings\Contracts\AuditSink;
+use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
+use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
@@ -210,6 +223,168 @@ final readonly class SettingsSetup
         $this->values->set('configuration.persisted', $enabled);
 
         return $this;
+    }
+
+    /**
+     * A custom storage driver for layers to name (`drivers.<name>`), for every request. A
+     * request's `configuration()->extendDriver()` still adds its own on top.
+     *
+     * @param Closure(LayerConfig): Driver $factory
+     */
+    public function driver(string $name, Closure $factory): self
+    {
+        SetupValues::name('driver()', 'drivers', $name);
+
+        if (DriverType::tryFrom($name) !== null) {
+            throw SetupValues::invalid('driver()', 'drivers.' . $name, 'a name that is not a built-in driver', $name);
+        }
+
+        $this->values->behave('drivers.' . $name, $factory);
+
+        return $this;
+    }
+
+    /** A caster for definitions to name as their type (`casters.<alias>`). */
+    public function caster(string $alias, Caster $caster): self
+    {
+        if (preg_match('/^[a-z][a-z0-9_:]*$/', $alias) !== 1) {
+            throw SetupValues::invalid('caster()', 'casters.' . $alias, 'an alias matching [a-z][a-z0-9_:]*', $alias);
+        }
+
+        $this->values->behave('casters.' . $alias, $caster);
+
+        return $this;
+    }
+
+    /**
+     * An importer the import command and `import()` can name (`importers.<name>`).
+     *
+     * @param class-string<Importer> $class
+     */
+    public function importer(string $name, string $class): self
+    {
+        SetupValues::name('importer()', 'importers', $name);
+
+        if (! is_subclass_of($class, Importer::class)) {
+            throw SetupValues::invalid('importer()', 'importers.' . $name, 'a class implementing ' . Importer::class, $class);
+        }
+
+        $this->values->set('importers.' . $name, $class);
+
+        return $this;
+    }
+
+    /**
+     * A setting's definition, in code (`definitions.<key>`).
+     *
+     * @param Closure(DefinitionBuilder): mixed $setup
+     */
+    public function define(string $key, Closure $setup): self
+    {
+        try {
+            $key = new Key($key)->value;
+        } catch (Throwable $exception) {
+            throw new InvalidConfiguration('define() (laranail.settings.definitions): ' . $exception->getMessage(), (int) $exception->getCode(), $exception);
+        }
+
+        $this->values->behave('definitions.' . $key, $setup);
+
+        return $this;
+    }
+
+    /**
+     * Who may do what (`authorization.driver`): an authorizer, a closure, or a class built through
+     * the container. Application only.
+     *
+     * @param Authorizer|Closure|class-string<Authorizer> $authorizer
+     */
+    public function authorizeUsing(Authorizer|Closure|string $authorizer): self
+    {
+        $this->values->applicationOnly('authorizeUsing()');
+        $this->values->behave('authorization.driver', $this->contract('authorizeUsing()', 'authorization.driver', $authorizer, Authorizer::class));
+
+        return $this;
+    }
+
+    /**
+     * Step-up verification (`verification.driver`): a verifier, a closure, or a class built
+     * through the container.
+     *
+     * @param Verifier|Closure|class-string<Verifier> $verifier
+     */
+    public function verifyUsing(Verifier|Closure|string $verifier): self
+    {
+        $this->values->behave('verification.driver', $this->contract('verifyUsing()', 'verification.driver', $verifier, Verifier::class));
+
+        return $this;
+    }
+
+    /**
+     * Who is acting (`authentication.resolver`): a resolver, a closure, or a class built through
+     * the container. Application only.
+     *
+     * @param ActorResolver|Closure|class-string<ActorResolver> $resolver
+     */
+    public function resolveActorsUsing(ActorResolver|Closure|string $resolver): self
+    {
+        $this->values->applicationOnly('resolveActorsUsing()');
+        $this->values->behave('authentication.resolver', $this->contract('resolveActorsUsing()', 'authentication.resolver', $resolver, ActorResolver::class));
+
+        return $this;
+    }
+
+    /** `authorization.require_actor`: refuse calls without an actor. Application only. */
+    public function requireActor(bool $required = true): self
+    {
+        $this->values->applicationOnly('requireActor()');
+        $this->values->set('authorization.require_actor', $required);
+
+        return $this;
+    }
+
+    /**
+     * Send audit entries to these sinks as well as the configured ones. Additive: every owner's
+     * sinks are kept, in order.
+     *
+     * @param AuditSink|class-string<AuditSink> ...$sinks
+     */
+    public function auditTo(AuditSink|string ...$sinks): self
+    {
+        foreach ($sinks as $sink) {
+            $this->values->append('audit.sinks', $this->contract('auditTo()', 'audit.sinks', $sink, AuditSink::class));
+        }
+
+        return $this;
+    }
+
+    /** Send the operational log to this logger, or nowhere with `false` (`logging.channel`). */
+    public function logTo(LoggerInterface|false $logger): self
+    {
+        $this->values->behave('logging.channel', $logger);
+
+        return $this;
+    }
+
+    /**
+     * An instance or closure as given, or a class name that implements the contract.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $contract
+     *
+     * @return T|Closure|class-string<T>
+     */
+    private function contract(string $method, string $path, object|string $value, string $contract): object|string
+    {
+        if ($value instanceof Closure || $value instanceof $contract) {
+            return $value;
+        }
+
+        if (is_object($value)) {
+            throw SetupValues::invalid($method, $path, 'a closure or a ' . $contract, $value);
+        }
+
+        return is_subclass_of($value, $contract) ? $value : throw SetupValues::invalid($method, $path, 'a class implementing ' . $contract, $value);
     }
 
     /**

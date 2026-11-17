@@ -27,6 +27,12 @@ final class SetupValues
 
     private ?ConfiguratorMode $mode = null;
 
+    /** @var array<string, mixed> behaviour that cannot live in config, by the path it claims */
+    private array $behaviour = [];
+
+    /** @var array<string, list<mixed>> additive behaviour, by list, in call order */
+    private array $lists = [];
+
     /** @var array<string, string> excluded `package:<name>` or `module:<name>` => the exclude() call site */
     private array $excluded = [];
 
@@ -84,6 +90,32 @@ final class SetupValues
     {
         $this->guard($path);
         $this->values[$path] = $value;
+    }
+
+    /** Records behaviour (a closure, an object or a class to build) under the path it claims. */
+    public function behave(string $path, mixed $value): void
+    {
+        $this->guard($path);
+        $this->behaviour[$path] = $value;
+    }
+
+    /** Appends to an additive list, which never collides: each owner's entries are kept in order. */
+    public function append(string $list, mixed $value): void
+    {
+        $this->guard($list);
+        $this->lists[$list][] = $value;
+    }
+
+    /** @return array<string, mixed> */
+    public function behaviour(): array
+    {
+        return $this->behaviour;
+    }
+
+    /** @return array<string, list<mixed>> */
+    public function lists(): array
+    {
+        return $this->lists;
     }
 
     public function registration(): ConfiguratorRegistration

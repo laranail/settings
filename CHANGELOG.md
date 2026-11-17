@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   later. Tables, tenancy, HTTP, the default store, the mode and exclusions are the application's
   alone, and the application can leave a contributor out with `exclude(package:)` or
   `exclude(module:)` to take its names.
+- **Behaviour from the configurator.** `driver()`, `caster()`, `importer()`, `define()`,
+  `authorizeUsing()`, `verifyUsing()`, `resolveActorsUsing()`, `requireActor()`, `auditTo()` and
+  `logTo()` set what config cannot hold (closures, objects, classes built through the container) for
+  every request, job and command, and still apply with config cached. Each is used ahead of config,
+  and a request's `configuration()` still wins over it. Driver, caster, definition and verifier names
+  have one owner like any other entry; audit sinks from every owner add up in order; the authorizer,
+  the actor resolver and `requireActor()` are the application's alone.
 
 ## [0.1.0] - 2026-11-17
 

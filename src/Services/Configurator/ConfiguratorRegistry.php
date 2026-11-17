@@ -17,6 +17,7 @@ use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
 use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
 use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
 use Simtabi\Laranail\Settings\Contracts\ModuleSettingsContributor;
 use Simtabi\Laranail\Settings\Contracts\PackageSettingsContributor;
 use Simtabi\Laranail\Package\Tools\Support\Resilience\FailurePolicy;
@@ -41,10 +42,17 @@ final class ConfiguratorRegistry
 
     private ?AppliedSetup $applied = null;
 
+    private ConfiguredBehaviour $behaviour;
+
     /** @var list<SetupValues> */
     private array $runs = [];
 
     private bool $ran = false;
+
+    public function __construct()
+    {
+        $this->behaviour = new ConfiguredBehaviour;
+    }
 
     /** The registry of this application, bound on first use (a call may come before the provider registers). */
     public static function of(Container $app): self
@@ -116,6 +124,12 @@ final class ConfiguratorRegistry
         return $this->registrations;
     }
 
+    /** The behaviour the setup asked for (empty until it has run, or with nothing registered). */
+    public function behaviour(): ConfiguredBehaviour
+    {
+        return $this->behaviour;
+    }
+
     /** What the setup came to, once it has run (null when nothing was registered). */
     public function applied(): ?AppliedSetup
     {
@@ -158,7 +172,8 @@ final class ConfiguratorRegistry
         }
 
         $mode = $application?->mode() ?? ConfiguratorMode::Loose;
-        [$values, $owners, $contributions] = FailurePolicy::run(fn (): array => $this->merge($mode, $application), 'laranail/settings setup') ?? [[], [], []];
+        [$values, $owners, $contributions, $behaviour, $lists] = FailurePolicy::run(fn (): array => $this->merge($mode, $application), 'laranail/settings setup') ?? [[], [], [], [], []];
+        $this->behaviour = ConfiguredBehaviour::from($behaviour, $lists);
 
         foreach ($contributions as $contribution) {
             if ($contribution->status === ContributionStatus::Refused) {
@@ -213,7 +228,7 @@ final class ConfiguratorRegistry
      * Applies the runs in order under the mode and the application's exclusions. Every path has
      * one owner: a store or layer by its name, anything else by its path.
      *
-     * @return array{0: array<string, mixed>, 1: array<string, ConfiguratorRegistration>, 2: list<Contribution>}
+     * @return array{0: array<string, mixed>, 1: array<string, ConfiguratorRegistration>, 2: list<Contribution>, 3: array<string, mixed>, 4: array<string, list<mixed>>}
      */
     private function merge(ConfiguratorMode $mode, ?SetupValues $application): array
     {
@@ -221,6 +236,8 @@ final class ConfiguratorRegistry
         $owners = [];
         $claims = [];
         $contributions = [];
+        $behaviour = [];
+        $lists = [];
 
         foreach ($this->runs as $run) {
             $registration = $run->registration();
@@ -237,26 +254,37 @@ final class ConfiguratorRegistry
                 continue;
             }
 
-            foreach ($run->all() as $path => $value) {
-                $claim = $this->claim($path);
-                $owner = $claims[$claim] ?? null;
+            foreach ([[$run->all(), false], [$run->behaviour(), true]] as [$entries, $isBehaviour]) {
+                foreach ($entries as $path => $value) {
+                    $claim = $this->claim($path);
+                    $owner = $claims[$claim] ?? null;
 
-                if ($owner !== null && $owner !== $registration) {
-                    throw new InvalidConfiguration(sprintf(
-                        'laranail.settings.%s is owned by the %s, so the %s may not set it. Each name has one owner; the application can leave a package or module out with exclude().',
-                        $claim,
-                        $owner->describe(),
-                        $registration->describe(),
-                    ));
+                    if ($owner !== null && $owner !== $registration) {
+                        throw new InvalidConfiguration(sprintf(
+                            'laranail.settings.%s is owned by the %s, so the %s may not set it. Each name has one owner; the application can leave a package or module out with exclude().',
+                            $claim,
+                            $owner->describe(),
+                            $registration->describe(),
+                        ));
+                    }
+
+                    $claims[$claim] = $registration;
+                    $owners[$path] = $registration;
+
+                    if ($isBehaviour) {
+                        $behaviour[$path] = $value;
+                    } else {
+                        $values[$path] = $value;
+                    }
                 }
+            }
 
-                $claims[$claim] = $registration;
-                $owners[$path] = $registration;
-                $values[$path] = $value;
+            foreach ($run->lists() as $list => $listed) {
+                $lists[$list] = [...$lists[$list] ?? [], ...$listed];
             }
         }
 
-        return [$values, $owners, $contributions];
+        return [$values, $owners, $contributions, $behaviour, $lists];
     }
 
     /** The name a path belongs to: `stores.<name>` and `layers.<name>` as a whole, any other path by itself. */
