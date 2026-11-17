@@ -10,7 +10,7 @@
 #
 # Every step is idempotent, so running the whole thing again is always safe. dbpantry must publish
 # host ports (MDB_PUBLISH=direct in its .env, which it reads from that file only). DBPANTRY_DIR
-# defaults to the sibling checkout; ports come from `make endpoints`, never a copy here.
+# defaults to the sibling checkout; ports and credentials come from `make endpoints`, never a copy here.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,17 +29,21 @@ setup() {
     make -s -C "$pantry" new-project NAME="$project" ENGINE=mysql >/dev/null
 }
 
-# Laravel connection, dbpantry engine, the ENGINE= for new-project. Credentials are the ones
-# `make new-project` wrote: user <project>_user, password in secrets/<engine>_<project>_user_password.txt.
+# Laravel connection, then dbpantry engine. Port, user and password file all come from
+# `make endpoints`: the published direct port and the project's `app` principal, whose password file
+# is named inside the container (/run/secrets/…) and lives in dbpantry's secrets/ on the host.
 env_for() {
-    local connection="$1" engine="$2" port secret
+    local connection="$1" engine="$2" endpoint port user secret
     [[ -n "$endpoints" ]] || endpoints="$(make -s -C "$pantry" endpoints OUTPUT=json PROFILES=pg,mysql PROJECT="$project")"
-    port="$(jq -r --arg e "$engine" '.endpoints[] | select(.engine == $e and .enabled) | .direct.published.port // empty' <<<"$endpoints")"
+    endpoint="$(jq -c --arg e "$engine" '.endpoints[] | select(.engine == $e and .enabled)' <<<"$endpoints")"
+    port="$(jq -r '.direct.published.port // empty' <<<"$endpoint")"
     [[ -n "$port" ]] || { echo "test-db: dbpantry publishes no host port for $engine; set MDB_PUBLISH=direct in its .env, then make down && make up" >&2; exit 1; }
-    secret="$pantry/secrets/${engine}_${project}_user_password.txt"
-    [[ -r "$secret" ]] || { echo "test-db: no $engine project [$project] in dbpantry; run bin/test-db setup" >&2; exit 1; }
-    printf 'DB_CONNECTION=%s DB_HOST=127.0.0.1 DB_PORT=%s DB_DATABASE=%s DB_USERNAME=%s_user DB_PASSWORD=%s' \
-        "$connection" "$port" "$project" "$project" "$(<"$secret")"
+    user="$(jq -r '.principals[]? | select(.role == "app") | .user // empty' <<<"$endpoint")"
+    secret="$(jq -r '.principals[]? | select(.role == "app") | .password_file // empty' <<<"$endpoint")"
+    secret="$pantry/secrets/${secret#/run/secrets/}"
+    [[ -n "$user" && -r "$secret" ]] || { echo "test-db: no $engine project [$project] in dbpantry; run bin/test-db setup" >&2; exit 1; }
+    printf 'DB_CONNECTION=%s DB_HOST=127.0.0.1 DB_PORT=%s DB_DATABASE=%s DB_USERNAME=%s DB_PASSWORD=%s' \
+        "$connection" "$port" "$project" "$user" "$(<"$secret")"
 }
 
 run_tests() {

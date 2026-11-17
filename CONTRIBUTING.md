@@ -38,10 +38,10 @@ bin/test-db env     # the variables for a single run by hand, password masked
 ```
 
 `bin/test-db` finds dbpantry beside this checkout (`DBPANTRY_DIR` overrides it), asks it for each
-engine's port (`make endpoints`) and reads each password from its `secrets/`, so no port or
-credential is copied here. Every step is safe to repeat. `composer check` runs it after the lint and
-the SQLite suite. Run the group on both before opening a pull request that touches storage,
-migrations or queries.
+engine's port, user and password file (`make endpoints`) and reads the password from its
+`secrets/`, so no port or credential is copied here. Every step is safe to repeat. `composer check`
+runs it after the lint and the SQLite suite. Run the group on both before opening a pull request
+that touches storage, migrations or queries.
 
 ## Guidelines
 
