@@ -9,14 +9,14 @@ Changelog sections `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` and `Sec
 minor release (`0.1` to `0.2`) may break the API; the section of that release says what breaks and
 what to do, and this page lists the steps.
 
-## If you installed 0.1.0 or 0.1.1 before 2026-11-16
+## If you installed 0.1.0 or 0.1.1 before 2026-11-17
 
 The first `v0.1.0` (2026-11-11) and `v0.1.1` (2026-11-14) were withdrawn, and the history was
 squashed into a single `v0.1.0`, published 2026-11-14, that holds everything both carried, plus
-runtime overrides. That tag was moved on 2026-11-16 to add `SettingsMisuse` and `SettingsError`, and
-twice more the same day to carry corrected documentation and clearer install guidance. Composer
-caches an archive per version name, so an install from an earlier tag keeps the old code until the
-cache is cleared:
+runtime overrides. That tag was moved on 2026-11-16 to add `SettingsMisuse` and `SettingsError`,
+twice more the same day to carry corrected documentation and clearer install guidance, and on
+2026-11-17 to install with no workarounds. Composer caches an archive per version name, so an
+install from an earlier tag keeps the old code until the cache is cleared:
 
 ```bash
 composer clear-cache && composer update laranail/settings
