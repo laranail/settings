@@ -79,6 +79,10 @@
         "test": "vendor/bin/pest --colors=always",
         "test-coverage": "@test --coverage",
         "test-dirty": "@test --dirty --compact",
+        "test-db": [
+            "Composer\\Config::disableProcessTimeout",
+            "bin/test-db"
+        ],
         "mutate": "vendor/bin/pest --mutate --everything --exclude-group=mutation-excluded --min=70",
         "bench": [
             "@composer --working-dir=tools/phpbench update --no-interaction --no-progress --quiet",
@@ -88,6 +92,12 @@
             "@pint",
             "@phpstan",
             "@rector"
+        ],
+        "check": [
+            "Composer\\Config::disableProcessTimeout",
+            "@lint",
+            "@test",
+            "bin/test-db"
         ],
         "composer-audit": "@composer audit --no-interaction",
         "pint": [

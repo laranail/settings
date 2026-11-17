@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Run the `database` test group against MySQL and PostgreSQL from simtabi/dbpantry, the shared
+# local database toolkit, instead of databases of this package's own.
+#
+#   bin/test-db [pest args…]        everything: start dbpantry's pg and mysql, make sure the
+#                                   `settings` project exists on each, then run the group on both
+#   bin/test-db setup               only the first two steps
+#   bin/test-db test [pest args…]   only the tests (dbpantry already up, projects already there)
+#   bin/test-db env                 the variables for one run by hand (passwords masked)
+#
+# Every step is idempotent, so running the whole thing again is always safe. dbpantry must publish
+# host ports (MDB_PUBLISH=direct in its .env, which it reads from that file only). DBPANTRY_DIR
+# defaults to the sibling checkout; ports come from `make endpoints`, never a copy here.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+pantry="${DBPANTRY_DIR:-$root/../../../simtabi/packages/dbpantry}"
+[[ -f "$pantry/.env" ]] || { echo "test-db: dbpantry not found at $pantry (set DBPANTRY_DIR)" >&2; exit 1; }
+pantry="$(cd "$pantry" && pwd)"
+
+project=settings
+endpoints=""
+
+setup() {
+    echo "test-db: starting dbpantry (pg, mysql)…"
+    make -s -C "$pantry" up PROFILES=pg,mysql
+    echo "test-db: making sure the [$project] project exists on pg and mysql…"
+    make -s -C "$pantry" new-project NAME="$project" >/dev/null
+    make -s -C "$pantry" new-project NAME="$project" ENGINE=mysql >/dev/null
+}
+
+# Laravel connection, dbpantry engine, the ENGINE= for new-project. Credentials are the ones
+# `make new-project` wrote: user <project>_user, password in secrets/<engine>_<project>_user_password.txt.
+env_for() {
+    local connection="$1" engine="$2" port secret
+    [[ -n "$endpoints" ]] || endpoints="$(make -s -C "$pantry" endpoints OUTPUT=json PROFILES=pg,mysql PROJECT="$project")"
+    port="$(jq -r --arg e "$engine" '.endpoints[] | select(.engine == $e and .enabled) | .direct.published.port // empty' <<<"$endpoints")"
+    [[ -n "$port" ]] || { echo "test-db: dbpantry publishes no host port for $engine; set MDB_PUBLISH=direct in its .env, then make down && make up" >&2; exit 1; }
+    secret="$pantry/secrets/${engine}_${project}_user_password.txt"
+    [[ -r "$secret" ]] || { echo "test-db: no $engine project [$project] in dbpantry; run bin/test-db setup" >&2; exit 1; }
+    printf 'DB_CONNECTION=%s DB_HOST=127.0.0.1 DB_PORT=%s DB_DATABASE=%s DB_USERNAME=%s_user DB_PASSWORD=%s' \
+        "$connection" "$port" "$project" "$project" "$(<"$secret")"
+}
+
+run_tests() {
+    cd "$root"
+    echo "test-db: the database group on MySQL…"
+    # shellcheck disable=SC2046 # word-splitting the KEY=value pairs is intended
+    env $(env_for mysql mysql) vendor/bin/pest --group=database "$@"
+    echo "test-db: the database group on PostgreSQL…"
+    # shellcheck disable=SC2046
+    env $(env_for pgsql pg) vendor/bin/pest --group=database "$@"
+}
+
+case "${1:-}" in
+    setup)
+        setup
+        ;;
+    test)
+        shift
+        run_tests "$@"
+        ;;
+    env)
+        env_for mysql mysql | sed 's/DB_PASSWORD=.*/DB_PASSWORD=***/'; echo
+        env_for pgsql pg | sed 's/DB_PASSWORD=.*/DB_PASSWORD=***/'; echo
+        ;;
+    -h | --help | help)
+        sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+        ;;
+    *)
+        setup
+        run_tests "$@"
+        ;;
+esac
