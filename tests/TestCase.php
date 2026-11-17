@@ -93,6 +93,9 @@ abstract class TestCase extends IsolatedTestCase
         Storage::fake('local');
         // No shipped file unless a test ships one.
         config()->set('laranail.settings.layers.shipped.path', '/nonexistent/laranail-settings-defaults.php');
+        // The suite names its tables without the shipped `laranail_` prefix; DefaultTableNamesTest
+        // covers the shipped default.
+        config()->set('laranail.settings.tables.prefix', '');
         // File layers only unless a test asks for the database (useDatabase() in tests/Pest.php).
         config()->set('laranail.settings.stores.settings.layers', ['runtime', 'shipped']);
     }

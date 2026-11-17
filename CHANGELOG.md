@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The package's tables carry a `laranail_` prefix by default (`tables.prefix`), so a fresh install
+  sits beside an application's own `settings` table with no configuration. To keep the bare names
+  of an earlier install, set `LARANAIL_SETTINGS_TABLE_PREFIX` to empty; see Upgrading.
+- `migrate` syncs the definitions declared in code and config into the definitions table, so a
+  fresh install needs no separate `sync-definitions` step. It runs only when code or config
+  declares definitions, so an application without any gets no audit entry per deploy.
+- The published migration follows Laravel's stock Pint preset, so it passes an application's own
+  lint as published. The package's other files keep the shared laranail style, and
+  `composer pint` checks both.
+
+### Fixed
+
+- A published config that sets only some keys of a section keeps the defaults of the rest:
+  `'tables' => ['prefix' => 'acme_']` no longer drops every other table name. Lists and the maps
+  an application names itself (`stores`, `layers`, `importers`, `seed.categories`) are taken as
+  written.
+
 ## [0.1.0] - 2026-11-16
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and

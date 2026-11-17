@@ -32,7 +32,7 @@ Settings::as($user)->because('INC-123')->set('mail.from.address', 'ap@acme.test'
 | Sink | Writes to |
 |---|---|
 | `auto` (default) | `database` for an entry whose store has an active database layer, `log` otherwise |
-| `database` | the `settings_audit` table on the store's connection |
+| `database` | the `laranail_settings_audit` table on the store's connection |
 | `log` | the operational log, at `info` |
 | `null` | nowhere |
 | a class name | any class implementing `AuditSink` |

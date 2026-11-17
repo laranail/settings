@@ -4,12 +4,9 @@ Move spatie/laravel-settings' values into this package, and keep typed classes.
 
 ## 1. Install beside it
 
-Both packages default to a table named `settings`. Install this one under other names first:
-
-```php
-// config/laranail/settings.php
-'tables' => ['prefix' => 'app_'],    // app_settings, app_settings_categories, …
-```
+spatie keeps its values in a table named `settings`; this package's tables are
+`laranail_settings`, `laranail_settings_categories` and so on, so both install into one database
+as they are:
 
 ```bash
 php artisan laranail::settings.install

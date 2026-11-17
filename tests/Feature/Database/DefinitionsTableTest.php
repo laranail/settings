@@ -56,6 +56,14 @@ it('syncs code and config definitions in as system rows and removes stale ones',
     expect(app(SyncDefinitions::class)->handle())->toMatchArray(['synced' => 2, 'removed' => 0]);
 });
 
+it('syncs code and config definitions when the migrations run, with no separate step', function (): void {
+    config()->set('laranail.settings.definitions', ['site.name' => ['type' => 'string', 'default' => 'Acme']] + config('laranail.settings.definitions'));
+
+    useDatabase(['definitions.sources' => ['code', 'config', 'database']]);
+
+    expect(DB::table('settings_definitions')->where('key', 'site.name')->value('default'))->toBe('"Acme"');
+});
+
 it('reports a runtime row that shares a key with code, and leaves it alone', function (): void {
     useDatabase(['definitions.sources' => ['code', 'config', 'database']]);
     app(DefinitionRegistry::class)->define('site.name')->ofType('string')->register();

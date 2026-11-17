@@ -6,19 +6,19 @@ The `database` driver keeps a store's values in a table, through the query build
 
 | Table | Holds |
 |---|---|
-| `settings` (each store's own, `stores.<name>.table`) | one row per (scope, key, locale) |
-| `settings_categories` | categories of every store on the connection |
-| `settings_definitions` | definitions synced from code and edited at runtime, on the default store's connection |
-| `settings_audit` | the audit trail of every store on the connection |
-| `settings_history` | every value by version, of every store on the connection; see [History](history.md) |
-| `settings_change_requests` | writes waiting for approval; see [Approvals](approvals.md) |
-| `settings_stores` | stores and layers saved through the API, on the default store's connection |
+| `laranail_settings` (each store's own, `stores.<name>.table`) | one row per (scope, key, locale) |
+| `laranail_settings_categories` | categories of every store on the connection |
+| `laranail_settings_definitions` | definitions synced from code and edited at runtime, on the default store's connection |
+| `laranail_settings_audit` | the audit trail of every store on the connection |
+| `laranail_settings_history` | every value by version, of every store on the connection; see [History](history.md) |
+| `laranail_settings_change_requests` | writes waiting for approval; see [Approvals](approvals.md) |
+| `laranail_settings_stores` | stores and layers saved through the API, on the default store's connection |
 
-`tables.prefix` goes in front of all of them. Every connection a store uses has its own
+`tables.prefix`, `laranail_` by default, goes in front of all of them, so they never clash with an application's own `settings` table. Every connection a store uses has its own
 categories, audit, history and change requests tables, so a store's foreign keys and transactions
 never cross connections. One migration creates them all, in that order (`down()` in reverse): see
 [Installation](../installation.md). In column-mode [tenancy](tenancy.md) every table but
-`settings_definitions` and `settings_stores` has a `tenant` column that leads its keys.
+`laranail_settings_definitions` and `laranail_settings_stores` has a `tenant` column that leads its keys.
 
 The shape is fixed: every table is keyed by a ULID, and titles, labels and descriptions are JSON
 maps of locale to text, with `""` for the text that applies to any locale. The values table:
@@ -77,8 +77,8 @@ table has the `deleted_at` column, so the option can be turned on at any time.
 
 ## The definitions table
 
-`laranail::settings.sync-definitions` (also run by `install` once the table exists, and by
-`doctor --fix`) copies code and config definitions in as read-only `is_system` rows, so UIs can
+`laranail::settings.sync-definitions` (also run after every `migrate` when code or config
+declares definitions, by `install` once the table exists, and by `doctor --fix`) copies code and config definitions in as read-only `is_system` rows, so UIs can
 list them; system rows nothing defines any more are removed. One run at a time: a run that finds another holding the lock waits up to five seconds, then changes nothing and says so (the report's `busy`).
 
 Other rows are definitions edited at runtime. With `database` in `definitions.sources` they answer

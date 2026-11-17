@@ -4,7 +4,7 @@ Every change to a setting on a database layer appends one history entry: the val
 
 ## What is recorded
 
-`set`, `forget`, `lock`, `unlock` and `rollback` each append an entry to `settings_history` (one table per connection, like the audit table). An entry holds:
+`set`, `forget`, `lock`, `unlock` and `rollback` each append an entry to `laranail_settings_history` (one table per connection, like the audit table). An entry holds:
 
 | Field | Meaning |
 |---|---|

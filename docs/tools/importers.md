@@ -44,7 +44,7 @@ settings()->import($document);
 
 `spatie` and `akaunting` read a database, so they refuse `--disk`. A disk that is not configured, or a path that is not on it, fails with `InvalidImport`.
 
-spatie/laravel-settings and this package both default to a table named `settings`. To read spatie's from the same database, point this package at other names (`tables.prefix` or `stores.settings.table`) before installing, or read spatie's table from another connection.
+spatie/laravel-settings keeps its values in a table named `settings`; this package's tables carry the `laranail_` prefix by default, so the two sit side by side in one database. If you set the prefix to `''`, point this package at other names before installing, or read spatie's table from another connection.
 
 Values spatie stored encrypted arrive as spatie's ciphertext: define those keys `encrypted()` here and set them again.
 

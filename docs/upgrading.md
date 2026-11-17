@@ -22,9 +22,21 @@ cache is cleared:
 composer clear-cache && composer update laranail/settings
 ```
 
-Your `^0.1` constraint does not change. The config keys and tables are the same. The one change a
-caller can see: misuse that threw a plain `LogicException` now throws `SettingsMisuse`, which still
-extends `LogicException`, so existing catch blocks keep working.
+Your `^0.1` constraint does not change. Two changes are visible:
+
+- **The default table names carry a `laranail_` prefix** (`laranail_settings`,
+  `laranail_settings_categories` and so on), so they no longer collide with an application's own
+  `settings` table. If you migrated the bare names, either keep them by setting the prefix to
+  empty in `.env`, or rename the tables to the new names before you deploy:
+
+  ```bash
+  LARANAIL_SETTINGS_TABLE_PREFIX=
+  ```
+
+  If you already set `LARANAIL_SETTINGS_TABLE_PREFIX=laranail_`, it is now the default and the
+  line can go.
+- Misuse that threw a plain `LogicException` now throws `SettingsMisuse`, which still extends
+  `LogicException`, so existing catch blocks keep working.
 
 ## From a pre-release checkout to 0.1.0
 
