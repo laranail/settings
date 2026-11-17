@@ -102,11 +102,13 @@ use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
+use Simtabi\Laranail\Settings\Configurator\SettingsDecorator;
 use Simtabi\Laranail\Settings\Console\SyncDefinitionsCommand;
 use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
 use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
@@ -416,6 +418,29 @@ final class SettingsServiceProvider extends PackageServiceProvider
             });
         }
 
+        foreach ($behaviour->macros as $name => $macro) {
+            SettingsManager::macro($name, $macro);
+        }
+
+        foreach ($behaviour->listeners as [$event, $listener]) {
+            $app->make(Dispatcher::class)->listen($event, $listener);
+        }
+
+        if ($behaviour->decorators !== []) {
+            // The settings binding is scoped, so each request's handle is decorated as it is built.
+            $app->extend(Settings::class, static function (Settings $settings) use ($behaviour): Settings {
+                foreach ($behaviour->decorators as $index => $decorate) {
+                    $settings = $decorate($settings);
+
+                    if (! $settings instanceof SettingsDecorator) {
+                        throw new InvalidConfiguration(sprintf('decorate() #%d (from the settings configurator) returned [%s]; a decorator must extend %s, which keeps it on every handle store(), for() and as() return.', $index + 1, get_debug_type($settings), SettingsDecorator::class));
+                    }
+                }
+
+                return $settings;
+            });
+        }
+
         if ($behaviour->definitions !== []) {
             $app->extend(DefinitionRegistry::class, static function (DefinitionRegistry $definitions) use ($behaviour): DefinitionRegistry {
                 foreach ($behaviour->definitions as $key => $setup) {
@@ -480,6 +505,9 @@ final class SettingsServiceProvider extends PackageServiceProvider
     private function registerConfigurator(): void
     {
         ConfiguratorRegistry::of($this->app);
+
+        // Read when a service is built, so it is always the behaviour the setup came to.
+        $this->app->bind(ConfiguredBehaviour::class, static fn (Application $app): ConfiguredBehaviour => ConfiguratorRegistry::of($app)->behaviour());
 
         $this->app->booting(static function (Application $app): void {
             $config = $app->make(Repository::class);

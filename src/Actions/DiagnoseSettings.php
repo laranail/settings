@@ -16,6 +16,7 @@ use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
 use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
@@ -53,6 +54,7 @@ final readonly class DiagnoseSettings
         private LaravelValueEncrypter $encrypter,
         private PersistedConfiguration $persisted,
         private DefinitionRegistry $definitions,
+        private ConfiguredBehaviour $behaviour = new ConfiguredBehaviour,
     ) {}
 
     /** @return list<Finding> */
@@ -103,6 +105,10 @@ final readonly class DiagnoseSettings
         $findings[] = new Finding('persisted configuration', 'Every persisted store and layer entry is valid', $problems === []
             ? DoctorResult::pass('Every persisted entry is valid (or persisted configuration is off).')
             : DoctorResult::warn('Persisted entries skipped as invalid: ' . implode('; ', $problems), ['problems' => $problems]));
+
+        foreach ($this->behaviour->doctorChecks as $check) {
+            $findings[] = new Finding($check->name(), $check->description(), $check->run());
+        }
 
         return $findings;
     }

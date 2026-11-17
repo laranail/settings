@@ -53,6 +53,7 @@ use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
 use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
 use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
 use Simtabi\Laranail\Settings\Contracts\ModuleSettingsContributor;
 use Simtabi\Laranail\Settings\Contracts\PackageSettingsContributor;
 use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
@@ -146,7 +147,7 @@ final class Settings extends Facade
         $fake = new SettingsFake($app->make(SettingsManager::class, [
             'stores'          => $stores,
             'overrides'       => $overrides,
-            'resolver'        => new Resolver($stores, $app->make(ValuePipeline::class), $overrides, self::fallbackLocale($app->make('config')->get('app.fallback_locale'))),
+            'resolver'        => new Resolver($stores, $app->make(ValuePipeline::class), $overrides, self::fallbackLocale($app->make('config')->get('app.fallback_locale')), behaviour: $app->make(ConfiguredBehaviour::class)),
             'access'          => $access,
             'set'             => $app->make(SetSetting::class, ['guard' => $guard]),
             'forget'          => $app->make(ForgetSetting::class, ['guard' => $guard]),

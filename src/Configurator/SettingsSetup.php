@@ -6,13 +6,18 @@ namespace Simtabi\Laranail\Settings\Configurator;
 
 use Closure;
 use Throwable;
+use ReflectionClass;
+use ReflectionMethod;
 use Psr\Log\LoggerInterface;
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Enums\Stage;
+use Simtabi\Laranail\Settings\SettingsManager;
 use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Contracts\Importer;
+use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
@@ -22,6 +27,7 @@ use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
 use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorCheck;
 
 /**
  * What a configurator's `configure()` receives: typed, fluent setters for the package's
@@ -361,6 +367,96 @@ final readonly class SettingsSetup
     public function logTo(LoggerInterface|false $logger): self
     {
         $this->values->behave('logging.channel', $logger);
+
+        return $this;
+    }
+
+    /**
+     * Wrap the settings in a decorator. The closure receives the settings and returns a
+     * `SettingsDecorator`; the last one added wraps outermost (packages, then modules, then the
+     * application). Additive: every owner's decorators are kept.
+     *
+     * @param Closure(Settings): SettingsDecorator $decorator
+     */
+    public function decorate(Closure $decorator): self
+    {
+        $this->values->append('decorators', $decorator);
+
+        return $this;
+    }
+
+    /**
+     * A value stage at one of the two positions: `BeforeWrite` sees the value a caller sets, before
+     * validation, casting and encryption; `AfterRead` sees the value a read returns, after
+     * decryption and casting and before redaction. A stage never sees ciphertext and cannot skip
+     * validation. Additive, in the order added.
+     *
+     * @param Closure(mixed, Key): mixed $pipe
+     */
+    public function pipe(Stage $stage, Closure $pipe): self
+    {
+        $this->values->append('pipes.' . $stage->value, $pipe);
+
+        return $this;
+    }
+
+    /**
+     * Listen to one of the package's events. Additive: listeners on one event run in the order
+     * added.
+     *
+     * @param Closure|class-string $listener
+     */
+    public function on(string $event, Closure|string $listener): self
+    {
+        if (! class_exists($event)) {
+            throw SetupValues::invalid('on()', 'listeners', 'an event class', $event);
+        }
+
+        if (is_string($listener) && ! class_exists($listener)) {
+            throw SetupValues::invalid('on()', 'listeners', 'a listener class', $listener);
+        }
+
+        $this->values->append('listeners', [$event, $listener]);
+
+        return $this;
+    }
+
+    /** A method added to every settings handle (`macros.<name>`). Macros are static: they last for the process. */
+    public function macro(string $name, Closure $macro): self
+    {
+        if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name) !== 1 || method_exists(SettingsManager::class, $name)) {
+            throw SetupValues::invalid('macro()', 'macros.' . $name, 'a method name SettingsManager does not have', $name);
+        }
+
+        $this->values->behave('macros.' . $name, $macro);
+
+        return $this;
+    }
+
+    /** Each public or protected method of the mixin, which returns a closure, as a macro (as Laravel's `mixin()`). */
+    public function mixin(object $mixin): self
+    {
+        foreach (new ReflectionClass($mixin)->getMethods(ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED) as $method) {
+            if ($method->isStatic() || $method->isConstructor()) {
+                continue;
+            }
+
+            $macro = $method->invoke($mixin);
+
+            if (! $macro instanceof Closure) {
+                throw SetupValues::invalid('mixin()', 'macros.' . $method->name, 'a method returning a closure', get_debug_type($macro));
+            }
+
+            $this->macro($method->name, $macro);
+        }
+
+        return $this;
+    }
+
+    /** A check `laranail::settings.doctor` runs with its own. Additive. */
+    public function doctorCheck(DoctorCheck $check): self
+    {
+        $this->values->append('doctor.checks', $check);
 
         return $this;
     }

@@ -6,14 +6,18 @@ namespace Simtabi\Laranail\Settings\Configurator;
 
 use Closure;
 use Psr\Log\LoggerInterface;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Enums\Stage;
 use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
+use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
+use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorCheck;
 
 /**
  * The behaviour the setup asked for, which cannot live in config: drivers, casters, definitions,
@@ -32,6 +36,11 @@ final readonly class ConfiguredBehaviour
      * @param ActorResolver|Closure|class-string<ActorResolver>|null $actorResolver
      * @param list<AuditSink|class-string<AuditSink>> $auditSinks added to the configured sinks
      * @param LoggerInterface|false|null $logger false: nowhere
+     * @param list<Closure(Settings): Settings> $decorators innermost first
+     * @param array<string, list<Closure(mixed, Key): mixed>> $stages by Stage value, in order
+     * @param list<array{0: class-string, 1: Closure|class-string}> $listeners event => listener, in order
+     * @param array<string, Closure> $macros by name
+     * @param list<DoctorCheck> $doctorChecks
      */
     public function __construct(
         public array $drivers = [],
@@ -42,6 +51,11 @@ final readonly class ConfiguredBehaviour
         public ActorResolver|Closure|string|null $actorResolver = null,
         public array $auditSinks = [],
         public LoggerInterface|false|null $logger = null,
+        public array $decorators = [],
+        public array $stages = [],
+        public array $listeners = [],
+        public array $macros = [],
+        public array $doctorChecks = [],
     ) {}
 
     /**
@@ -79,6 +93,29 @@ final readonly class ConfiguredBehaviour
         /** @var LoggerInterface|false|null $logger */
         $logger = $entries['logging.channel'] ?? null;
 
-        return new self($drivers, $casters, $definitions, $authorizer, $verifier, $resolver, $sinks, $logger);
+        /** @var list<Closure(Settings): Settings> $decorators */
+        $decorators = $lists['decorators'] ?? [];
+        /** @var list<Closure(mixed, Key): mixed> $before */
+        $before = $lists['pipes.' . Stage::BeforeWrite->value] ?? [];
+        /** @var list<Closure(mixed, Key): mixed> $after */
+        $after = $lists['pipes.' . Stage::AfterRead->value] ?? [];
+        /** @var list<array{0: class-string, 1: Closure|class-string}> $listeners */
+        $listeners = $lists['listeners'] ?? [];
+        /** @var array<string, Closure> $macros */
+        $macros = $named('macros');
+        /** @var list<DoctorCheck> $checks */
+        $checks = $lists['doctor.checks'] ?? [];
+
+        return new self($drivers, $casters, $definitions, $authorizer, $verifier, $resolver, $sinks, $logger, $decorators, [Stage::BeforeWrite->value => $before, Stage::AfterRead->value => $after], $listeners, $macros, $checks);
+    }
+
+    /** The value after each stage at this position, in the order they were added. */
+    public function staged(Stage $stage, Key $key, mixed $value): mixed
+    {
+        foreach ($this->stages[$stage->value] ?? [] as $pipe) {
+            $value = $pipe($value, $key);
+        }
+
+        return $value;
     }
 }

@@ -6,6 +6,7 @@ namespace Simtabi\Laranail\Settings\Tests;
 
 use Override;
 use Illuminate\Support\Facades\Storage;
+use Simtabi\Laranail\Settings\SettingsManager;
 use Simtabi\Laranail\Package\Tools\Testing\IsolatedTestCase;
 use Simtabi\Laranail\DbTools\Providers\DbToolsServiceProvider;
 use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
@@ -28,6 +29,15 @@ abstract class TestCase extends IsolatedTestCase
         parent::setUp();
 
         $this->configureSettings();
+    }
+
+    /** Macros are static, so one test's configurator macros must not reach the next test. */
+    #[Override]
+    protected function tearDown(): void
+    {
+        SettingsManager::flushMacros();
+
+        parent::tearDown();
     }
 
     /**

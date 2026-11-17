@@ -38,6 +38,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a request's `configuration()` still wins over it. Driver, caster, definition and verifier names
   have one owner like any other entry; audit sinks from every owner add up in order; the authorizer,
   the actor resolver and `requireActor()` are the application's alone.
+- **Composition from the configurator.** `decorate()` wraps the settings in a decorator extending
+  the new abstract `Configurator\SettingsDecorator`, which forwards every call and wraps again each
+  handle `store()`, `for()`, `as()` and the others return, so it survives a chain; the last added
+  wraps outermost. `pipe(Stage::BeforeWrite|Stage::AfterRead, …)` adds value stages at the only two
+  positions: the caller's value before validation, casting and encryption, and the read value after
+  decryption and casting, before redaction. `on()` listens to the package's events, `macro()` and
+  `mixin()` add methods to every handle (`SettingsManager` is now `Macroable`; macros are static, so
+  the test case flushes them), and `doctorCheck()` adds a check to `laranail::settings.doctor`.
+  Decorators, stages, listeners and checks from every owner add up in order; a macro name has one
+  owner.
 
 ## [0.1.0] - 2026-11-17
 
