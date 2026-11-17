@@ -34,11 +34,12 @@ variable is refused), so its engines listen on this machine.
 ```bash
 vendor/bin/laranail-test-db              # start dbpantry's test fixture, give this run its own databases, run the group on both
 vendor/bin/laranail-test-db -- --compact # the same, passing arguments to Pest
-vendor/bin/laranail-test-db env mysql    # create a database for a run by hand and print its DB_* variables
+vendor/bin/laranail-test-db --connection=pgsql -- --filter=ApprovalsTest   # one engine only (repeatable)
+vendor/bin/laranail-test-db env mysql    # create a database for a run by hand and print its DB_* variables (password masked; --reveal shows it)
 vendor/bin/laranail-test-db down         # stop the fixture
 ```
 
-The helper comes from laranail/package-tools and reads `extra.laranail.test-db` in `composer.json`.
+The helper comes from laranail/package-tools (`^0.1.14`) and reads `extra.laranail.test-db` in `composer.json`.
 It finds dbpantry beside this checkout (`DBPANTRY_DIR` overrides it), starts its fixture (in memory,
 durability off, beside the long-lived stack) and creates a database named `settings_r<id>` for each
 run, so two runs, from two terminals or two sessions, never share tables. Ports, users and password

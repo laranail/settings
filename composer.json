@@ -38,7 +38,7 @@
         "laranail/console": "^0.1.5",
         "laranail/db-tools": "^0.1",
         "laranail/enumerator": "^0.1",
-        "laranail/package-tools": "^0.1.13",
+        "laranail/package-tools": "^0.1.14",
         "laravel/framework": "^13.0"
     },
     "require-dev": {
