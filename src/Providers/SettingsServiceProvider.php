@@ -106,6 +106,7 @@ use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
 use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
+use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
 use Simtabi\Laranail\Settings\Authentication\SanctumActorResolver;
 use Simtabi\Laranail\Settings\Authorization\PermissionsAuthorizer;
 use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
@@ -117,6 +118,7 @@ use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 use Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder;
 use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Verification\PasswordConfirmationVerifier;
+use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 use Simtabi\Laranail\Package\Tools\Support\Definitions\AutoSeederDefinition;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
@@ -188,6 +190,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
     public function packageRegistered(): void
     {
         $this->mergeNestedConfigDefaults();
+        $this->registerConfigurator();
 
         $this->app->scoped(Settings::class, SettingsManager::class);
 
@@ -399,6 +402,33 @@ final class SettingsServiceProvider extends PackageServiceProvider
     }
 
     // Registration -------------------------------------------------------------------------
+
+    /**
+     * Runs the application's configurator after every provider has registered and before any
+     * boots, writing what it sets into config (unless config is cached, when the cached values
+     * captured from it stand), and seals it once the application has booted.
+     */
+    private function registerConfigurator(): void
+    {
+        ConfiguratorRegistry::of($this->app);
+
+        $this->app->booting(static function (Application $app): void {
+            $config = $app->make(Repository::class);
+
+            ConfiguratorRegistry::of($app)->apply(
+                $app,
+                $app instanceof CachesConfiguration && $app->configurationIsCached(),
+                static function (string $path, mixed $value) use ($config): void {
+                    $config->set('laranail.settings.' . $path, $value);
+                },
+                SettingsFacade::reporter($app),
+            );
+        });
+
+        $this->app->booted(static function (Application $app): void {
+            ConfiguratorRegistry::of($app)->seal();
+        });
+    }
 
     /** The current tenant, and the context the Eloquent models read it from. */
     private function registerTenancy(): void

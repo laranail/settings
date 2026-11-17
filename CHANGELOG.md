@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The settings configurator.** An application sets the package up in one class of its own that
+  implements `Contracts\SettingsConfigurator`, registered once from a service provider's
+  `register()` with `Settings::useConfigurator()`. It runs while the application boots, after
+  every provider has registered, so it applies to requests, jobs, Artisan, migrations and
+  `config:cache` alike, and may depend on any binding. `SettingsSetup` and its sub-setups set the
+  table names and prefix, stores, layers, cache, tenancy, seeding, value limits, HTTP API, audit
+  and history retention, approvals, logging, alerts, bootstrap, promotion and persisted
+  configuration, each validated where it is called, naming the method and the config path.
+  A second registration, or one from `boot()` or a deferred provider, throws naming the call
+  sites; a change after the application has booted throws and is reported. With config cached,
+  the cached values (captured from the same configurator) stand. `Settings::configuratorRegistration()`
+  says where it was registered.
+
 ## [0.1.0] - 2026-11-17
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and

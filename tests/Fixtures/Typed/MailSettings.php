@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Tests\Fixtures\Typed;
 
 use DateTimeImmutable;
-use Simtabi\Laranail\Settings\Typed\Attributes\Key;
 use Simtabi\Laranail\Settings\Typed\TypedSettings;
+use Simtabi\Laranail\Settings\Typed\Attributes\Key;
 use Simtabi\Laranail\Settings\Typed\Attributes\Group;
 use Simtabi\Laranail\Settings\Typed\Attributes\Store;
 use Simtabi\Laranail\Settings\Typed\Attributes\Encrypted;

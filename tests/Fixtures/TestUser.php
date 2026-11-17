@@ -11,10 +11,10 @@ use Illuminate\Foundation\Auth\User;
  */
 final class TestUser extends User
 {
-    protected $guarded = [];
-
     /** @var list<string>|null abilities of the "current token", as Sanctum would expose them */
     public ?array $tokenAbilities = null;
+
+    protected $guarded = [];
 
     public static function make(int $id = 1): self
     {

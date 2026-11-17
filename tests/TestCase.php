@@ -16,6 +16,12 @@ abstract class TestCase extends IsolatedTestCase
     /** @var array<string, mixed> configuration applied while the application boots (rebootWith()) */
     private static array $bootConfig = [];
 
+    /** @var list<class-string> providers registered after the package's, for bootWith() */
+    private static array $extraProviders = [];
+
+    /** @var list<class-string> providers registered before the package's, for bootWith() */
+    private static array $earlyProviders = [];
+
     #[Override]
     protected function setUp(): void
     {
@@ -41,6 +47,31 @@ abstract class TestCase extends IsolatedTestCase
         }
 
         $this->configureSettings();
+    }
+
+    /**
+     * Boot the application again with further service providers, as an application's own would be
+     * registered (a configurator's, say). The suite's test configuration still applies, except the
+     * table prefix, which stays what the boot left it, so a configurator's prefix can be read.
+     *
+     * @param list<class-string> $after registered after the package's provider
+     * @param list<class-string> $before registered before it
+     */
+    public function bootWith(array $after, array $before = []): void
+    {
+        self::$extraProviders = $after;
+        self::$earlyProviders = $before;
+
+        try {
+            $this->refreshApplication();
+        } finally {
+            self::$extraProviders = [];
+            self::$earlyProviders = [];
+        }
+
+        $prefix = config('laranail.settings.tables.prefix');
+        $this->configureSettings();
+        config()->set('laranail.settings.tables.prefix', $prefix);
     }
 
     /**
@@ -84,7 +115,7 @@ abstract class TestCase extends IsolatedTestCase
     {
         // package-tools' own provider is auto-discovered in an application; it holds the seeder
         // registry the package's seeders are registered into.
-        return [PackageToolsServiceProvider::class, DbToolsServiceProvider::class, SettingsServiceProvider::class];
+        return [...self::$earlyProviders, PackageToolsServiceProvider::class, DbToolsServiceProvider::class, SettingsServiceProvider::class, ...self::$extraProviders];
     }
 
     private function configureSettings(): void

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Facades;
 
+use Closure;
+use Throwable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Facade;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\SettingsManager;
@@ -16,6 +19,7 @@ use Simtabi\Laranail\Settings\Testing\FakeLog;
 use Simtabi\Laranail\Settings\Audit\AuditQuery;
 use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Actions\SetSetting;
 use Simtabi\Laranail\Settings\Actions\WriteGuard;
@@ -45,10 +49,13 @@ use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
 use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
 use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
+use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
 use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
 use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
+use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
@@ -152,9 +159,50 @@ final class Settings extends Facade
         return $fake;
     }
 
+    /**
+     * Register the application's configurator, once, from a service provider's `register()`.
+     * It runs while the application boots, so it may depend on any binding. A second
+     * registration, or one made after booting started, throws naming both call sites.
+     *
+     * @param class-string<SettingsConfigurator> $configurator
+     */
+    public static function useConfigurator(string $configurator): ConfiguratorRegistration
+    {
+        $app = self::application('Settings::useConfigurator()');
+        $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0];
+
+        return ConfiguratorRegistry::of($app)->register($configurator, $caller['file'] ?? 'unknown', $caller['line'] ?? 0, self::reporter($app));
+    }
+
+    /** Where the application's configurator was registered, or null without one. */
+    public static function configuratorRegistration(): ?ConfiguratorRegistration
+    {
+        return ConfiguratorRegistry::of(self::application('Settings::configuratorRegistration()'))->registration();
+    }
+
+    /**
+     * Sends a refused registration or a late change to the application's exception handler,
+     * resolved when it happens, so a handler swapped in later (a test's fake) receives it.
+     *
+     * @return Closure(Throwable): void
+     */
+    public static function reporter(Container $app): Closure
+    {
+        return static function (Throwable $exception) use ($app): void {
+            if ($app->bound(ExceptionHandler::class)) {
+                $app->make(ExceptionHandler::class)->report($exception);
+            }
+        };
+    }
+
     protected static function getFacadeAccessor(): string
     {
         return SettingsContract::class;
+    }
+
+    private static function application(string $method): Container
+    {
+        return self::getFacadeApplication() ?? throw new SettingsMisuse($method . ' needs an application: call it from a service provider.');
     }
 
     private static function fallbackLocale(mixed $configured): string
