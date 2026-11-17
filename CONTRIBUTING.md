@@ -15,7 +15,7 @@ Contributions are welcome via pull requests.
 
 | Command | What it checks |
 |---|---|
-| `composer check` | everything, in one command: `lint`, `test`, then the `database` group on MySQL and PostgreSQL through dbpantry (`bin/test-db`). Run it before pushing |
+| `composer check` | everything, in one command: `lint`, `test`, then the `database` group on MySQL and PostgreSQL through dbpantry (`vendor/bin/laranail-test-db`). Run it before pushing |
 | `composer test` | the Pest suite (Arch, Unit, Feature) |
 | `composer test-coverage` | the suite with a line coverage report. There is no fixed floor: coverage ratchets, so a pull request may not lower the total it reports, and a number set before it was measured would only be a guess CI enforces |
 | `composer mutate` | Pest mutation testing of the whole package, failing below a 70 % score (slow; CI runs it weekly, not on pull requests). For your change only: `vendor/bin/pest --mutate --path=src/Changed.php,src/Other.php --exclude-group=mutation-excluded --min=70` |
@@ -32,16 +32,19 @@ database toolkit, so this package keeps no databases of its own. The one prerequ
 variable is refused), so its engines listen on this machine.
 
 ```bash
-bin/test-db         # everything: start pg and mysql, create the settings projects, run the group on both
-bin/test-db test    # only the tests, when dbpantry is already up
-bin/test-db env     # the variables for a single run by hand, password masked
+vendor/bin/laranail-test-db              # start dbpantry's test fixture, give this run its own databases, run the group on both
+vendor/bin/laranail-test-db -- --compact # the same, passing arguments to Pest
+vendor/bin/laranail-test-db env mysql    # create a database for a run by hand and print its DB_* variables
+vendor/bin/laranail-test-db down         # stop the fixture
 ```
 
-`bin/test-db` finds dbpantry beside this checkout (`DBPANTRY_DIR` overrides it), asks it for each
-engine's port, user and password file (`make endpoints`) and reads the password from its
-`secrets/`, so no port or credential is copied here. Every step is safe to repeat. `composer check`
-runs it after the lint and the SQLite suite. Run the group on both before opening a pull request
-that touches storage, migrations or queries.
+The helper comes from laranail/package-tools and reads `extra.laranail.test-db` in `composer.json`.
+It finds dbpantry beside this checkout (`DBPANTRY_DIR` overrides it), starts its fixture (in memory,
+durability off, beside the long-lived stack) and creates a database named `settings_r<id>` for each
+run, so two runs, from two terminals or two sessions, never share tables. Ports, users and password
+files come from dbpantry's `make endpoints`, so no port or credential is copied here. `composer check`
+runs it after the lint and the SQLite suite; `bin/test-db` still works but is deprecated. Run the
+group on both before opening a pull request that touches storage, migrations or queries.
 
 ## Guidelines
 

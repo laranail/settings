@@ -1,78 +1,40 @@
 #!/usr/bin/env bash
-# Run the `database` test group against MySQL and PostgreSQL from simtabi/dbpantry, the shared
-# local database toolkit, instead of databases of this package's own.
+# @deprecated since 2026-11-17, use vendor/bin/laranail-test-db (laranail/package-tools ^0.1.13),
+# configured by extra.laranail.test-db in composer.json. Kept as a forwarding shim so a command
+# written down earlier still works; recorded in .claude/design/settings/audits/deprecations.md.
 #
-#   bin/test-db [pest args…]        everything: start dbpantry's pg and mysql, make sure the
-#                                   `settings` project exists on each, then run the group on both
-#   bin/test-db setup               only the first two steps
-#   bin/test-db test [pest args…]   only the tests (dbpantry already up, projects already there)
-#   bin/test-db env                 the variables for one run by hand (passwords masked)
-#
-# Every step is idempotent, so running the whole thing again is always safe. dbpantry must publish
-# host ports (MDB_PUBLISH=direct in its .env, which it reads from that file only). DBPANTRY_DIR
-# defaults to the sibling checkout; ports and credentials come from `make endpoints`, never a copy here.
+#   bin/test-db [pest args…]        laranail-test-db -- [pest args…]: its own databases, both engines
+#   bin/test-db test [pest args…]   the same: every run now provisions itself
+#   bin/test-db setup               nothing left to do, so a note
+#   bin/test-db env                 laranail-test-db env mysql, then env pgsql (passwords masked)
+#   bin/test-db down                laranail-test-db down
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-pantry="${DBPANTRY_DIR:-$root/../../../simtabi/packages/dbpantry}"
-[[ -f "$pantry/.env" ]] || { echo "test-db: dbpantry not found at $pantry (set DBPANTRY_DIR)" >&2; exit 1; }
-pantry="$(cd "$pantry" && pwd)"
-
-project=settings
-endpoints=""
-
-setup() {
-    echo "test-db: starting dbpantry (pg, mysql)…"
-    make -s -C "$pantry" up PROFILES=pg,mysql
-    echo "test-db: making sure the [$project] project exists on pg and mysql…"
-    make -s -C "$pantry" new-project NAME="$project" >/dev/null
-    make -s -C "$pantry" new-project NAME="$project" ENGINE=mysql >/dev/null
-}
-
-# Laravel connection, then dbpantry engine. Port, user and password file all come from
-# `make endpoints`: the published direct port and the project's `app` principal, whose password file
-# is named inside the container (/run/secrets/…) and lives in dbpantry's secrets/ on the host.
-env_for() {
-    local connection="$1" engine="$2" endpoint port user secret
-    [[ -n "$endpoints" ]] || endpoints="$(make -s -C "$pantry" endpoints OUTPUT=json PROFILES=pg,mysql PROJECT="$project")"
-    endpoint="$(jq -c --arg e "$engine" '.endpoints[] | select(.engine == $e and .enabled)' <<<"$endpoints")"
-    port="$(jq -r '.direct.published.port // empty' <<<"$endpoint")"
-    [[ -n "$port" ]] || { echo "test-db: dbpantry publishes no host port for $engine; set MDB_PUBLISH=direct in its .env, then make down && make up" >&2; exit 1; }
-    user="$(jq -r '.principals[]? | select(.role == "app") | .user // empty' <<<"$endpoint")"
-    secret="$(jq -r '.principals[]? | select(.role == "app") | .password_file // empty' <<<"$endpoint")"
-    secret="$pantry/secrets/${secret#/run/secrets/}"
-    [[ -n "$user" && -r "$secret" ]] || { echo "test-db: no $engine project [$project] in dbpantry; run bin/test-db setup" >&2; exit 1; }
-    printf 'DB_CONNECTION=%s DB_HOST=127.0.0.1 DB_PORT=%s DB_DATABASE=%s DB_USERNAME=%s DB_PASSWORD=%s' \
-        "$connection" "$port" "$project" "$user" "$(<"$secret")"
-}
-
-run_tests() {
-    cd "$root"
-    echo "test-db: the database group on MySQL…"
-    # shellcheck disable=SC2046 # word-splitting the KEY=value pairs is intended
-    env $(env_for mysql mysql) vendor/bin/pest --group=database "$@"
-    echo "test-db: the database group on PostgreSQL…"
-    # shellcheck disable=SC2046
-    env $(env_for pgsql pg) vendor/bin/pest --group=database "$@"
-}
+helper="$root/vendor/bin/laranail-test-db"
+[[ -x "$helper" ]] || { echo "test-db: $helper is missing; run composer install (laranail/package-tools ^0.1.13)" >&2; exit 1; }
+cd "$root"
+echo "test-db: deprecated, use vendor/bin/laranail-test-db" >&2
 
 case "${1:-}" in
     setup)
-        setup
+        echo "test-db: nothing to set up; each run of vendor/bin/laranail-test-db creates its own databases" >&2
         ;;
     test)
         shift
-        run_tests "$@"
+        exec "$helper" -- "$@"
         ;;
     env)
-        env_for mysql mysql | sed 's/DB_PASSWORD=.*/DB_PASSWORD=***/'; echo
-        env_for pgsql pg | sed 's/DB_PASSWORD=.*/DB_PASSWORD=***/'; echo
+        "$helper" env mysql | sed 's/^DB_PASSWORD=.*/DB_PASSWORD=***/'
+        "$helper" env pgsql | sed 's/^DB_PASSWORD=.*/DB_PASSWORD=***/'
+        ;;
+    down)
+        exec "$helper" down
         ;;
     -h | --help | help)
-        sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+        sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
         ;;
     *)
-        setup
-        run_tests "$@"
+        exec "$helper" -- "$@"
         ;;
 esac

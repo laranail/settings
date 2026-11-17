@@ -38,7 +38,7 @@
         "laranail/console": "^0.1.5",
         "laranail/db-tools": "^0.1",
         "laranail/enumerator": "^0.1",
-        "laranail/package-tools": "^0.1.10",
+        "laranail/package-tools": "^0.1.13",
         "laravel/framework": "^13.0"
     },
     "require-dev": {
@@ -81,7 +81,7 @@
         "test-dirty": "@test --dirty --compact",
         "test-db": [
             "Composer\\Config::disableProcessTimeout",
-            "bin/test-db"
+            "vendor/bin/laranail-test-db"
         ],
         "mutate": "vendor/bin/pest --mutate --everything --exclude-group=mutation-excluded --min=70",
         "bench": [
@@ -97,7 +97,7 @@
             "Composer\\Config::disableProcessTimeout",
             "@lint",
             "@test",
-            "bin/test-db"
+            "vendor/bin/laranail-test-db"
         ],
         "composer-audit": "@composer audit --no-interaction",
         "pint": [
@@ -121,6 +121,13 @@
         },
         "branch-alias": {
             "dev-main": "0.1.x-dev"
+        },
+        "laranail": {
+            "test-db": {
+                "connections": ["mysql", "pgsql"],
+                "group": "database",
+                "project": "settings"
+            }
         }
     },
     "config": {
