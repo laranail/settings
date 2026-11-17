@@ -87,6 +87,7 @@ use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Verification\NullVerifier;
 use Simtabi\Laranail\Settings\Actions\PromoteReadyStores;
 use Simtabi\Laranail\Settings\Listeners\LogSettingsEvent;
+use Simtabi\Laranail\Settings\Console\ConfiguratorCommand;
 use Simtabi\Laranail\Settings\Console\PruneChangesCommand;
 use Simtabi\Laranail\Settings\Console\PruneHistoryCommand;
 use Simtabi\Laranail\Settings\Console\PruneOrphansCommand;
@@ -163,6 +164,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             })
             ->hasCommands([
                 PromoteCommand::class,
+                ConfiguratorCommand::class,
                 PruneOrphansCommand::class,
                 PruneAuditCommand::class,
                 PruneHistoryCommand::class,

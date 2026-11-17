@@ -48,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the test case flushes them), and `doctorCheck()` adds a check to `laranail::settings.doctor`.
   Decorators, stages, listeners and checks from every owner add up in order; a macro name has one
   owner.
+- **`laranail::settings.configurator`.** Shows the application's configurator (class, file and the
+  `useConfigurator()` call site), every package and module contributor with what became of it
+  (applied, refused in strict mode, excluded by the application), and every configuration key with
+  its value, secrets redacted, and its source: `default`, `config`, `configurator` with the owning
+  identity, or `persisted`. `--key`, `--owner` and `--scope` narrow it; `--json` is for scripts.
+  `laranail::settings.doctor` reports whether the setup ran, warns about each refused or excluded
+  contributor, and warns about any `LARANAIL_SETTINGS_*` variable still set, naming the configurator
+  method that replaces it; it reads the environment directly, so it works with config cached.
 
 ## [0.1.0] - 2026-11-17
 
