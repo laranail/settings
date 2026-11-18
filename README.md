@@ -65,6 +65,13 @@ lists raises `OwnerNotAllowed`.
 An application without a database drops `database` from `stores.settings.layers` and keeps its
 values in `storage/app/private/laranail/settings/settings.json`.
 
+To set any of this in code rather than in the published file, register one configurator from a
+service provider's `register()` (see [Configurator](docs/tools/configurator.md)):
+
+```php
+Settings::useConfigurator(\App\Settings\AppSettings::class);   // its configure() sets tables, stores, cache…
+```
+
 ### Usage
 
 ```php
@@ -128,6 +135,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 - [Owners and inheritance](docs/tools/owners.md) — owner references, store routing and the cascade.
 - [Access control](docs/tools/access-control.md) — actors, abilities, authorizers, guarded locks, sensitive reads and step-up verification.
 - [Audit and logging](docs/tools/audit-and-logging.md) — the audit trail, its sinks and the operational log.
+- [Configurator](docs/tools/configurator.md) — one class that sets the package up in code: tables, stores, behaviour, decorators, package and module contributors, and the `configurator` command.
 - [Runtime configuration](docs/tools/runtime-configuration.md) — stores, definitions and access changed in code for one request.
 - [Runtime overrides](docs/tools/runtime-overrides.md) — a value held in memory for one request or job, ahead of every stored layer; never written, cached or audited.
 - [Audit queries](docs/tools/audit-queries.md) — reading the audit trail from PHP, gated by `view_audit`.
@@ -148,6 +156,7 @@ The hosted docs live at <https://opensource.simtabi.com/documentation/laranail/s
 
 ### Recipes
 
+- [Configure the package in code](docs/recipes/configuring-the-package-in-code.md) — a configurator instead of a published file or `.env` lines.
 - [Ship defaults with the application](docs/recipes/shipped-defaults.md) — a versioned defaults file instead of `.env`.
 - [Test code that uses settings](docs/recipes/testing-with-the-fake.md) — `Settings::fake()` and its assertions.
 - [Override a setting for one request](docs/recipes/overriding-a-setting-for-one-request.md) — middleware, a queued job and a feature switch, with nothing written.

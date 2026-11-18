@@ -48,7 +48,8 @@ default store), `laranail_settings_audit`, `laranail_settings_history`,
 `laranail_settings_change_requests` and `laranail_settings_stores`, and `down()` drops them in
 reverse. The `laranail_` prefix (`tables.prefix`) keeps them clear of an application's own
 `settings` table. The table shape is fixed (see [Database](tools/database.md)); set
-`tenancy.mode`, the table names and any dedicated stores before migrating. The default store
+`tenancy.mode`, the table names and any dedicated stores before migrating, from your
+[settings configurator](tools/configurator.md) or the published config: the migration reads them. The default store
 reads the database first, so run the migrations before the first read; until then a read raises
 `DriverUnavailable`.
 

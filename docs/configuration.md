@@ -2,6 +2,10 @@
 
 Every key in `config/laranail/settings.php`, read at `config('laranail.settings.*')`.
 
+Set them in code from your [settings configurator](tools/configurator.md) (each row names its
+method where it has one), or in the published file; the configurator wins where both set a key,
+and `php artisan laranail::settings.configurator` shows each key's value and source.
+
 ## Keys
 
 ### Stores
@@ -146,7 +150,8 @@ Approvals are described in [Approvals](tools/approvals.md), persisted configurat
 php artisan laranail::settings.install
 ```
 
-The published file at `config/laranail/settings.php` is merged over the package's defaults.
+The published file at `config/laranail/settings.php` is merged over the package's defaults, and
+the configurator's values over both. Publishing is optional: a configurator can set every key.
 
 ---
 
