@@ -7,63 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- **The settings configurator.** An application sets the package up in one class of its own that
-  implements `Contracts\SettingsConfigurator`, registered once from a service provider's
-  `register()` with `Settings::useConfigurator()`. It runs while the application boots, after
-  every provider has registered, so it applies to requests, jobs, Artisan, migrations and
-  `config:cache` alike, and may depend on any binding. `SettingsSetup` and its sub-setups set the
-  table names and prefix, stores, layers, cache, tenancy, seeding, value limits, HTTP API, audit
-  and history retention, approvals, logging, alerts, bootstrap, promotion and persisted
-  configuration, each validated where it is called, naming the method and the config path.
-  A second registration, or one from `boot()` or a deferred provider, throws naming the call
-  sites; a change after the application has booted throws and is reported. With config cached,
-  the cached values (captured from the same configurator) stand. `Settings::configuratorRegistration()`
-  says where it was registered.
-- **Package and module contributors.** A package implements `Contracts\PackageSettingsContributor`
-  (identified by its Composer name) and a module `Contracts\ModuleSettingsContributor` (identified
-  by `moduleName()`); either registers with `Settings::register()`, which also accepts the
-  application's configurator. In the default `Loose` mode packages apply first, then modules, then
-  the application; in `Strict` mode (`$settings->mode(ConfiguratorMode::Strict)`) only the
-  application applies, and each refused contributor is reported. Every name has one owner: a store
-  or layer, or any other setting path, declared by two owners throws naming both, whoever runs
-  later. Tables, tenancy, HTTP, the default store, the mode and exclusions are the application's
-  alone, and the application can leave a contributor out with `exclude(package:)` or
-  `exclude(module:)` to take its names.
-- **Behaviour from the configurator.** `driver()`, `caster()`, `importer()`, `define()`,
-  `authorizeUsing()`, `verifyUsing()`, `resolveActorsUsing()`, `requireActor()`, `auditTo()` and
-  `logTo()` set what config cannot hold (closures, objects, classes built through the container) for
-  every request, job and command, and still apply with config cached. Each is used ahead of config,
-  and a request's `configuration()` still wins over it. Driver, caster, definition and verifier names
-  have one owner like any other entry; audit sinks from every owner add up in order; the authorizer,
-  the actor resolver and `requireActor()` are the application's alone.
-- **Composition from the configurator.** `decorate()` wraps the settings in a decorator extending
-  the new abstract `Configurator\SettingsDecorator`, which forwards every call and wraps again each
-  handle `store()`, `for()`, `as()` and the others return, so it survives a chain; the last added
-  wraps outermost. `pipe(Stage::BeforeWrite|Stage::AfterRead, …)` adds value stages at the only two
-  positions: the caller's value before validation, casting and encryption, and the read value after
-  decryption and casting, before redaction. `on()` listens to the package's events, `macro()` and
-  `mixin()` add methods to every handle (`SettingsManager` is now `Macroable`; macros are static, so
-  the test case flushes them), and `doctorCheck()` adds a check to `laranail::settings.doctor`.
-  Decorators, stages, listeners and checks from every owner add up in order; a macro name has one
-  owner.
-- **`laranail::settings.configurator`.** Shows the application's configurator (class, file and the
-  `useConfigurator()` call site), every package and module contributor with what became of it
-  (applied, refused in strict mode, excluded by the application), and every configuration key with
-  its value, secrets redacted, and its source: `default`, `config`, `configurator` with the owning
-  identity, or `persisted`. `--key`, `--owner` and `--scope` narrow it; `--json` is for scripts.
-  `laranail::settings.doctor` reports whether the setup ran, warns about each refused or excluded
-  contributor, and warns about any `LARANAIL_SETTINGS_*` variable still set, naming the configurator
-  method that replaces it; it reads the environment directly, so it works with config cached.
-
-### Removed
-
-- **The 20 `LARANAIL_SETTINGS_*` environment variables** (owner decision D4): `config/settings.php`
-  now holds literal defaults, and each setting is set from the configurator instead. The variable
-  and its replacement are listed in [Upgrading](docs/upgrading.md#environment-variables), and
-  `laranail::settings.doctor` and `laranail::settings.configurator` warn about any still set.
-
 ## [0.1.0] - 2026-11-17
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
@@ -172,6 +115,53 @@ has the steps for one.
   `Settings::fake()` with no application, and a settings migration before the provider is
   registered. These threw a plain `LogicException` before; a `catch (LogicException $e)` still
   catches them, and the messages are unchanged.
+- **The settings configurator.** An application sets the package up in one class of its own that
+  implements `Contracts\SettingsConfigurator`, registered once from a service provider's
+  `register()` with `Settings::useConfigurator()`. It runs while the application boots, after
+  every provider has registered, so it applies to requests, jobs, Artisan, migrations and
+  `config:cache` alike, and may depend on any binding. `SettingsSetup` and its sub-setups set the
+  table names and prefix, stores, layers, cache, tenancy, seeding, value limits, HTTP API, audit
+  and history retention, approvals, logging, alerts, bootstrap, promotion and persisted
+  configuration, each validated where it is called, naming the method and the config path.
+  A second registration, or one from `boot()` or a deferred provider, throws naming the call
+  sites; a change after the application has booted throws and is reported. With config cached,
+  the cached values (captured from the same configurator) stand. `Settings::configuratorRegistration()`
+  says where it was registered.
+- **Package and module contributors.** A package implements `Contracts\PackageSettingsContributor`
+  (identified by its Composer name) and a module `Contracts\ModuleSettingsContributor` (identified
+  by `moduleName()`); either registers with `Settings::register()`, which also accepts the
+  application's configurator. In the default `Loose` mode packages apply first, then modules, then
+  the application; in `Strict` mode (`$settings->mode(ConfiguratorMode::Strict)`) only the
+  application applies, and each refused contributor is reported. Every name has one owner: a store
+  or layer, or any other setting path, declared by two owners throws naming both, whoever runs
+  later. Tables, tenancy, HTTP, the default store, the mode and exclusions are the application's
+  alone, and the application can leave a contributor out with `exclude(package:)` or
+  `exclude(module:)` to take its names.
+- **Behaviour from the configurator.** `driver()`, `caster()`, `importer()`, `define()`,
+  `authorizeUsing()`, `verifyUsing()`, `resolveActorsUsing()`, `requireActor()`, `auditTo()` and
+  `logTo()` set what config cannot hold (closures, objects, classes built through the container) for
+  every request, job and command, and still apply with config cached. Each is used ahead of config,
+  and a request's `configuration()` still wins over it. Driver, caster, definition and verifier names
+  have one owner like any other entry; audit sinks from every owner add up in order; the authorizer,
+  the actor resolver and `requireActor()` are the application's alone.
+- **Composition from the configurator.** `decorate()` wraps the settings in a decorator extending
+  the new abstract `Configurator\SettingsDecorator`, which forwards every call and wraps again each
+  handle `store()`, `for()`, `as()` and the others return, so it survives a chain; the last added
+  wraps outermost. `pipe(Stage::BeforeWrite|Stage::AfterRead, …)` adds value stages at the only two
+  positions: the caller's value before validation, casting and encryption, and the read value after
+  decryption and casting, before redaction. `on()` listens to the package's events, `macro()` and
+  `mixin()` add methods to every handle (`SettingsManager` is now `Macroable`; macros are static, so
+  the test case flushes them), and `doctorCheck()` adds a check to `laranail::settings.doctor`.
+  Decorators, stages, listeners and checks from every owner add up in order; a macro name has one
+  owner.
+- **`laranail::settings.configurator`.** Shows the application's configurator (class, file and the
+  `useConfigurator()` call site), every package and module contributor with what became of it
+  (applied, refused in strict mode, excluded by the application), and every configuration key with
+  its value, secrets redacted, and its source: `default`, `config`, `configurator` with the owning
+  identity, or `persisted`. `--key`, `--owner` and `--scope` narrow it; `--json` is for scripts.
+  `laranail::settings.doctor` reports whether the setup ran, warns about each refused or excluded
+  contributor, and warns about any `LARANAIL_SETTINGS_*` variable still set, naming the configurator
+  method that replaces it; it reads the environment directly, so it works with config cached.
 
 ### Changed
 
@@ -205,7 +195,12 @@ has the steps for one.
 
 ### Removed
 
-Each was removed before the first tag; none was in a tagged release.
+- **The 20 `LARANAIL_SETTINGS_*` environment variables**, which an earlier cut of this `v0.1.0` tag read (owner decision D4): `config/settings.php`
+  now holds literal defaults, and each setting is set from the configurator instead. The variable
+  and its replacement are listed in [Upgrading](docs/upgrading.md#environment-variables), and
+  `laranail::settings.doctor` and `laranail::settings.configurator` warn about any still set.
+
+Each of the following was removed before the first tag; none was in a tagged release.
 
 - Config keys `schema.path`, `identity.mode`, `ids.type`, `ids.owner_key`, `translations.mode`,
   `categories.soft_deletes`, `definitions.table`, `history.enabled` and `approvals.table`, with the

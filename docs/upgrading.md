@@ -15,7 +15,9 @@ The first `v0.1.0` (2026-11-11) and `v0.1.1` (2026-11-14) were withdrawn, and th
 squashed into a single `v0.1.0`, published 2026-11-14, that holds everything both carried, plus
 runtime overrides. That tag was moved on 2026-11-16 to add `SettingsMisuse` and `SettingsError`,
 twice more the same day to carry corrected documentation and clearer install guidance, and on
-2026-11-17 to install with no workarounds. Composer caches an archive per version name, so an
+2026-11-17 to install with no workarounds, then again the same day to add the settings
+configurator and stop reading the `LARANAIL_SETTINGS_*` variables (see
+[Environment variables](#environment-variables)). Composer caches an archive per version name, so an
 install from an earlier tag keeps the old code until the cache is cleared:
 
 ```bash
