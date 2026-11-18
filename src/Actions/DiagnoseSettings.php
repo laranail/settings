@@ -12,13 +12,18 @@ use Simtabi\Laranail\Settings\Diagnostics\Finding;
 use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
+use Simtabi\Laranail\Settings\Enums\ContributionStatus;
+use Simtabi\Laranail\Settings\Configurator\AppliedSetup;
 use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
+use Simtabi\Laranail\Settings\Support\LeftoverEnvironment;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
 use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
 /**
@@ -53,6 +58,8 @@ final readonly class DiagnoseSettings
         private LaravelValueEncrypter $encrypter,
         private PersistedConfiguration $persisted,
         private DefinitionRegistry $definitions,
+        private ConfiguredBehaviour $behaviour = new ConfiguredBehaviour,
+        private ConfiguratorRegistry $registry = new ConfiguratorRegistry,
     ) {}
 
     /** @return list<Finding> */
@@ -103,6 +110,47 @@ final readonly class DiagnoseSettings
         $findings[] = new Finding('persisted configuration', 'Every persisted store and layer entry is valid', $problems === []
             ? DoctorResult::pass('Every persisted entry is valid (or persisted configuration is off).')
             : DoctorResult::warn('Persisted entries skipped as invalid: ' . implode('; ', $problems), ['problems' => $problems]));
+
+        $findings = [...$findings, ...$this->configurator()];
+
+        foreach ($this->behaviour->doctorChecks as $check) {
+            $findings[] = new Finding($check->name(), $check->description(), $check->run());
+        }
+
+        return $findings;
+    }
+
+    /**
+     * The configurator ran and sealed; each contributor strict mode refused or the application
+     * excluded; each `LARANAIL_SETTINGS_*` variable still set, with the method that replaces it.
+     *
+     * @return list<Finding>
+     */
+    private function configurator(): array
+    {
+        $registrations = $this->registry->registrations();
+        $applied = $this->registry->applied();
+        $findings = [new Finding('configurator', 'The settings configurator and contributors ran while the application booted', match (true) {
+            $registrations === []              => DoctorResult::skip('No configurator or contributor is registered.'),
+            ! $applied instanceof AppliedSetup => DoctorResult::fail(sprintf('%d registration(s), but the setup has not run: the settings provider did not boot.', count($registrations))),
+            default                            => DoctorResult::pass(sprintf('%d registration(s) in %s mode set %d value(s); see laranail::settings.configurator.', count($registrations), $applied->mode->value, count($applied->values))),
+        })];
+
+        foreach ($applied->contributions ?? [] as $contribution) {
+            if ($contribution->status !== ContributionStatus::Applied) {
+                $findings[] = new Finding('configurator: ' . $contribution->registration->identity, 'A contributor that was not applied', DoctorResult::warn(sprintf(
+                    '%s was %s: nothing it declared applies (%d value(s)).',
+                    $contribution->registration->describe(),
+                    $contribution->status === ContributionStatus::Excluded ? 'excluded by the application at ' . $contribution->excludedAt : 'refused in strict mode',
+                    count($contribution->values),
+                )));
+            }
+        }
+
+        $leftover = LeftoverEnvironment::find();
+        $findings[] = new Finding('configurator: environment', 'No LARANAIL_SETTINGS_* variable is left in the environment', $leftover === []
+            ? DoctorResult::pass('No LARANAIL_SETTINGS_* variable is set.')
+            : DoctorResult::warn('Still set, and replaced by the configurator: ' . implode('; ', array_map(static fn (string $variable, string $method): string => $variable . ' (use ' . $method . ')', array_keys($leftover), $leftover)), ['variables' => $leftover]));
 
         return $findings;
     }

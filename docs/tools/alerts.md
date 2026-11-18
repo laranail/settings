@@ -70,7 +70,7 @@ settings()->set('mail.host', 'smtp.example.com');
 Notification::assertSentOnDemand(SettingsAlert::class, fn (SettingsAlert $alert) => $alert->context->key === 'mail.host');
 ```
 
-Rules are read when the listener is first built; listeners are registered at boot, so set `alerts.enabled` in configuration (or `.env`, `LARANAIL_SETTINGS_ALERTS`) rather than at runtime.
+Rules are read when the listener is first built; listeners are registered at boot, so set `alerts.enabled` in configuration (or `alerts(fn ($alerts) => $alerts->enabled())` in your settings configurator) rather than at runtime.
 
 ---
 

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Providers;
 
+use Closure;
 use Override;
 use Throwable;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
 use Illuminate\Http\Request;
+use Psr\Log\LoggerInterface;
 use InvalidArgumentException;
 use Illuminate\Log\LogManager;
 use Illuminate\Filesystem\Filesystem;
@@ -85,6 +87,7 @@ use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Verification\NullVerifier;
 use Simtabi\Laranail\Settings\Actions\PromoteReadyStores;
 use Simtabi\Laranail\Settings\Listeners\LogSettingsEvent;
+use Simtabi\Laranail\Settings\Console\ConfiguratorCommand;
 use Simtabi\Laranail\Settings\Console\PruneChangesCommand;
 use Simtabi\Laranail\Settings\Console\PruneHistoryCommand;
 use Simtabi\Laranail\Settings\Console\PruneOrphansCommand;
@@ -95,17 +98,23 @@ use Simtabi\Laranail\Package\Tools\Commands\InstallCommand;
 use Simtabi\Laranail\Settings\Authorization\GateAuthorizer;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
+use Simtabi\Laranail\Settings\Verification\ClosureVerifier;
 use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
+use Simtabi\Laranail\Settings\Configurator\SettingsDecorator;
 use Simtabi\Laranail\Settings\Console\SyncDefinitionsCommand;
 use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
 use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
+use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
+use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
 use Simtabi\Laranail\Settings\Authentication\SanctumActorResolver;
 use Simtabi\Laranail\Settings\Authorization\PermissionsAuthorizer;
 use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
@@ -117,6 +126,7 @@ use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 use Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder;
 use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Verification\PasswordConfirmationVerifier;
+use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 use Simtabi\Laranail\Package\Tools\Support\Definitions\AutoSeederDefinition;
 use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
@@ -154,6 +164,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             })
             ->hasCommands([
                 PromoteCommand::class,
+                ConfiguratorCommand::class,
                 PruneOrphansCommand::class,
                 PruneAuditCommand::class,
                 PruneHistoryCommand::class,
@@ -188,6 +199,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
     public function packageRegistered(): void
     {
         $this->mergeNestedConfigDefaults();
+        $this->registerConfigurator();
 
         $this->app->scoped(Settings::class, SettingsManager::class);
 
@@ -230,7 +242,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
         if ($foreign !== []) {
             throw new InvalidConfiguration(sprintf(
-                'These tables already exist and are not laranail/settings tables: %s. Nothing was published. Choose another prefix with LARANAIL_SETTINGS_TABLE_PREFIX in .env (for example acme_) and install again; to rename single tables instead, publish the config with `php artisan vendor:publish --tag=laranail::settings-config`, set stores.<name>.table, tables.categories or tables.audit, and install again.',
+                'These tables already exist and are not laranail/settings tables: %s. Nothing was published. Choose another prefix in your settings configurator with tables(prefix: \'acme_\') and install again; to rename single tables instead, publish the config with `php artisan vendor:publish --tag=laranail::settings-config`, set stores.<name>.table, tables.categories or tables.audit, and install again.',
                 implode(', ', $foreign),
             ));
         }
@@ -380,6 +392,93 @@ final class SettingsServiceProvider extends PackageServiceProvider
     }
 
     /**
+     * Hands the setup's drivers, casters and definitions to the shared registries: through
+     * `extend()`, so a registry already built gets them now and one built later gets them when it
+     * is. Casters first, because a definition names its caster.
+     */
+    private static function extendSeams(Application $app): void
+    {
+        $behaviour = ConfiguratorRegistry::of($app)->behaviour();
+
+        if ($behaviour->casters !== []) {
+            $app->extend(CasterRegistry::class, static function (CasterRegistry $casters) use ($behaviour): CasterRegistry {
+                foreach ($behaviour->casters as $alias => $caster) {
+                    $casters->register($alias, $caster);
+                }
+
+                return $casters;
+            });
+        }
+
+        if ($behaviour->drivers !== []) {
+            $app->extend(DriverFactory::class, static function (DriverFactory $drivers) use ($behaviour): DriverFactory {
+                foreach ($behaviour->drivers as $name => $factory) {
+                    $drivers->extend($name, $factory);
+                }
+
+                return $drivers;
+            });
+        }
+
+        foreach ($behaviour->macros as $name => $macro) {
+            SettingsManager::macro($name, $macro);
+        }
+
+        foreach ($behaviour->listeners as [$event, $listener]) {
+            $app->make(Dispatcher::class)->listen($event, $listener);
+        }
+
+        if ($behaviour->decorators !== []) {
+            // The settings binding is scoped, so each request's handle is decorated as it is built.
+            $app->extend(Settings::class, static function (Settings $settings) use ($behaviour): Settings {
+                foreach ($behaviour->decorators as $index => $decorate) {
+                    $settings = $decorate($settings);
+
+                    if (! $settings instanceof SettingsDecorator) {
+                        throw new InvalidConfiguration(sprintf('decorate() #%d (from the settings configurator) returned [%s]; a decorator must extend %s, which keeps it on every handle store(), for() and as() return.', $index + 1, get_debug_type($settings), SettingsDecorator::class));
+                    }
+                }
+
+                return $settings;
+            });
+        }
+
+        if ($behaviour->definitions !== []) {
+            $app->extend(DefinitionRegistry::class, static function (DefinitionRegistry $definitions) use ($behaviour): DefinitionRegistry {
+                foreach ($behaviour->definitions as $key => $setup) {
+                    $builder = $definitions->define($key);
+                    $setup($builder);
+                    $builder->register();
+                }
+
+                return $definitions;
+            });
+        }
+    }
+
+    /**
+     * The setup's authorizer, verifier, actor resolver or audit sink: an instance as given, a
+     * closure wrapped, or a class built through the container and checked against its contract.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $contract
+     * @param Closure(Closure): T $wrap
+     *
+     * @return T
+     */
+    private static function configured(Application $app, object|string $value, string $contract, Closure $wrap, string $path): object
+    {
+        if ($value instanceof Closure) {
+            return $wrap($value);
+        }
+
+        $instance = is_string($value) ? $app->make($value) : $value;
+
+        return $instance instanceof $contract ? $instance : throw new InvalidConfiguration(sprintf('%s (from the settings configurator): [%s] is not a %s.', $path, get_debug_type($instance), $contract));
+    }
+
+    /**
      * Fill the keys a published config leaves out of a section (`mergeConfigFrom()` merges one
      * level deep); see {@see ConfigDefaults}. A cached configuration was merged when it was cached.
      */
@@ -399,6 +498,38 @@ final class SettingsServiceProvider extends PackageServiceProvider
     }
 
     // Registration -------------------------------------------------------------------------
+
+    /**
+     * Runs the application's configurator after every provider has registered and before any
+     * boots, writing what it sets into config (unless config is cached, when the cached values
+     * captured from it stand), and seals it once the application has booted.
+     */
+    private function registerConfigurator(): void
+    {
+        ConfiguratorRegistry::of($this->app);
+
+        // Read when a service is built, so it is always the behaviour the setup came to.
+        $this->app->bind(ConfiguredBehaviour::class, static fn (Application $app): ConfiguredBehaviour => ConfiguratorRegistry::of($app)->behaviour());
+
+        $this->app->booting(static function (Application $app): void {
+            $config = $app->make(Repository::class);
+
+            ConfiguratorRegistry::of($app)->apply(
+                $app,
+                $app instanceof CachesConfiguration && $app->configurationIsCached(),
+                static function (string $path, mixed $value) use ($config): void {
+                    $config->set('laranail.settings.' . $path, $value);
+                },
+                SettingsFacade::reporter($app),
+            );
+
+            self::extendSeams($app);
+        });
+
+        $this->app->booted(static function (Application $app): void {
+            ConfiguratorRegistry::of($app)->seal();
+        });
+    }
 
     /** The current tenant, and the context the Eloquent models read it from. */
     private function registerTenancy(): void
@@ -546,9 +677,15 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $this->app->scoped(OperationalLogger::class, static function (Application $app): OperationalLogger {
             $config = $app->make(Repository::class);
             $channel = $config->get('laranail.settings.logging.channel');
+            $configured = ConfiguratorRegistry::of($app)->behaviour()->logger;
 
             return new OperationalLogger(
-                $channel === false ? new NullLogger : $app->make(LogManager::class)->channel(is_string($channel) ? $channel : null),
+                match (true) {
+                    $configured === false                  => new NullLogger,
+                    $configured instanceof LoggerInterface => $configured,
+                    $channel === false                     => new NullLogger,
+                    default                                => $app->make(LogManager::class)->channel(is_string($channel) ? $channel : null),
+                },
                 $config->string('laranail.settings.logging.level', LogLevel::INFO),
                 $app->make(RuntimeConfiguration::class),
             );
@@ -561,8 +698,13 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $this->app->scoped(Auditor::class, static function (Application $app): Auditor {
             $sinks = $app->make(Repository::class)->array('laranail.settings.audit.sinks', []);
 
+            $configured = array_map(
+                static fn (AuditSink|string $sink): AuditSink => self::configured($app, $sink, AuditSink::class, static fn (): never => throw new InvalidConfiguration('laranail.settings.audit.sinks: a sink, not a closure.'), 'laranail.settings.audit.sinks'),
+                ConfiguratorRegistry::of($app)->behaviour()->auditSinks,
+            );
+
             return new Auditor(
-                array_values(array_map(static fn (mixed $sink, int|string $index): AuditSink => self::auditSink($app, $sink, 'laranail.settings.audit.sinks.' . $index), $sinks, array_keys($sinks))),
+                [...array_values(array_map(static fn (mixed $sink, int|string $index): AuditSink => self::auditSink($app, $sink, 'laranail.settings.audit.sinks.' . $index), $sinks, array_keys($sinks))), ...$configured],
                 $app->make(Clock::class),
                 $app->make(RuntimeConfiguration::class),
             );
@@ -573,6 +715,12 @@ final class SettingsServiceProvider extends PackageServiceProvider
     private function registerAccess(): void
     {
         $this->app->scoped(Authorizer::class, static function (Application $app): Authorizer {
+            $configured = ConfiguratorRegistry::of($app)->behaviour()->authorizer;
+
+            if ($configured !== null) {
+                return self::configured($app, $configured, Authorizer::class, static fn (Closure $closure): Authorizer => new ClosureAuthorizer($closure), 'laranail.settings.authorization.driver');
+            }
+
             $driver = $app->make(Repository::class)->get('laranail.settings.authorization.driver', 'gate');
 
             return is_array($driver)
@@ -580,7 +728,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 : self::authorizer($app, $driver, 'laranail.settings.authorization.driver');
         });
 
-        $this->app->scoped(Verifier::class, static fn (Application $app): Verifier => match ($driver = $app->make(Repository::class)->get('laranail.settings.verification.driver', 'password_confirmation')) {
+        $this->app->scoped(Verifier::class, static fn (Application $app): Verifier => match ($driver = ConfiguratorRegistry::of($app)->behaviour()->verifier ?? $app->make(Repository::class)->get('laranail.settings.verification.driver', 'password_confirmation')) {
             // The session is read per call: the request changes under this scoped verifier.
             'password_confirmation' => new PasswordConfirmationVerifier(
                 static fn () => $app->bound('request') && $app->make('request') instanceof Request && $app->make('request')->hasSession() ? $app->make('request')->session() : null,
@@ -589,12 +737,18 @@ final class SettingsServiceProvider extends PackageServiceProvider
             ),
             'actor' => $app->make(ActorTimestampVerifier::class),
             'none'  => new NullVerifier,
-            default => self::instance($app, $driver, Verifier::class, 'laranail.settings.verification.driver'),
+            default => is_object($driver) ? self::configured($app, $driver, Verifier::class, static fn (Closure $closure): Verifier => new ClosureVerifier($closure), 'laranail.settings.verification.driver') : self::instance($app, $driver, Verifier::class, 'laranail.settings.verification.driver'),
         });
 
         $this->app->scoped(ActorResolver::class, static function (Application $app): ActorResolver {
             $guards = self::strings($app->make(Repository::class), 'laranail.settings.authentication.guards');
             $request = static fn (): ?Request => $app->bound('request') && $app->make('request') instanceof Request ? $app->make('request') : null;
+
+            $configured = ConfiguratorRegistry::of($app)->behaviour()->actorResolver;
+
+            if ($configured !== null) {
+                return self::configured($app, $configured, ActorResolver::class, static fn (Closure $closure): ActorResolver => new ClosureActorResolver($closure), 'laranail.settings.authentication.resolver');
+            }
 
             return match ($resolver = $app->make(Repository::class)->get('laranail.settings.authentication.resolver', 'guard')) {
                 'guard'   => new GuardActorResolver($app->make(AuthFactory::class), $guards, $request),

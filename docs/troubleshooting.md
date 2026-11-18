@@ -30,7 +30,7 @@ resolution steps. From PHP, `Settings::explain('mail.from_address')` returns the
 | `ConcurrentModification` (REST `412`) | another writer changed the setting after you read it | read it again and retry; a plain `set()` already retries once |
 | `UndecryptableValue` after rotating `APP_KEY` | encrypted values were written with the old key | put the old key in `APP_PREVIOUS_KEYS`, run `laranail::settings.reencrypt`, then `doctor` (`encryption`) |
 | a value edited in the database by hand does not show | the cached bag still holds the old rows | `php artisan laranail::settings.clear-cache`; see [Warm the cache after a deploy](recipes/warming-the-cache.md) |
-| every REST route answers `404` | `http.enabled` is off, a route group is switched off, or another route already owns the path | set `LARANAIL_SETTINGS_HTTP=true`; move the API with `http.prefix`; see [REST API](tools/rest-api.md) |
+| every REST route answers `404` | `http.enabled` is off, a route group is switched off, or another route already owns the path | turn it on with `http(fn ($http) => $http->enabled())` in your settings configurator; move the API with `http.prefix`; see [REST API](tools/rest-api.md) |
 | REST `401` | no user is authenticated on the request; the API never runs as trusted code | send a session cookie or a bearer token the configured middleware accepts |
 
 Every exception and its REST answer is listed in [Exceptions](tools/exceptions.md).

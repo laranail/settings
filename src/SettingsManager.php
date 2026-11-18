@@ -6,6 +6,7 @@ namespace Simtabi\Laranail\Settings;
 
 use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Data\Key;
+use Illuminate\Support\Traits\Macroable;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
@@ -81,10 +82,13 @@ use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
  * The {@see Settings} implementation: an immutable handle over a store, owner, locale and actor.
- * Fluent methods return a copy.
+ * Fluent methods return a copy. Macroable: a configurator's `macro()` adds methods to every handle;
+ * macros are static, so they last for the process (the test case flushes them).
  */
 final class SettingsManager implements Settings
 {
+    use Macroable;
+
     private ?StoreName $storeName = null;
 
     private ?OwnerRef $owner = null;

@@ -13,6 +13,7 @@ use Simtabi\Laranail\Settings\Actions\UnlockSetting;
 use Simtabi\Laranail\Settings\Typed\SettingsMigration;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Configurator\SettingsDecorator;
 
 /**
  * Structural rules a reviewer would otherwise have to remember.
@@ -34,6 +35,8 @@ arch('classes are final unless they are an exception base')
         SettingsMigration::class,
         // The models' shared base.
         SettingsModel::class,
+        // The base an application's settings decorator extends.
+        SettingsDecorator::class,
     ]);
 
 arch('nothing outside Providers and Facades reaches into the container')

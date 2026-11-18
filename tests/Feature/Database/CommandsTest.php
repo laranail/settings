@@ -59,7 +59,7 @@ it('refuses to install over a table of the same name that is not its own', funct
     try {
         $this->artisan('laranail::settings.install')->run();
     } catch (InvalidConfiguration $refusal) {
-        expect($refusal->getMessage())->toContain('LARANAIL_SETTINGS_TABLE_PREFIX')
+        expect($refusal->getMessage())->toContain("tables(prefix: 'acme_')")
             ->toContain('--tag=laranail::settings-config');
     }
 

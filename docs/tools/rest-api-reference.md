@@ -2,7 +2,7 @@
 
 Every route of the JSON API, 39 in all (30 route names, nine of them with an owner form), with its ability, request, response, status codes and problems. [REST API](rest-api.md) explains turning it on, authentication, ETags and idempotency; this page is the per-route reference.
 
-Paths are under `/{http.prefix}/v1`, by default `/api/settings/v1`; set `http.prefix` (`LARANAIL_SETTINGS_HTTP_PREFIX`) to move them, for example when the application already has routes under `/api/settings` (Laravel silently keeps the last route registered for a method and URI), or to an empty string to mount them at `/v1`. Route names are `laranail-settings.api.<name>`, and `laranail-settings.api.owners.<name>` for an owner form; they do not change with the prefix. A test reading the live router fails when a registered route is missing from this page.
+Paths are under `/{http.prefix}/v1`, by default `/api/settings/v1`; set `http.prefix` (configurator: `http()->prefix()`) to move them, for example when the application already has routes under `/api/settings` (Laravel silently keeps the last route registered for a method and URI), or to an empty string to mount them at `/v1`. Route names are `laranail-settings.api.<name>`, and `laranail-settings.api.owners.<name>` for an owner form; they do not change with the prefix. A test reading the live router fails when a registered route is missing from this page.
 
 ## Conventions
 

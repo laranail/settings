@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Routing\Route as RoutingRoute;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Http\Support\Problems;
+use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
 use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
 
 /*
@@ -171,5 +172,31 @@ it('documents every shipped config key with its default', function (): void {
         };
 
         expect(str_contains((string) $row, $shown))->toBeTrue(sprintf('configuration.md gives %s a default other than %s', $key, $shown));
+    }
+});
+
+it('documents every configurator setup method, and each sub-setup on its own row', function (): void {
+    $page = referencePage('tools/configurator.md');
+    $methods = static fn (string $class): array => array_values(array_map(
+        static fn (ReflectionMethod $method): string => $method->name,
+        array_filter(new ReflectionClass($class)->getMethods(ReflectionMethod::IS_PUBLIC), static fn (ReflectionMethod $method): bool => ! $method->isConstructor() && $method->getDeclaringClass()->getName() === $class),
+    ));
+    $setups = array_values(array_filter(classesIn('Configurator'), static fn (string $name): bool => str_ends_with($name, 'Setup') && ! in_array($name, ['SettingsSetup', 'AppliedSetup'], true)));
+    $settings = $methods(SettingsSetup::class);
+
+    // The positive control: the scan reads every setter and every sub-setup.
+    expect(count($settings))->toBeGreaterThanOrEqual(34)
+        ->and(count($setups))->toBe(11);
+
+    foreach ($settings as $method) {
+        expect(str_contains($page, '`' . $method . '('))->toBeTrue(sprintf('configurator.md does not document %s()', $method));
+    }
+
+    foreach ($setups as $setup) {
+        $row = array_values(array_filter(explode("\n", $page), static fn (string $line): bool => str_starts_with($line, '| `' . $setup . '`')))[0] ?? '';
+
+        foreach ($methods('Simtabi\Laranail\Settings\Configurator\\' . $setup) as $method) {
+            expect(str_contains($row, '`' . $method . '()`'))->toBeTrue(sprintf('configurator.md does not list %s::%s() on its row', $setup, $method));
+        }
     }
 });

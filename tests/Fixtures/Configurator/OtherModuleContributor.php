@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Simtabi\Laranail\Settings\Tests\Fixtures\Configurator;
+
+use Closure;
+use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
+use Simtabi\Laranail\Settings\Contracts\ModuleSettingsContributor;
+
+/** Runs whatever a test sets in $configure. */
+final class OtherModuleContributor implements ModuleSettingsContributor
+{
+    /** @var (Closure(SettingsSetup): mixed)|null */
+    public static ?Closure $configure = null;
+
+    public static function moduleName(): string
+    {
+        return 'Reports';
+    }
+
+    public function configure(SettingsSetup $settings): void
+    {
+        if (self::$configure instanceof Closure) {
+            (self::$configure)($settings);
+        }
+    }
+}

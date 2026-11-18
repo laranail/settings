@@ -48,7 +48,8 @@ default store), `laranail_settings_audit`, `laranail_settings_history`,
 `laranail_settings_change_requests` and `laranail_settings_stores`, and `down()` drops them in
 reverse. The `laranail_` prefix (`tables.prefix`) keeps them clear of an application's own
 `settings` table. The table shape is fixed (see [Database](tools/database.md)); set
-`tenancy.mode`, the table names and any dedicated stores before migrating. The default store
+`tenancy.mode`, the table names and any dedicated stores before migrating, from your
+[settings configurator](tools/configurator.md) or the published config: the migration reads them. The default store
 reads the database first, so run the migrations before the first read; until then a read raises
 `DriverUnavailable`.
 
@@ -73,8 +74,8 @@ notifications, security) as system categories and changes nothing when run again
 Install refuses to publish anything when a table it would create already exists and is not this
 package's. With the default `laranail_` prefix that only happens when another package claims the
 same names; it is meant for an application that set the prefix to `''`, or named a table itself,
-over a table of its own. The message names each table. Choose another name with
-`LARANAIL_SETTINGS_TABLE_PREFIX` in `.env`, or publish the config with
+over a table of its own. The message names each table. Choose another prefix with
+`tables(prefix: 'acme_')` in your settings configurator, or publish the config with
 `php artisan vendor:publish --tag=laranail::settings-config` and set `stores.<name>.table`,
 `tables.categories` or `tables.audit`, then install again.
 
@@ -108,7 +109,7 @@ Settings::store('settings')->asSystem('installer')->promoteWhenReady();
 
 The values the installer writes go to the runtime file. When its `migrate` call finishes, the
 store is promoted in the same process. To keep doing this after the install, on every server, set
-`'promote' => 'auto'` on the store or `LARANAIL_SETTINGS_PROMOTE=auto`; the store's `promote.include`
+`'promote' => 'auto'` on the store or `promote('auto')` in your settings configurator; the store's `promote.include`
 and `promote.owners` limit what is moved (see [Configuration](configuration.md)).
 
 ## The REST API

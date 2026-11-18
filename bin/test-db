@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# @deprecated since 2026-11-17, use vendor/bin/laranail-test-db (laranail/package-tools ^0.1.13),
+# configured by extra.laranail.test-db in composer.json. Kept as a forwarding shim so a command
+# written down earlier still works; recorded in .claude/design/settings/audits/deprecations.md.
+#
+#   bin/test-db [pest args…]        laranail-test-db -- [pest args…]: its own databases, both engines
+#   bin/test-db test [pest args…]   the same: every run now provisions itself
+#   bin/test-db setup               nothing left to do, so a note
+#   bin/test-db env                 laranail-test-db env mysql, then env pgsql (passwords masked)
+#   bin/test-db down                laranail-test-db down
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+helper="$root/vendor/bin/laranail-test-db"
+[[ -x "$helper" ]] || { echo "test-db: $helper is missing; run composer install (laranail/package-tools ^0.1.13)" >&2; exit 1; }
+cd "$root"
+echo "test-db: deprecated, use vendor/bin/laranail-test-db" >&2
+
+case "${1:-}" in
+    setup)
+        echo "test-db: nothing to set up; each run of vendor/bin/laranail-test-db creates its own databases" >&2
+        ;;
+    test)
+        shift
+        exec "$helper" -- "$@"
+        ;;
+    env)
+        "$helper" env mysql | sed 's/^DB_PASSWORD=.*/DB_PASSWORD=***/'
+        "$helper" env pgsql | sed 's/^DB_PASSWORD=.*/DB_PASSWORD=***/'
+        ;;
+    down)
+        exec "$helper" down
+        ;;
+    -h | --help | help)
+        sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+        ;;
+    *)
+        exec "$helper" -- "$@"
+        ;;
+esac

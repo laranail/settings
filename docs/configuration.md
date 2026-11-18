@@ -2,13 +2,17 @@
 
 Every key in `config/laranail/settings.php`, read at `config('laranail.settings.*')`.
 
+Set them in code from your [settings configurator](tools/configurator.md) (each row names its
+method where it has one), or in the published file; the configurator wins where both set a key,
+and `php artisan laranail::settings.configurator` shows each key's value and source.
+
 ## Keys
 
 ### Stores
 
 | Key | Default | Purpose |
 |---|---|---|
-| `default` | `settings` (`LARANAIL_SETTINGS_STORE`) | the store used when a call names neither a store nor an owner |
+| `default` | `settings` (configurator: `defaultStore()`) | the store used when a call names neither a store nor an owner |
 | `stores.<name>.layers` | `['database', 'runtime', 'shipped']` | layer names, in read order; writes go to the first writable one |
 | `stores.<name>.owners` | `[]` | morph aliases this store holds values for; each alias belongs to one store |
 | `stores.<name>.strict` | `false` | refuse keys without a definition |
@@ -16,12 +20,12 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `stores.<name>.locks.overridable` | `false` | let an actor allowed `override_lock` write a locked setting |
 | `stores.<name>.table` | the store name | the store's values table, after `tables.prefix` |
 | `stores.<name>.bootstrap` | `false` | skip the database layer while, and only while, there is evidence of an install in progress |
-| `bootstrap` | `false` (`LARANAIL_SETTINGS_BOOTSTRAP`) | evidence of an install in progress; set it for the install window only |
+| `bootstrap` | `false` (configurator: `bootstrap()`) | evidence of an install in progress; set it for the install window only |
 | `stores.<name>.promote` | `manual` | `manual`: copy the runtime file into the database with `laranail::settings.promote`; `auto`: copy it once, the first time the database connection answers and the store's table exists. A string is shorthand for `['mode' => …]` with every value included |
 | `stores.<name>.promote.mode` | `manual` | `manual` or `auto`, as above |
 | `stores.<name>.promote.include` | `['*']` | what automatic promotion copies: `settings` (application-wide values), `owners` (per-owner values), or `*` for both. The runtime file holds setting values only, so these are the only kinds |
 | `stores.<name>.promote.owners` | `null` | owner values only for these morph aliases (`['user', 'team']`); `null` for every owner |
-| `promote` | `null` (`LARANAIL_SETTINGS_PROMOTE`) | `manual` or `auto` for every store, overriding each store's `promote`; `null` leaves each store's own |
+| `promote` | `null` (configurator: `promote()`) | `manual` or `auto` for every store, overriding each store's `promote`; `null` leaves each store's own |
 | `stores.<name>.mode` | `polymorphic` | `dedicated`: one owner alias, an `owner_id` foreign key to `owner.table`, owner rows only (read when migrating) |
 | `stores.<name>.owner` | — | dedicated stores: `table`, `key` (`id`), `type` (`bigint`/`uuid`/`ulid`; null follows db-tools) |
 | `stores.<name>.fallback` | the default store | dedicated stores: the polymorphic store that holds their global values |
@@ -32,12 +36,12 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 
 | Key | Default | Purpose |
 |---|---|---|
-| `tables.prefix` | `laranail_` (`LARANAIL_SETTINGS_TABLE_PREFIX`) | put in front of every package table, `[a-z0-9_]`, at most 32 characters, so the defaults are `laranail_settings`, `laranail_settings_audit` and so on; `''` for the bare names |
+| `tables.prefix` | `laranail_` (configurator: `tables(prefix:)`) | put in front of every package table, `[a-z0-9_]`, at most 32 characters, so the defaults are `laranail_settings`, `laranail_settings_audit` and so on; `''` for the bare names |
 | `tables.categories` | `settings_categories` | the categories table, one per connection |
 | `tables.audit` | `settings_audit` | the audit table, one per connection |
 | `tables.definitions` | `settings_definitions` | the definitions table |
 | `readiness.flush_on` | the stancl and spatie tenancy events | events after which schema readiness is re-checked |
-| `tenancy.mode` | `none` (`LARANAIL_SETTINGS_TENANCY`) | `column` adds a `tenant` column to the values, categories, audit, history and change requests tables; `database` relies on a database per tenant (read when migrating, and on every query) |
+| `tenancy.mode` | `none` (configurator: `tenancy()`) | `column` adds a `tenant` column to the values, categories, audit, history and change requests tables; `database` relies on a database per tenant (read when migrating, and on every query) |
 | `tenancy.discriminator` | `auto` | who the current tenant is: `auto` (stancl/tenancy, then spatie/laravel-multitenancy, when installed), `null`, `stancl`, `spatie`, or a class implementing `TenantDiscriminator` |
 | `tables.history` | `settings_history` | the history table's name (after `tables.prefix`) |
 | `tables.change_requests` | `settings_change_requests` | the change requests table (after `tables.prefix`), one per connection |
@@ -48,9 +52,9 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | Key | Default | Purpose |
 |---|---|---|
 | `layers.<name>.driver` | — | `database`, `json`, `php`, `config`, `array`, or a custom driver |
-| `layers.<name>.connection` | `null` (`LARANAIL_SETTINGS_DB_CONNECTION` for `database`) | database driver: the connection; null is the default one |
+| `layers.<name>.connection` | `null` (configurator: `layer('database')->connection()`) | database driver: the connection; null is the default one |
 | `layers.<name>.writable` | `true` | set `false` for a read-only layer |
-| `layers.<name>.disk` | `local` (`LARANAIL_SETTINGS_RUNTIME_DISK`) | JSON driver: a private filesystem disk |
+| `layers.<name>.disk` | `local` (configurator: `layer('runtime')->disk()`) | JSON driver: a private filesystem disk |
 | `layers.<name>.path` | — | JSON: a path on the disk containing `{store}`; PHP: a path from the application root |
 | `layers.<name>.prefix` | — | config driver: the config prefix to read |
 | `definitions` | options only | `key => attributes`; see [Definitions](tools/definitions.md). `sources` and `allowed_rules` are options, not keys |
@@ -62,12 +66,12 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | Key | Default | Purpose |
 |---|---|---|
 | `writes.retry_on_conflict` | `true` | retry a plain `set()` once after a concurrent change |
-| `values.max_bytes` | `1048576` (`LARANAIL_SETTINGS_MAX_VALUE_BYTES`) | the largest value a write accepts, as its encoded payload before encryption; `null` for no limit; a larger value raises `InvalidSettingValue` |
-| `seed.enabled` | `true` (`LARANAIL_SETTINGS_SEED`) | whether `db:seed` creates the default categories |
+| `values.max_bytes` | `1048576` (configurator: `values()->maxBytes()`) | the largest value a write accepts, as its encoded payload before encryption; `null` for no limit; a larger value raises `InvalidSettingValue` |
+| `seed.enabled` | `true` (configurator: `seed()->enabled()`) | whether `db:seed` creates the default categories |
 | `seed.stores` | `[]` | the stores to seed; empty means the default store |
 | `seed.categories` | general, appearance, localisation, mail, notifications, security | `slug => title` or `slug => [title, description, icon, parent, sort_order, translations]` |
-| `cache.enabled` | `true` (`LARANAIL_SETTINGS_CACHE`) | cache each database layer's per-scope bags |
-| `cache.store` | `null` (`LARANAIL_SETTINGS_CACHE_STORE`) | a store from `config/cache.php`; null is the default store; share it between servers |
+| `cache.enabled` | `true` (configurator: `cache()->enabled()`) | cache each database layer's per-scope bags |
+| `cache.store` | `null` (configurator: `cache()->store()`) | a store from `config/cache.php`; null is the default store; share it between servers |
 | `cache.prefix` | `laranail-settings` | the start of every cache key |
 | `cache.ttl` | `3600` | seconds a cached bag is fresh (at least 1) |
 | `cache.stale` | `300` | seconds after `ttl` a stale bag is still answered while it is refreshed (`Cache::flexible()`); `0` for none |
@@ -76,13 +80,13 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 
 | Key | Default | Purpose |
 |---|---|---|
-| `authentication.resolver` | `guard` (`LARANAIL_SETTINGS_ACTOR_RESOLVER`) | how `asCurrentActor()` finds the actor: `guard`, `sanctum` or a class |
+| `authentication.resolver` | `guard` (configurator: `resolveActorsUsing()`) | how `asCurrentActor()` finds the actor: `guard`, `sanctum` or a class |
 | `authentication.guards` | `[]` | guards tried in order; empty means the default guard |
-| `authorization.driver` | `gate` (`LARANAIL_SETTINGS_AUTHORIZER`) | `gate`, `permissions`, a class, or a list tried in order |
+| `authorization.driver` | `gate` (configurator: `authorizeUsing()`) | `gate`, `permissions`, a class, or a list tried in order |
 | `authorization.undefined` | `deny` | decides an ability nobody defined: `deny` or `allow` |
-| `authorization.require_actor` | `false` (`LARANAIL_SETTINGS_REQUIRE_ACTOR`) | refuse calls without an actor; `asSystem()` still works |
+| `authorization.require_actor` | `false` (configurator: `requireActor()`) | refuse calls without an actor; `asSystem()` still works |
 | `authorization.permissions` | `settings.<ability>` for each ability, `prune` included | permission names for the `permissions` driver; `{ability}`, `{store}`, `{key}` |
-| `verification.driver` | `password_confirmation` (`LARANAIL_SETTINGS_VERIFIER`) | `password_confirmation`, `actor`, `none` or a class |
+| `verification.driver` | `password_confirmation` (configurator: `verifyUsing()`) | `password_confirmation`, `actor`, `none` or a class |
 | `verification.abilities` | `override_lock`, `rollback`, `import`, `manage_stores` | abilities that always need step-up verification |
 | `verification.ttl` | `900` | seconds an actor's `verifiedAt` stays fresh for the `actor` driver |
 
@@ -93,7 +97,7 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `audit.sinks` | `['auto']` | `auto` (`database` for a store with an active database layer, else `log`), `database`, `log`, `null` or classes; every sink gets every entry |
 | `audit.keep_days` | `365` | how long `prune-audit` keeps audit rows |
 | `logging.channel` | `null` | the application's default channel, a channel name, or `false` for off |
-| `logging.level` | `info` (`LARANAIL_SETTINGS_LOG_LEVEL`) | the lowest level written |
+| `logging.level` | `info` (configurator: `logging()->level()`) | the lowest level written |
 | `history.keep_days` | `365` | how long `prune-history` keeps history entries; null for no age limit |
 | `history.keep_versions` | `null` | how many versions of each setting `prune-history` keeps; null for all |
 
@@ -103,7 +107,7 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 |---|---|---|
 | `listeners.alerts` | `true` | register the alert listener (alerts still need `alerts.enabled`) |
 | `listeners.log` | `false` | write every settings event to the logging channel |
-| `alerts.enabled` | `false` (`LARANAIL_SETTINGS_ALERTS`) | send alerts |
+| `alerts.enabled` | `false` (configurator: `alerts()->enabled()`) | send alerts |
 | `alerts.cache` | `null` | the cache store holding the alert throttle; null for the default |
 | `alerts.throttle` | `300` | seconds a rule stays quiet about one key after alerting; `0` for never |
 | `alerts.rules` | `[]` | which events alert whom; see [Alerts](tools/alerts.md) |
@@ -116,7 +120,7 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 | `approvals.allow_self` | `false` | let the requester approve their own request |
 | `approvals.expire_after` | `7` | days before an open request expires; null for never |
 | `approvals.keep_days` | `90` | days `prune-changes` keeps decided requests; null for ever |
-| `configuration.persisted` | `false` (`LARANAIL_SETTINGS_PERSISTED_CONFIGURATION`) | read and write the stores and layers saved in the `laranail_settings_stores` table |
+| `configuration.persisted` | `false` (configurator: `persistedConfiguration()`) | read and write the stores and layers saved in the `laranail_settings_stores` table |
 | `configuration.sources` | `['config', 'database', 'runtime']` | merge order of the file, persisted entries and runtime changes; later wins |
 | `importers` | `spatie`, `toolkit`, `akaunting` | importers `import --from=` can use, name => class |
 | `typed.classes` | `[]` | typed settings classes whose properties are registered as definitions |
@@ -125,8 +129,8 @@ Every key in `config/laranail/settings.php`, read at `config('laranail.settings.
 
 | Key | Default | Purpose |
 |---|---|---|
-| `http.enabled` | `false` (`LARANAIL_SETTINGS_HTTP`) | register the REST API's routes |
-| `http.prefix` | `api/settings` (`LARANAIL_SETTINGS_HTTP_PREFIX`) | the routes' prefix; they live under `<prefix>/v1`, and an empty prefix mounts them at `/v1`. Change it when the application already has routes under `/api/settings`: Laravel keeps the last route registered for a method and URI and says nothing |
+| `http.enabled` | `false` (configurator: `http()->enabled()`) | register the REST API's routes |
+| `http.prefix` | `api/settings` (configurator: `http()->prefix()`) | the routes' prefix; they live under `<prefix>/v1`, and an empty prefix mounts them at `/v1`. Change it when the application already has routes under `/api/settings`: Laravel keeps the last route registered for a method and URI and says nothing |
 | `http.middleware` | `null` | the routes' middleware; null is `['api', 'auth:sanctum']` with Sanctum, else `['api', 'auth']` |
 | `http.rate_limit` | `60` | requests per minute per user (or IP); `0` for none |
 | `http.routes.<group>` | `true` | switch a group off: `stores`, `definitions`, `settings`, `history`, `audit`, `approvals`, `categories`, `configuration`, `transfer` |
@@ -146,7 +150,8 @@ Approvals are described in [Approvals](tools/approvals.md), persisted configurat
 php artisan laranail::settings.install
 ```
 
-The published file at `config/laranail/settings.php` is merged over the package's defaults.
+The published file at `config/laranail/settings.php` is merged over the package's defaults, and
+the configurator's values over both. Publishing is optional: a configurator can set every key.
 
 ---
 

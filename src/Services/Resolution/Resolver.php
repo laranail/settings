@@ -8,6 +8,7 @@ use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Lookup;
+use Simtabi\Laranail\Settings\Enums\Stage;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
 use Simtabi\Laranail\Settings\Stores\Store;
@@ -19,6 +20,7 @@ use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
 
 /**
  * Resolves a read through the cascade: owner, parents, global value, then the definition default.
@@ -38,6 +40,7 @@ final readonly class Resolver
         private string $fallbackLocale,
         private PreloadedRecords $preloaded = new PreloadedRecords,
         private ?TenantDiscriminator $tenant = null,
+        private ConfiguredBehaviour $behaviour = new ConfiguredBehaviour,
     ) {}
 
     /**
@@ -83,7 +86,7 @@ final readonly class Resolver
                     $record = $loaded[$stepStore->name->value][$layer->name]->find($scope, $key, $candidate);
 
                     if ($record !== null && $record->hasValue()) {
-                        return new Explanation(Lookup::found($this->pipeline->fromRecord($record, $definition), $layer->name, $scope, $record->encrypted), $steps);
+                        return new Explanation(Lookup::found($this->behaviour->staged(Stage::AfterRead, $key, $this->pipeline->fromRecord($record, $definition)), $layer->name, $scope, $record->encrypted), $steps);
                     }
                 }
             }

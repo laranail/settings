@@ -33,7 +33,7 @@ again changes nothing.
 ```
 
 Parents are created before their children whatever the order; the listed order is the display
-order. A parent must be in the same list. `enabled => false` (or `LARANAIL_SETTINGS_SEED=false`)
+order. A parent must be in the same list. `enabled => false` (or `seed(fn ($seed) => $seed->enabled(false))` in your settings configurator)
 switches it off. Categories carry no secrets, and the seeder writes no setting values.
 
 ## Per tenant
