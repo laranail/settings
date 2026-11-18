@@ -27,14 +27,13 @@ Your `^0.1` constraint does not change. Two changes are visible:
 - **The default table names carry a `laranail_` prefix** (`laranail_settings`,
   `laranail_settings_categories` and so on), so they no longer collide with an application's own
   `settings` table. If you migrated the bare names, either keep them by setting the prefix to
-  empty in `.env`, or rename the tables to the new names before you deploy:
+  empty in your settings configurator, or rename the tables to the new names before you deploy:
 
-  ```bash
-  LARANAIL_SETTINGS_TABLE_PREFIX=
+  ```php
+  $settings->tables(prefix: '');
   ```
 
-  If you already set `LARANAIL_SETTINGS_TABLE_PREFIX=laranail_`, it is now the default and the
-  line can go.
+  If you set `laranail_` yourself, it is now the default and the call can go.
 - Misuse that threw a plain `LogicException` now throws `SettingsMisuse`, which still extends
   `LogicException`, so existing catch blocks keep working.
 
@@ -57,6 +56,40 @@ you need across before dropping the old tables.
    any key that [Configuration](configuration.md) does not list.
 2. Re-run `php artisan laranail::settings.doctor`. It checks that every column the package uses
    exists.
+
+## Environment variables
+
+The package reads no `LARANAIL_SETTINGS_*` variable any more. Set each one in your settings
+configurator, the one class you register with `Settings::useConfigurator()` from a service
+provider's `register()`, or in the published config file. The config keys and their defaults are
+unchanged. `laranail::settings.doctor` and `laranail::settings.configurator` warn about any of these
+still set in the environment, and name its replacement.
+
+| Variable | Config key | In the configurator |
+|---|---|---|
+| `LARANAIL_SETTINGS_STORE` | `default` | `$settings->defaultStore('main')` |
+| `LARANAIL_SETTINGS_BOOTSTRAP` | `bootstrap` | `$settings->bootstrap(file_exists(storage_path('app/installing')))` |
+| `LARANAIL_SETTINGS_PROMOTE` | `promote` | `$settings->promote('auto')` |
+| `LARANAIL_SETTINGS_TABLE_PREFIX` | `tables.prefix` | `$settings->tables(prefix: 'acme_')` |
+| `LARANAIL_SETTINGS_TENANCY` | `tenancy.mode` | `$settings->tenancy(fn ($t) => $t->column())` |
+| `LARANAIL_SETTINGS_SEED` | `seed.enabled` | `$settings->seed(fn ($s) => $s->enabled(false))` |
+| `LARANAIL_SETTINGS_MAX_VALUE_BYTES` | `values.max_bytes` | `$settings->values(fn ($v) => $v->maxBytes(65536))` |
+| `LARANAIL_SETTINGS_CACHE` | `cache.enabled` | `$settings->cache(fn ($c) => $c->enabled(false))` |
+| `LARANAIL_SETTINGS_CACHE_STORE` | `cache.store` | `$settings->cache(fn ($c) => $c->store('redis'))` |
+| `LARANAIL_SETTINGS_DB_CONNECTION` | `layers.database.connection` | `$settings->layer('database', fn ($l) => $l->connection('tenant'))` |
+| `LARANAIL_SETTINGS_RUNTIME_DISK` | `layers.runtime.disk` | `$settings->layer('runtime', fn ($l) => $l->disk('s3'))` |
+| `LARANAIL_SETTINGS_ACTOR_RESOLVER` | `authentication.resolver` | `$settings->resolveActorsUsing(MyResolver::class)` |
+| `LARANAIL_SETTINGS_AUTHORIZER` | `authorization.driver` | `$settings->authorizeUsing(MyAuthorizer::class)` |
+| `LARANAIL_SETTINGS_REQUIRE_ACTOR` | `authorization.require_actor` | `$settings->requireActor()` |
+| `LARANAIL_SETTINGS_VERIFIER` | `verification.driver` | `$settings->verifyUsing(MyVerifier::class)` |
+| `LARANAIL_SETTINGS_LOG_LEVEL` | `logging.level` | `$settings->logging(fn ($l) => $l->level('warning'))` |
+| `LARANAIL_SETTINGS_ALERTS` | `alerts.enabled` | `$settings->alerts(fn ($a) => $a->enabled())` |
+| `LARANAIL_SETTINGS_PERSISTED_CONFIGURATION` | `configuration.persisted` | `$settings->persistedConfiguration()` |
+| `LARANAIL_SETTINGS_HTTP` | `http.enabled` | `$settings->http(fn ($h) => $h->enabled())` |
+| `LARANAIL_SETTINGS_HTTP_PREFIX` | `http.prefix` | `$settings->http(fn ($h) => $h->prefix('internal/config'))` |
+
+Read a per-deployment value in the configurator from your own config file (`config('app.…')`),
+never with `env()`: once config is cached, `env()` answers null outside config files.
 
 ## After any upgrade
 

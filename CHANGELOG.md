@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   contributor, and warns about any `LARANAIL_SETTINGS_*` variable still set, naming the configurator
   method that replaces it; it reads the environment directly, so it works with config cached.
 
+### Removed
+
+- **The 20 `LARANAIL_SETTINGS_*` environment variables** (owner decision D4): `config/settings.php`
+  now holds literal defaults, and each setting is set from the configurator instead. The variable
+  and its replacement are listed in [Upgrading](docs/upgrading.md#environment-variables), and
+  `laranail::settings.doctor` and `laranail::settings.configurator` warn about any still set.
+
 ## [0.1.0] - 2026-11-17
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
@@ -136,7 +143,7 @@ has the steps for one.
 - **Testing**: `Settings::fake()` with assertions for writes, forgets and audit entries; Eloquent
   models and factories for every table.
 - One migration for every table, tested on SQLite, MySQL 8.4 and PostgreSQL 17 in CI.
-- `values.max_bytes` (`LARANAIL_SETTINGS_MAX_VALUE_BYTES`, default 1 MiB, `null` for no limit):
+- `values.max_bytes` (default 1 MiB, `null` for no limit):
   every write path (the PHP API, REST, import, promotion, approvals) refuses a value whose encoded
   payload is larger, with `InvalidSettingValue` (REST `422 invalid-value`).
 - **Runtime overrides.** `override()`, `forgetOverride()`, `hasOverride()`, `clearOverrides()` and
@@ -188,7 +195,7 @@ has the steps for one.
   facades.
 - The package's tables carry a `laranail_` prefix by default (`tables.prefix`), so a fresh install
   sits beside an application's own `settings` table with no configuration. To keep the bare names
-  of an earlier install, set `LARANAIL_SETTINGS_TABLE_PREFIX` to empty; see Upgrading.
+  of an earlier install, set the prefix to empty with `tables(prefix: '')`; see Upgrading.
 - `migrate` syncs the definitions declared in code and config into the definitions table, so a
   fresh install needs no separate `sync-definitions` step. It runs only when code or config
   declares definitions, so an application without any gets no audit entry per deploy.
@@ -260,7 +267,7 @@ Each was removed before the first tag; none was in a tagged release.
   that missed a gate, an import or a `register()` call, and the stated reason SQL Server is not
   supported. `make-store --connection`'s help now names every shared table it creates.
 - When install refuses over a same-named table, its message now names the fix that needs no
-  config file, `LARANAIL_SETTINGS_TABLE_PREFIX`, and the publish command for renaming single
+  config file, `tables(prefix:)` in the settings configurator, and the publish command for renaming single
   tables; it used to point at config keys in a file that had not been published yet. The
   installation guide says the same, warns that a partly published config replaces the whole
   `tables` array, and lists `sync-definitions` after `migrate`.

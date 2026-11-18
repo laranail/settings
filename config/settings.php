@@ -22,7 +22,7 @@ return [
     /*
     | The store used when a call names neither a store nor an owner.
     */
-    'default' => env('LARANAIL_SETTINGS_STORE', 'settings'),
+    'default' => 'settings',
 
     /*
     | Stores, by name.
@@ -69,13 +69,13 @@ return [
     | mode skip their database layer. laranail/installer-headless reporting an
     | install in progress counts too.
     */
-    'bootstrap' => env('LARANAIL_SETTINGS_BOOTSTRAP', false),
+    'bootstrap' => false,
 
     /*
     | Overrides every store's `promote` when set: `manual` or `auto`. Null
     | leaves each store's own setting.
     */
-    'promote' => env('LARANAIL_SETTINGS_PROMOTE'),
+    'promote' => null,
 
     /*
     | Table names. `prefix` is prepended to every table, including each store's
@@ -84,7 +84,7 @@ return [
     | for the bare names.
     */
     'tables' => [
-        'prefix'          => env('LARANAIL_SETTINGS_TABLE_PREFIX', 'laranail_'),
+        'prefix'          => 'laranail_',
         'categories'      => 'settings_categories',
         'audit'           => 'settings_audit',
         'definitions'     => 'settings_definitions',
@@ -110,7 +110,7 @@ return [
     | Simtabi\Laranail\Settings\Contracts\TenantDiscriminator.
     */
     'tenancy' => [
-        'mode'          => env('LARANAIL_SETTINGS_TENANCY', 'none'),
+        'mode'          => 'none',
         'discriminator' => 'auto',
     ],
 
@@ -121,7 +121,7 @@ return [
     | parent, sort_order, translations]`.
     */
     'seed' => [
-        'enabled'    => env('LARANAIL_SETTINGS_SEED', true),
+        'enabled'    => true,
         'stores'     => [],
         'categories' => [
             'general'       => ['title' => 'General', 'description' => 'Site name, contact details and other application-wide settings.', 'icon' => 'cog'],
@@ -146,7 +146,7 @@ return [
     |            payload before encryption; null for no limit.
     */
     'values' => [
-        'max_bytes' => env('LARANAIL_SETTINGS_MAX_VALUE_BYTES', 1048576),
+        'max_bytes' => 1048576,
     ],
 
     /*
@@ -160,8 +160,8 @@ return [
     |          0 turns this off.
     */
     'cache' => [
-        'enabled' => env('LARANAIL_SETTINGS_CACHE', true),
-        'store'   => env('LARANAIL_SETTINGS_CACHE_STORE'),
+        'enabled' => true,
+        'store'   => null,
         'prefix'  => 'laranail-settings',
         'ttl'     => 3600,
         'stale'   => 300,
@@ -189,11 +189,11 @@ return [
     'layers' => [
         'database' => [
             'driver'     => 'database',
-            'connection' => env('LARANAIL_SETTINGS_DB_CONNECTION'),
+            'connection' => null,
         ],
         'runtime' => [
             'driver' => 'json',
-            'disk'   => env('LARANAIL_SETTINGS_RUNTIME_DISK', 'local'),
+            'disk'   => 'local',
             'path'   => 'laranail/settings/{store}.json',
         ],
         'shipped' => [
@@ -230,7 +230,7 @@ return [
     | implementing ActorResolver.
     */
     'authentication' => [
-        'resolver' => env('LARANAIL_SETTINGS_ACTOR_RESOLVER', 'guard'),
+        'resolver' => 'guard',
         'guards'   => [],
     ],
 
@@ -243,9 +243,9 @@ return [
     | permissions:   permission names; may use {ability}, {store} and {key}.
     */
     'authorization' => [
-        'driver'        => env('LARANAIL_SETTINGS_AUTHORIZER', 'gate'),
+        'driver'        => 'gate',
         'undefined'     => 'deny',
-        'require_actor' => env('LARANAIL_SETTINGS_REQUIRE_ACTOR', false),
+        'require_actor' => false,
         'permissions'   => [
             'view'               => 'settings.view',
             'view_sensitive'     => 'settings.view_sensitive',
@@ -276,7 +276,7 @@ return [
     |         `ttl` seconds), `none`, or a class implementing Verifier.
     */
     'verification' => [
-        'driver'    => env('LARANAIL_SETTINGS_VERIFIER', 'password_confirmation'),
+        'driver'    => 'password_confirmation',
         'abilities' => ['override_lock', 'rollback', 'import', 'manage_stores'],
         'ttl'       => 900,
     ],
@@ -299,7 +299,7 @@ return [
     */
     'logging' => [
         'channel' => null,
-        'level'   => env('LARANAIL_SETTINGS_LOG_LEVEL', 'info'),
+        'level'   => 'info',
     ],
 
     /*
@@ -354,7 +354,7 @@ return [
     |           tracked in `cache` (null: the default store).
     */
     'alerts' => [
-        'enabled'  => env('LARANAIL_SETTINGS_ALERTS', false),
+        'enabled'  => false,
         'cache'    => null,
         'throttle' => 300,
         'rules'    => [],
@@ -390,7 +390,7 @@ return [
     | sources:   merge order, later wins: `config`, `database`, `runtime`.
     */
     'configuration' => [
-        'persisted' => env('LARANAIL_SETTINGS_PERSISTED_CONFIGURATION', false),
+        'persisted' => false,
         'sources'   => ['config', 'database', 'runtime'],
     ],
 
@@ -440,8 +440,8 @@ return [
     | classes; unset, the morph map is used.
     */
     'http' => [
-        'enabled'    => env('LARANAIL_SETTINGS_HTTP', false),
-        'prefix'     => env('LARANAIL_SETTINGS_HTTP_PREFIX', 'api/settings'),
+        'enabled'    => false,
+        'prefix'     => 'api/settings',
         'middleware' => null,
         'rate_limit' => 60,
         'routes'     => [

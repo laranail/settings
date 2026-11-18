@@ -103,8 +103,8 @@ whose `meta.operation` is `cache.clear` or `cache.warm`. They do nothing when ca
 
 | Key | Default | Purpose |
 |---|---|---|
-| `cache.enabled` | `true` (`LARANAIL_SETTINGS_CACHE`) | cache database layers |
-| `cache.store` | `null` (`LARANAIL_SETTINGS_CACHE_STORE`) | a store from `config/cache.php`; null is the default store |
+| `cache.enabled` | `true` (configurator: `cache()->enabled()`) | cache database layers |
+| `cache.store` | `null` (configurator: `cache()->store()`) | a store from `config/cache.php`; null is the default store |
 | `cache.prefix` | `laranail-settings` | the start of every key |
 | `cache.ttl` | `3600` | seconds a bag is fresh (at least 1) |
 | `cache.stale` | `300` | seconds after `ttl` a stale bag is answered while it is refreshed; `0` for none |

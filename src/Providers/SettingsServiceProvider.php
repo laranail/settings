@@ -242,7 +242,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
         if ($foreign !== []) {
             throw new InvalidConfiguration(sprintf(
-                'These tables already exist and are not laranail/settings tables: %s. Nothing was published. Choose another prefix with LARANAIL_SETTINGS_TABLE_PREFIX in .env (for example acme_) and install again; to rename single tables instead, publish the config with `php artisan vendor:publish --tag=laranail::settings-config`, set stores.<name>.table, tables.categories or tables.audit, and install again.',
+                'These tables already exist and are not laranail/settings tables: %s. Nothing was published. Choose another prefix in your settings configurator with tables(prefix: \'acme_\') and install again; to rename single tables instead, publish the config with `php artisan vendor:publish --tag=laranail::settings-config`, set stores.<name>.table, tables.categories or tables.audit, and install again.',
                 implode(', ', $foreign),
             ));
         }

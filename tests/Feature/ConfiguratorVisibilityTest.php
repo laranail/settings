@@ -134,13 +134,13 @@ it('warns about a leftover variable read straight from the environment, never th
         ->and(configuratorFindings()['configurator: environment']->run()->status->name)->toBe('Pass');
 });
 
-it('lists every variable the shipped config file reads, so a new one cannot be missed', function (): void {
-    preg_match_all("/env\\('(LARANAIL_SETTINGS_[A-Z_]+)'/", (string) file_get_contents(dirname(__DIR__, 2) . '/config/settings.php'), $matches);
-    $read = array_values(array_unique($matches[1]));
-    sort($read);
-    $listed = array_keys(LeftoverEnvironment::REPLACEMENTS);
-    sort($listed);
+it('reads no LARANAIL_SETTINGS_ variable in the shipped config, and still knows all 20 removed ones', function (): void {
+    $config = (string) file_get_contents(dirname(__DIR__, 2) . '/config/settings.php');
+    preg_match_all("/env\\('([A-Z_]+)'/", $config, $read);
 
-    expect(count($read))->toBe(20)
-        ->and($listed)->toBe($read);
+    // The positive control: the scan finds the one env() read the file keeps, in a comment's example.
+    expect($read[1])->toContain('SETTINGS_ALERTS_SLACK_WEBHOOK')
+        ->and(array_filter($read[1], static fn (string $variable): bool => str_starts_with($variable, 'LARANAIL_SETTINGS_')))->toBe([])
+        ->and(LeftoverEnvironment::REPLACEMENTS)->toHaveCount(20)
+        ->and(array_filter(array_keys(LeftoverEnvironment::REPLACEMENTS), static fn (string $variable): bool => ! str_starts_with($variable, 'LARANAIL_SETTINGS_')))->toBe([]);
 });

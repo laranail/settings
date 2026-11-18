@@ -8,7 +8,7 @@ A JSON API over every capability of the PHP API, in this package and off by defa
 // config/laranail/settings.php
 'http' => [
     'enabled'    => true,
-    'prefix'     => env('LARANAIL_SETTINGS_HTTP_PREFIX', 'api/settings'),   // routes live under <prefix>/v1
+    'prefix'     => 'api/settings',      // routes live under <prefix>/v1
     'middleware' => null,                // null: ['api', 'auth:sanctum'] with Sanctum, else ['api', 'auth']
     'rate_limit' => 60,                  // per minute, per user (or IP); 0 for none
     'routes'     => ['approvals' => false],   // switch groups off
@@ -135,7 +135,7 @@ RFC 9457 problem details, `application/problem+json`:
 
 Laravel keeps the last route registered for a method and URI, and says nothing about the one it
 replaced. If the application already serves anything under `/api/settings`, move the API with
-`http.prefix` (or `LARANAIL_SETTINGS_HTTP_PREFIX`), for example to `internal/config`, which puts
+`http.prefix` (or `http()->prefix()` in your settings configurator), for example to `internal/config`, which puts
 every route under `/internal/config/v1`. An empty prefix mounts the API at `/v1`. Route names do not
 change with the prefix, so `route('laranail-settings.api.settings.show', [...])` follows it.
 

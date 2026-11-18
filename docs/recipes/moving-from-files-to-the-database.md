@@ -12,8 +12,11 @@ Opt the store into bootstrap mode and give the evidence that an install is runni
 ],
 ```
 
-```dotenv
-LARANAIL_SETTINGS_BOOTSTRAP=true
+then give the evidence from your settings configurator, computed from something local so it needs
+no deploy (the installer creates the file and removes it when it finishes):
+
+```php
+$settings->bootstrap(file_exists(storage_path('app/installing')));
 ```
 
 `laranail/installer-headless` reporting an install in progress counts as evidence too. While the
@@ -48,7 +51,7 @@ first time the database connection answers and the store's table exists:
 ],
 ```
 
-`LARANAIL_SETTINGS_PROMOTE=auto` does the same for every store.
+`promote('auto')` in your settings configurator does the same for every store.
 
 ## Configure promotion
 
@@ -78,7 +81,7 @@ Settings::store('settings')->promotion()
 **Precedence, highest first: the fluent setters, then the runtime configuration
 (`configuration()->addStore()`), then persisted configuration, then the configuration file**
 (the last three in `configuration.sources` order, which is that order by default).
-`LARANAIL_SETTINGS_PROMOTE` overrides every store's configured `mode`; only the fluent setters
+The configurator's `promote()` overrides every store's configured `mode`; only the fluent setters
 beat it. Each option is resolved on its own, so `->only('owners')` changes what is copied and
 leaves the mode to configuration. The string `'promote' => 'auto'` is shorthand for everything.
 Automatic promotion, `promoteWhenReady()`, the command's defaults and `doctor` all read the same
@@ -140,7 +143,7 @@ flowchart TD
 
 ## Leaving bootstrap mode
 
-Once the values are in the database, remove `LARANAIL_SETTINGS_BOOTSTRAP`. From then on an unreachable database raises
+Once the values are in the database, stop setting `bootstrap` (remove the evidence file, or the `bootstrap()` call). From then on an unreachable database raises
 `DriverUnavailable`; it never falls back to the file.
 
 ---

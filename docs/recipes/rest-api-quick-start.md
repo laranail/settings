@@ -4,12 +4,13 @@ Turn the API on, authenticate, and make a first read and write.
 
 ## Enable it
 
-```dotenv
-LARANAIL_SETTINGS_HTTP=true
+```php
+// in your settings configurator's configure()
+$settings->http(fn (HttpSetup $http) => $http->enabled());
 ```
 
 The routes live under `/api/settings/v1` and use `['api', 'auth:sanctum']` when Sanctum is
-installed, else `['api', 'auth']`. Change the prefix with `LARANAIL_SETTINGS_HTTP_PREFIX` if the
+installed, else `['api', 'auth']`. Change the prefix with `$http->prefix('internal/config')` if the
 application already has routes under `/api/settings`.
 
 ## Authenticate and allow
