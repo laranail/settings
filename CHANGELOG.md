@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-11-17
+## [0.1.0] - 2026-11-18
 
 The first public release. `Added` describes the package; `Changed`, `Removed`, `Fixed` and
 `Security` matter only to a checkout taken before the first tag, and [Upgrading](docs/upgrading.md)
