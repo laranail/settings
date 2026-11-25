@@ -67,7 +67,7 @@ it('never serialises the authenticatable, keeping identifiers and context', func
 });
 
 it('truncates the user agent to 255 characters', function (): void {
-    expect(mb_strlen((string) (new ActorContext(userAgent: str_repeat('a', 300)))->userAgent))->toBe(255);
+    expect(mb_strlen((string) new ActorContext(userAgent: str_repeat('a', 300))->userAgent))->toBe(255);
 });
 
 it('reads ip, user agent and request id from a request', function (): void {

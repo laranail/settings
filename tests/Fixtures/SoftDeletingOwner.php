@@ -6,8 +6,8 @@ namespace Simtabi\Laranail\Settings\Tests\Fixtures;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Concerns\HasSettings;
+use Simtabi\Laranail\Settings\Contracts\Settable;
 
 /**
  * A soft-deleting owner: its settings survive a soft delete and go with a force delete.

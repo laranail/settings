@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Tests\Fixtures;
 
 use Illuminate\Database\Eloquent\Model;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Concerns\HasSettings;
+use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 
 /**
  * A model that owns settings, stored in the `owners` table, with a team as its parent.
