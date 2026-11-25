@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Configurator;
 
 use Closure;
+use Throwable;
 use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
 use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
-use Throwable;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
  * The values one configurator or contributor run sets, by dot path under `laranail.settings`,
@@ -59,7 +59,7 @@ final class SetupValues
     public static function atLeast(string $method, string $path, int $value, int $minimum): int
     {
         if ($value < $minimum) {
-            throw self::invalid($method, $path, 'an integer of at least '.$minimum, $value);
+            throw self::invalid($method, $path, 'an integer of at least ' . $minimum, $value);
         }
 
         return $value;
@@ -75,12 +75,12 @@ final class SetupValues
     }
 
     /**
-     * @param  list<string>  $allowed
+     * @param list<string> $allowed
      */
     public static function oneOf(string $method, string $path, string $value, array $allowed): string
     {
         if (! in_array($value, $allowed, true)) {
-            throw self::invalid($method, $path, 'one of '.implode(', ', $allowed), $value);
+            throw self::invalid($method, $path, 'one of ' . implode(', ', $allowed), $value);
         }
 
         return $value;
@@ -147,13 +147,13 @@ final class SetupValues
     {
         $this->applicationOnly('exclude()');
         $this->guard('exclude');
-        $this->excluded[$scope->value.':'.self::filled('exclude()', 'exclude', $identity)] = $site;
+        $this->excluded[$scope->value . ':' . self::filled('exclude()', 'exclude', $identity)] = $site;
     }
 
     /** The exclude() call site when the application excluded this registration, else null. */
     public function excludedAt(ConfiguratorRegistration $registration): ?string
     {
-        return $this->excluded[$registration->scope->value.':'.$registration->identity] ?? null;
+        return $this->excluded[$registration->scope->value . ':' . $registration->identity] ?? null;
     }
 
     public function seal(): void

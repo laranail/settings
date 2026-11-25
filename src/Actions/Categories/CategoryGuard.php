@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions\Categories;
 
 use Closure;
-use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\CategorySlug;
+use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\CategorySlug;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Support\AuditedTransaction;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 
 /**
  * Authorizes `manage_categories` and runs a category change, its events and its audit entry in
@@ -30,8 +30,9 @@ final readonly class CategoryGuard
     /**
      * @template T
      *
-     * @param  Closure(DatabaseDriver): T  $work
-     * @param  list<object>  $also  more events dispatched after `$after`
+     * @param Closure(DatabaseDriver): T $work
+     * @param list<object> $also more events dispatched after `$after`
+     *
      * @return T
      */
     public function run(Store $store, CategorySlug $slug, ?Actor $actor, string $operation, object $before, object $after, Closure $work, array $also = []): mixed

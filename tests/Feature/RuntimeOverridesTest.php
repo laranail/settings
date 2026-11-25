@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Facades\Settings;
+use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Events\SettingSaved;
 use Simtabi\Laranail\Settings\Events\SettingSaving;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
 use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
-use Simtabi\Laranail\Settings\Facades\Settings;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
  * Runtime overrides: request-, job- or scope-bound values held in memory, answering ahead of every
@@ -342,10 +342,10 @@ describe('the REST API', function (): void {
     it('exposes no override route and calls no override method', function (): void {
         $this->rebootWith(['laranail.settings.http.enabled' => true]);
         $routes = array_filter(Route::getRoutes()->getRoutes(), static fn (Illuminate\Routing\Route $route): bool => str_starts_with((string) $route->getName(), 'laranail-settings.api.'));
-        $offending = array_filter($routes, static fn (Illuminate\Routing\Route $route): bool => str_contains(strtolower($route->uri().' '.$route->getName()), 'override') && ! str_contains($route->uri(), 'override-lock'));
+        $offending = array_filter($routes, static fn (Illuminate\Routing\Route $route): bool => str_contains(strtolower($route->uri() . ' ' . $route->getName()), 'override') && ! str_contains($route->uri(), 'override-lock'));
         $sources = [];
 
-        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__, 2).'/src/Http', FilesystemIterator::SKIP_DOTS)) as $file) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__, 2) . '/src/Http', FilesystemIterator::SKIP_DOTS)) as $file) {
             if ($file instanceof SplFileInfo && $file->getExtension() === 'php') {
                 $sources[$file->getPathname()] = (string) file_get_contents($file->getPathname());
             }

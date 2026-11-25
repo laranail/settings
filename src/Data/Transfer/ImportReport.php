@@ -8,12 +8,12 @@ namespace Simtabi\Laranail\Settings\Data\Transfer;
 final readonly class ImportReport
 {
     /**
-     * @param  list<string>  $created
-     * @param  list<string>  $updated
-     * @param  list<string>  $unchanged
-     * @param  array<string, string>  $skipped  identity => reason
-     * @param  list<string>  $categories  slugs created
-     * @param  list<string>  $proposed  change request ids
+     * @param list<string> $created
+     * @param list<string> $updated
+     * @param list<string> $unchanged
+     * @param array<string, string> $skipped identity => reason
+     * @param list<string> $categories slugs created
+     * @param list<string> $proposed change request ids
      */
     public function __construct(
         public bool $applied,
@@ -29,13 +29,13 @@ final readonly class ImportReport
     public function toArray(): array
     {
         return [
-            'applied' => $this->applied,
-            'created' => $this->created,
-            'updated' => $this->updated,
-            'unchanged' => $this->unchanged,
-            'skipped' => $this->skipped,
+            'applied'    => $this->applied,
+            'created'    => $this->created,
+            'updated'    => $this->updated,
+            'unchanged'  => $this->unchanged,
+            'skipped'    => $this->skipped,
             'categories' => $this->categories,
-            'proposed' => $this->proposed,
+            'proposed'   => $this->proposed,
         ];
     }
 }

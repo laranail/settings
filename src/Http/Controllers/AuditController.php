@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
 use Carbon\CarbonImmutable;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Simtabi\Laranail\Settings\Actions\QueryAudit;
-use Simtabi\Laranail\Settings\Data\AuditFilter;
-use Simtabi\Laranail\Settings\Data\Http\PageInput;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\AuditFilter;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
-use Simtabi\Laranail\Settings\Http\Resources\AuditEntryResource;
+use Simtabi\Laranail\Settings\Data\Http\PageInput;
 use Simtabi\Laranail\Settings\Http\Support\ApiActor;
+use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Simtabi\Laranail\Settings\Http\Resources\AuditEntryResource;
 
 /** `/audit`: the audit trail, filtered, newest first. */
 final readonly class AuditController

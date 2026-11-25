@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Logging;
 
-use Psr\Log\LoggerInterface;
-use Psr\Log\LoggerTrait;
+use Stringable;
 use Psr\Log\LogLevel;
+use Psr\Log\LoggerTrait;
+use Psr\Log\LoggerInterface;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
-use Stringable;
 
 /**
  * The package's operational log: denials, verification failures and configuration changes,
@@ -22,13 +22,13 @@ final readonly class OperationalLogger implements LoggerInterface
     use LoggerTrait;
 
     private const array LEVELS = [
-        LogLevel::DEBUG => 0,
-        LogLevel::INFO => 1,
-        LogLevel::NOTICE => 2,
-        LogLevel::WARNING => 3,
-        LogLevel::ERROR => 4,
-        LogLevel::CRITICAL => 5,
-        LogLevel::ALERT => 6,
+        LogLevel::DEBUG     => 0,
+        LogLevel::INFO      => 1,
+        LogLevel::NOTICE    => 2,
+        LogLevel::WARNING   => 3,
+        LogLevel::ERROR     => 4,
+        LogLevel::CRITICAL  => 5,
+        LogLevel::ALERT     => 6,
         LogLevel::EMERGENCY => 7,
     ];
 

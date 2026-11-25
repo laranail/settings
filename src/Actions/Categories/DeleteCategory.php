@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions\Categories;
 
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Events\CategoryDeleted;
-use Simtabi\Laranail\Settings\Events\CategoryDeleting;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
-use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Events\CategoryDeleting;
 
 /** Delete a category; its children move to the top level and its settings keep their values. */
 final readonly class DeleteCategory

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Console\Tools\Commands\Command;
-use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
-use Simtabi\Laranail\Settings\Actions\Approvals\PruneChanges;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Console\Tools\Commands\Command;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Actions\Approvals\PruneChanges;
+use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
  * Expire open change requests past `approvals.expire_after` and delete decided ones older than

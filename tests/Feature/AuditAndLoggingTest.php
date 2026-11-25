@@ -2,29 +2,29 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
-use Monolog\Handler\TestHandler;
 use Monolog\LogRecord;
-use PHPUnit\Framework\AssertionFailedError;
 use Psr\Log\NullLogger;
-use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
-use Simtabi\Laranail\Settings\Contracts\AuditSink;
+use Illuminate\Support\Str;
+use Symfony\Component\Uid\Ulid;
+use Monolog\Handler\TestHandler;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Gate;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\ActorContext;
-use Simtabi\Laranail\Settings\Data\AuditEntry;
+use PHPUnit\Framework\AssertionFailedError;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Facades\Settings;
+use Simtabi\Laranail\Settings\Data\ActorContext;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Contracts\AuditSink;
+use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
-use Simtabi\Laranail\Settings\Facades\Settings;
-use Simtabi\Laranail\Settings\Logging\OperationalLogger;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
-use Symfony\Component\Uid\Ulid;
+use Simtabi\Laranail\Settings\Logging\OperationalLogger;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /** Point the package log at a Monolog test handler and return the handler. */
 function captureLog(): TestHandler

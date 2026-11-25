@@ -2,31 +2,31 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Events\TransactionBeginning;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Artisan;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\ChangeFilter;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Enums\ChangeStatus;
+use Simtabi\Laranail\Settings\Events\ChangeStale;
+use Simtabi\Laranail\Settings\Events\ChangeApplied;
+use Illuminate\Database\Events\TransactionBeginning;
+use Simtabi\Laranail\Settings\Enums\ChangeOperation;
+use Simtabi\Laranail\Settings\Events\ChangeApproved;
+use Simtabi\Laranail\Settings\Events\ChangeRejected;
+use Simtabi\Laranail\Settings\Events\ChangeCancelled;
+use Simtabi\Laranail\Settings\Events\ChangeRequested;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Actions\Approvals\QueryChanges;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\ChangeFilter;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Enums\ChangeOperation;
-use Simtabi\Laranail\Settings\Enums\ChangeStatus;
-use Simtabi\Laranail\Settings\Events\ChangeApplied;
-use Simtabi\Laranail\Settings\Events\ChangeApproved;
-use Simtabi\Laranail\Settings\Events\ChangeCancelled;
-use Simtabi\Laranail\Settings\Events\ChangeRejected;
-use Simtabi\Laranail\Settings\Events\ChangeRequested;
-use Simtabi\Laranail\Settings\Events\ChangeStale;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
 use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
@@ -92,7 +92,7 @@ it('applies an approved request through the write pipeline and records who appro
     $approved = settings()->as(user(2))->approvals()->approve($request->id, 'looks right');
 
     expect($approved->status)->toBe(ChangeStatus::Applied)
-        ->and($approved->approvals)->toBe(['user:'.user(2)->getMorphClass().':2'])
+        ->and($approved->approvals)->toBe(['user:' . user(2)->getMorphClass() . ':2'])
         ->and($approved->decidedById)->toBe('2')
         ->and($approved->decisionReason)->toBe('looks right')
         ->and(settings()->get('mail.host'))->toBe('smtp.acme.test')
@@ -146,7 +146,7 @@ it('counts a user and their API token as one person: no self-approval, no second
     $again = settings()->as(Actor::user(user(2), abilities: ['*']))->approvals()->approve($id);
 
     expect($again->status)->toBe(ChangeStatus::Approved)
-        ->and($again->approvals)->toBe(['user:'.user(2)->getMorphClass().':2'])
+        ->and($again->approvals)->toBe(['user:' . user(2)->getMorphClass() . ':2'])
         ->and(settings()->get('mail.host'))->toBeNull()
         ->and(settings()->as(user(3))->approvals()->approve($id)->status)->toBe(ChangeStatus::Applied);
 });
@@ -157,7 +157,7 @@ it('reads an approval recorded for a token before 0.1.1 as its user\'s (SP-03)',
     needsApproval();
     settings()->as(user(1))->set('mail.host', 'smtp.acme.test');
     $id = settings()->approvals()->get()[0]->id;
-    DB::table('settings_change_requests')->where('id', $id)->update(['status' => 'approved', 'approvals' => json_encode(['token:'.user(2)->getMorphClass().':2'])]);
+    DB::table('settings_change_requests')->where('id', $id)->update(['status' => 'approved', 'approvals' => json_encode(['token:' . user(2)->getMorphClass() . ':2'])]);
 
     expect(settings()->as(user(2))->approvals()->approve($id)->status)->toBe(ChangeStatus::Approved);
 });

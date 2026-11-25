@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Database\Factories;
 
-use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 use Simtabi\Laranail\Settings\Models\Setting;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
 
 /**
@@ -27,14 +27,14 @@ final class SettingFactory extends Factory
     /** @return array<string, mixed> */
     public function definition(): array
     {
-        $key = 'test.'.Str::lower(Str::random(12));
+        $key = 'test.' . Str::lower(Str::random(12));
 
         return [
-            'scope' => 'global',
-            'key' => $key,
-            'group' => 'test',
-            'locale' => '',
-            'value' => json_encode(null),
+            'scope'   => 'global',
+            'key'     => $key,
+            'group'   => 'test',
+            'locale'  => '',
+            'value'   => json_encode(null),
             'version' => 1,
         ];
     }
@@ -61,7 +61,7 @@ final class SettingFactory extends Factory
     /** An owner row of a polymorphic store: scope `<alias>:<id>`. */
     public function owner(string $alias, int|string $id): static
     {
-        return $this->state(['scope' => $alias.':'.$id, 'settable_type' => $alias, 'settable_id' => (string) $id]);
+        return $this->state(['scope' => $alias . ':' . $id, 'settable_type' => $alias, 'settable_id' => (string) $id]);
     }
 
     public function locale(string $locale): static

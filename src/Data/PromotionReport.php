@@ -11,9 +11,9 @@ namespace Simtabi\Laranail\Settings\Data;
 final readonly class PromotionReport
 {
     /**
-     * @param  list<string>  $promoted
-     * @param  array<string, string>  $skipped  identity => reason
-     * @param  list<string>  $kept
+     * @param list<string> $promoted
+     * @param array<string, string> $skipped identity => reason
+     * @param list<string> $kept
      */
     public function __construct(
         public string $store,
@@ -27,11 +27,11 @@ final readonly class PromotionReport
     public function toArray(): array
     {
         return [
-            'store' => $this->store,
+            'store'    => $this->store,
             'promoted' => $this->promoted,
-            'skipped' => $this->skipped,
-            'archive' => $this->archive,
-            'kept' => $this->kept,
+            'skipped'  => $this->skipped,
+            'archive'  => $this->archive,
+            'kept'     => $this->kept,
         ];
     }
 }

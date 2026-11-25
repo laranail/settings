@@ -3,21 +3,21 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Gate;
-use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\AuditEntry;
-use Simtabi\Laranail\Settings\Data\Decision;
-use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Data\Decision;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 
 it('lets trusted code without an actor read and write without consulting any gate', function (): void {
     Gate::before(static fn (): never => throw new LogicException('the gate must not be asked'));
@@ -141,9 +141,9 @@ it('rejects an authorizer that is neither built in nor an Authorizer class', fun
 
     expect(fn (): mixed => settings()->as(user())->get('site.name'))->toThrow(InvalidConfiguration::class, 'authorization.driver');
 })->with([
-    'unknown name' => ['ldap'],
+    'unknown name'      => ['ldap'],
     'not an authorizer' => [stdClass::class],
-    'bad chain entry' => [['gate', 'nope']],
+    'bad chain entry'   => [['gate', 'nope']],
 ]);
 
 it('treats a token as an extra ceiling: the token must hold the ability as well as the gate', function (): void {

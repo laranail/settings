@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Categories;
 
-use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
-use Simtabi\Laranail\Settings\Actions\Categories\DeleteCategory;
-use Simtabi\Laranail\Settings\Actions\Categories\MoveCategory;
-use Simtabi\Laranail\Settings\Actions\Categories\RenameCategory;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Data\CategorySlug;
-use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Data\Category;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
-use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
-use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
+use Simtabi\Laranail\Settings\Data\NewCategory;
+use Simtabi\Laranail\Settings\Data\CategorySlug;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
+use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
+use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Actions\Categories\MoveCategory;
+use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
+use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
+use Simtabi\Laranail\Settings\Actions\Categories\DeleteCategory;
+use Simtabi\Laranail\Settings\Actions\Categories\RenameCategory;
 
 /**
  * The categories of one store, as the handle's actor. Reads need `view`; changes need

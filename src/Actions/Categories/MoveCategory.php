@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions\Categories;
 
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Events\CategoryMoved;
 use Simtabi\Laranail\Settings\Events\CategorySaved;
 use Simtabi\Laranail\Settings\Events\CategorySaving;
-use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
-use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
 
 /** Move a category under another in the same store, or to the top level with a null parent. */
 final readonly class MoveCategory

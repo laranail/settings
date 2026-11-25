@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Simtabi\Laranail\Settings\Actions\FindForeignTables;
-use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
-use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
-use Simtabi\Laranail\Settings\Data\HistoryEntry;
-use Simtabi\Laranail\Settings\Data\NewCategory;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Database\Schema\Blueprint;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\NewCategory;
+use Simtabi\Laranail\Settings\Data\HistoryEntry;
+use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
+use Simtabi\Laranail\Settings\Actions\FindForeignTables;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
  * The table shape is fixed; `tenancy.mode` is the only switch. The tenancy matrix runs one
@@ -53,10 +53,10 @@ it('stores titles as per-locale JSON', function (): void {
 
 it('prefixes every table and honours each override, including the foreign-table check', function (): void {
     useDatabase([
-        'tables.prefix' => 'app_',
-        'tables.categories' => 'setting_groups',
-        'tables.audit' => 'setting_log',
-        'tables.definitions' => 'setting_defs',
+        'tables.prefix'         => 'app_',
+        'tables.categories'     => 'setting_groups',
+        'tables.audit'          => 'setting_log',
+        'tables.definitions'    => 'setting_defs',
         'stores.settings.table' => 'preferences',
     ]);
 
@@ -78,7 +78,7 @@ it('prefixes every table and honours each override, including the foreign-table 
         $table->string('message');
     });
 
-    expect(app(FindForeignTables::class)->handle())->toBe([DB::getDefaultConnection().'.app_setting_log']);
+    expect(app(FindForeignTables::class)->handle())->toBe([DB::getDefaultConnection() . '.app_setting_log']);
 });
 
 it('has doctor fail on a missing column and pass on a complete schema', function (): void {
@@ -100,15 +100,15 @@ it('runs end to end under each tenancy mode', function (string $tenancy): void {
     $column = $tenancy === 'column';
 
     useDatabase([
-        'tenancy.mode' => $tenancy,
-        'stores.settings.owners' => ['team'],
+        'tenancy.mode'                 => $tenancy,
+        'stores.settings.owners'       => ['team'],
         'stores.settings.soft_deletes' => true,
-        'stores.settings.inherits' => true,
-        'stores.user_settings' => [
-            'layers' => ['database'],
-            'owners' => ['user'],
-            'mode' => 'dedicated',
-            'owner' => ['table' => 'users', 'type' => 'bigint'],
+        'stores.settings.inherits'     => true,
+        'stores.user_settings'         => [
+            'layers'   => ['database'],
+            'owners'   => ['user'],
+            'mode'     => 'dedicated',
+            'owner'    => ['table' => 'users', 'type' => 'bigint'],
             'inherits' => true,
         ],
     ], stores: ['user_settings'], ownerTables: ['users' => 'bigint']);
@@ -145,7 +145,7 @@ it('runs end to end under each tenancy mode', function (string $tenancy): void {
         ->and($synced)->toBe(1)
         ->and((int) DB::table('settings')->where('scope', 'team:7')->value('version'))->toBe(4)
         ->and(DB::table('user_settings')->value('owner_id'))->toBe(1)
-        ->and(array_map(static fn (HistoryEntry $entry): string => $entry->operation->value.':'.$entry->version, $trail))->toBe(['unlock:4', 'lock:3', 'set:2', 'forget:1', 'set:1'])
+        ->and(array_map(static fn (HistoryEntry $entry): string => $entry->operation->value . ':' . $entry->version, $trail))->toBe(['unlock:4', 'lock:3', 'set:2', 'forget:1', 'set:1'])
         ->and($request->scope)->toBe('team:7')
         ->and(DB::table('settings')->where('key', 'mail.host')->value('category_id'))->toBe($mail->id)
         ->and(settings()->audit()->get())->not->toBeEmpty()

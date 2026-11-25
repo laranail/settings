@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Definitions;
 
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
-use Simtabi\Laranail\Settings\Models\SettingDefinition;
-use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
 use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Support\ValueEncoder;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Models\SettingDefinition;
+use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
+use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
 
 /**
  * The `database` definition source: runtime rows of the definitions table.
@@ -116,7 +116,8 @@ final class DatabaseDefinitions
     }
 
     /**
-     * @param  array<array-key, mixed>  $rules
+     * @param array<array-key, mixed> $rules
+     *
      * @return list<string> the stored rules whose name is allowed
      */
     private function rules(array $rules): array

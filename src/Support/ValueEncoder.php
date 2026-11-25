@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Support;
 
-use Illuminate\Container\Attributes\Singleton;
 use JsonException;
 use Simtabi\Laranail\Settings\Data\Key;
+use Illuminate\Container\Attributes\Singleton;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 /**

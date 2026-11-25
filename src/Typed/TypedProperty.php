@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Typed;
 
 use BackedEnum;
-use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use DateTimeInterface;
-use ReflectionNamedType;
 use ReflectionProperty;
-use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
-use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
-use Simtabi\Laranail\Settings\Typed\Attributes\Encrypted;
+use ReflectionNamedType;
+use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Typed\Attributes\Key;
 use Simtabi\Laranail\Settings\Typed\Attributes\Type;
+use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
+use Simtabi\Laranail\Settings\Typed\Attributes\Encrypted;
+use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 
 /**
  * A typed settings property: its key and how its value converts to and from storage. Supports
@@ -47,7 +47,7 @@ final readonly class TypedProperty
         }
 
         $key = ($property->getAttributes(Key::class)[0] ?? null)?->newInstance()->key
-            ?? ltrim(($group === null ? '' : $group.'.').strtolower((string) preg_replace('/(?<!^)[A-Z]/', '_$0', $property->getName())), '.');
+            ?? ltrim(($group === null ? '' : $group . '.') . strtolower((string) preg_replace('/(?<!^)[A-Z]/', '_$0', $property->getName())), '.');
 
         return new self(
             $property,
@@ -63,9 +63,9 @@ final readonly class TypedProperty
     public function casterAlias(): ?string
     {
         return $this->alias ?? match ($this->type) {
-            'string', 'int', 'float', 'bool', 'array' => $this->type,
+            'string', 'int', 'float', 'bool', 'array'                                  => $this->type,
             DateTimeImmutable::class, CarbonImmutable::class, DateTimeInterface::class => null,
-            default => null,
+            default                                                                    => null,
         };
     }
 
@@ -73,9 +73,9 @@ final readonly class TypedProperty
     public function toStored(mixed $value): mixed
     {
         return match (true) {
-            $value instanceof BackedEnum => $value->value,
+            $value instanceof BackedEnum        => $value->value,
             $value instanceof DateTimeInterface => CarbonImmutable::instance($value)->toIso8601String(),
-            default => $value,
+            default                             => $value,
         };
     }
 
@@ -93,15 +93,15 @@ final readonly class TypedProperty
         $type = $this->type;
 
         return match (true) {
-            $type === 'string' => is_string($value) ? $value : throw $this->mismatch($value),
-            $type === 'int' => is_int($value) || (is_string($value) && preg_match('/^-?\d+$/', $value) === 1) ? (int) $value : throw $this->mismatch($value),
-            $type === 'float' => is_int($value) || is_float($value) || is_numeric($value) ? (float) $value : throw $this->mismatch($value),
-            $type === 'bool' => is_bool($value) ? $value : throw $this->mismatch($value),
-            $type === 'array' => is_array($value) ? $value : throw $this->mismatch($value),
+            $type === 'string'                       => is_string($value) ? $value : throw $this->mismatch($value),
+            $type === 'int'                          => is_int($value) || (is_string($value) && preg_match('/^-?\d+$/', $value) === 1) ? (int) $value : throw $this->mismatch($value),
+            $type === 'float'                        => is_int($value) || is_float($value) || is_numeric($value) ? (float) $value : throw $this->mismatch($value),
+            $type === 'bool'                         => is_bool($value) ? $value : throw $this->mismatch($value),
+            $type === 'array'                        => is_array($value) ? $value : throw $this->mismatch($value),
             is_subclass_of($type, BackedEnum::class) => (is_int($value) || is_string($value) ? $type::tryFrom($value) : null) ?? throw $this->mismatch($value),
-            $value instanceof DateTimeInterface => CarbonImmutable::instance($value),
-            is_string($value) => $type === DateTimeImmutable::class ? new DateTimeImmutable($value) : CarbonImmutable::parse($value),
-            default => throw $this->mismatch($value),
+            $value instanceof DateTimeInterface      => CarbonImmutable::instance($value),
+            is_string($value)                        => $type === DateTimeImmutable::class ? new DateTimeImmutable($value) : CarbonImmutable::parse($value),
+            default                                  => throw $this->mismatch($value),
         };
     }
 

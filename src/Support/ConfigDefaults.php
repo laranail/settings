@@ -19,8 +19,9 @@ final readonly class ConfigDefaults
     public const array NAMED_MAPS = ['stores', 'layers', 'importers', 'seed.categories', 'authentication.guards'];
 
     /**
-     * @param  array<array-key, mixed>  $defaults  the shipped config file
-     * @param  array<array-key, mixed>  $application  the configuration after Laravel's merge
+     * @param array<array-key, mixed> $defaults the shipped config file
+     * @param array<array-key, mixed> $application the configuration after Laravel's merge
+     *
      * @return array<array-key, mixed>
      */
     public static function merge(array $defaults, array $application, string $path = ''): array
@@ -32,7 +33,7 @@ final readonly class ConfigDefaults
                 continue;
             }
 
-            $name = $path === '' ? (string) $key : $path.'.'.$key;
+            $name = $path === '' ? (string) $key : $path . '.' . $key;
             $value = $application[$key];
 
             if (self::isMap($default) && self::isMap($value) && ! in_array($name, self::NAMED_MAPS, true)) {

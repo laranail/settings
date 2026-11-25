@@ -5,29 +5,29 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Configurator;
 
 use Closure;
-use Psr\Log\LoggerInterface;
+use Throwable;
 use ReflectionClass;
 use ReflectionMethod;
-use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorCheck;
-use Simtabi\Laranail\Settings\Contracts\ActorResolver;
-use Simtabi\Laranail\Settings\Contracts\AuditSink;
-use Simtabi\Laranail\Settings\Contracts\Authorizer;
+use Psr\Log\LoggerInterface;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Enums\Stage;
+use Simtabi\Laranail\Settings\SettingsManager;
 use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Contracts\Driver;
+use Simtabi\Laranail\Settings\Data\LayerConfig;
+use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Contracts\Importer;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Contracts\Verifier;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\LayerConfig;
+use Simtabi\Laranail\Settings\Contracts\AuditSink;
+use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
-use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
 use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
-use Simtabi\Laranail\Settings\Enums\DriverType;
-use Simtabi\Laranail\Settings\Enums\Stage;
+use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\SettingsManager;
-use Throwable;
+use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorCheck;
 
 /**
  * What a configurator's `configure()` receives: typed, fluent setters for the package's
@@ -84,8 +84,8 @@ final readonly class SettingsSetup
 
         foreach (['categories' => $categories, 'audit' => $audit, 'definitions' => $definitions, 'history' => $history, 'change_requests' => $changeRequests, 'stores' => $stores] as $key => $table) {
             if ($table !== null) {
-                $this->validated(static fn () => SchemaNames::assertTable($table, 'laranail.settings.tables.'.$key), 'tables()', 'tables.'.$key);
-                $this->values->set('tables.'.$key, $table);
+                $this->validated(static fn () => SchemaNames::assertTable($table, 'laranail.settings.tables.' . $key), 'tables()', 'tables.' . $key);
+                $this->values->set('tables.' . $key, $table);
             }
         }
 
@@ -95,11 +95,11 @@ final readonly class SettingsSetup
     /**
      * `stores.<name>.*`: add a store or change one.
      *
-     * @param  Closure(StoreSetup): mixed  $setup
+     * @param Closure(StoreSetup): mixed $setup
      */
     public function store(string $name, Closure $setup): self
     {
-        $setup(new StoreSetup($this->values, 'stores.'.SetupValues::name('store()', 'stores', $name)));
+        $setup(new StoreSetup($this->values, 'stores.' . SetupValues::name('store()', 'stores', $name)));
 
         return $this;
     }
@@ -107,11 +107,11 @@ final readonly class SettingsSetup
     /**
      * `layers.<name>.*`: add a layer or change one.
      *
-     * @param  Closure(LayerSetup): mixed  $setup
+     * @param Closure(LayerSetup): mixed $setup
      */
     public function layer(string $name, Closure $setup): self
     {
-        $setup(new LayerSetup($this->values, 'layers.'.SetupValues::name('layer()', 'layers', $name)));
+        $setup(new LayerSetup($this->values, 'layers.' . SetupValues::name('layer()', 'layers', $name)));
 
         return $this;
     }
@@ -210,7 +210,7 @@ final readonly class SettingsSetup
     public function exclude(?string $package = null, ?string $module = null): self
     {
         $caller = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0];
-        $site = ($caller['file'] ?? 'unknown').':'.($caller['line'] ?? 0);
+        $site = ($caller['file'] ?? 'unknown') . ':' . ($caller['line'] ?? 0);
 
         if (($package === null) === ($module === null)) {
             $this->values->applicationOnly('exclude()');
@@ -235,17 +235,17 @@ final readonly class SettingsSetup
      * A custom storage driver for layers to name (`drivers.<name>`), for every request. A
      * request's `configuration()->extendDriver()` still adds its own on top.
      *
-     * @param  Closure(LayerConfig): Driver  $factory
+     * @param Closure(LayerConfig): Driver $factory
      */
     public function driver(string $name, Closure $factory): self
     {
         SetupValues::name('driver()', 'drivers', $name);
 
         if (DriverType::tryFrom($name) !== null) {
-            throw SetupValues::invalid('driver()', 'drivers.'.$name, 'a name that is not a built-in driver', $name);
+            throw SetupValues::invalid('driver()', 'drivers.' . $name, 'a name that is not a built-in driver', $name);
         }
 
-        $this->values->behave('drivers.'.$name, $factory);
+        $this->values->behave('drivers.' . $name, $factory);
 
         return $this;
     }
@@ -254,10 +254,10 @@ final readonly class SettingsSetup
     public function caster(string $alias, Caster $caster): self
     {
         if (preg_match('/^[a-z][a-z0-9_:]*$/', $alias) !== 1) {
-            throw SetupValues::invalid('caster()', 'casters.'.$alias, 'an alias matching [a-z][a-z0-9_:]*', $alias);
+            throw SetupValues::invalid('caster()', 'casters.' . $alias, 'an alias matching [a-z][a-z0-9_:]*', $alias);
         }
 
-        $this->values->behave('casters.'.$alias, $caster);
+        $this->values->behave('casters.' . $alias, $caster);
 
         return $this;
     }
@@ -265,17 +265,17 @@ final readonly class SettingsSetup
     /**
      * An importer the import command and `import()` can name (`importers.<name>`).
      *
-     * @param  class-string<Importer>  $class
+     * @param class-string<Importer> $class
      */
     public function importer(string $name, string $class): self
     {
         SetupValues::name('importer()', 'importers', $name);
 
         if (! is_subclass_of($class, Importer::class)) {
-            throw SetupValues::invalid('importer()', 'importers.'.$name, 'a class implementing '.Importer::class, $class);
+            throw SetupValues::invalid('importer()', 'importers.' . $name, 'a class implementing ' . Importer::class, $class);
         }
 
-        $this->values->set('importers.'.$name, $class);
+        $this->values->set('importers.' . $name, $class);
 
         return $this;
     }
@@ -283,17 +283,17 @@ final readonly class SettingsSetup
     /**
      * A setting's definition, in code (`definitions.<key>`).
      *
-     * @param  Closure(DefinitionBuilder): mixed  $setup
+     * @param Closure(DefinitionBuilder): mixed $setup
      */
     public function define(string $key, Closure $setup): self
     {
         try {
             $key = new Key($key)->value;
         } catch (Throwable $exception) {
-            throw new InvalidConfiguration('define() (laranail.settings.definitions): '.$exception->getMessage(), (int) $exception->getCode(), $exception);
+            throw new InvalidConfiguration('define() (laranail.settings.definitions): ' . $exception->getMessage(), (int) $exception->getCode(), $exception);
         }
 
-        $this->values->behave('definitions.'.$key, $setup);
+        $this->values->behave('definitions.' . $key, $setup);
 
         return $this;
     }
@@ -302,7 +302,7 @@ final readonly class SettingsSetup
      * Who may do what (`authorization.driver`): an authorizer, a closure, or a class built through
      * the container. Application only.
      *
-     * @param  Authorizer|Closure|class-string<Authorizer>  $authorizer
+     * @param Authorizer|Closure|class-string<Authorizer> $authorizer
      */
     public function authorizeUsing(Authorizer|Closure|string $authorizer): self
     {
@@ -316,7 +316,7 @@ final readonly class SettingsSetup
      * Step-up verification (`verification.driver`): a verifier, a closure, or a class built
      * through the container.
      *
-     * @param  Verifier|Closure|class-string<Verifier>  $verifier
+     * @param Verifier|Closure|class-string<Verifier> $verifier
      */
     public function verifyUsing(Verifier|Closure|string $verifier): self
     {
@@ -329,7 +329,7 @@ final readonly class SettingsSetup
      * Who is acting (`authentication.resolver`): a resolver, a closure, or a class built through
      * the container. Application only.
      *
-     * @param  ActorResolver|Closure|class-string<ActorResolver>  $resolver
+     * @param ActorResolver|Closure|class-string<ActorResolver> $resolver
      */
     public function resolveActorsUsing(ActorResolver|Closure|string $resolver): self
     {
@@ -352,7 +352,7 @@ final readonly class SettingsSetup
      * Send audit entries to these sinks as well as the configured ones. Additive: every owner's
      * sinks are kept, in order.
      *
-     * @param  AuditSink|class-string<AuditSink>  ...$sinks
+     * @param AuditSink|class-string<AuditSink> ...$sinks
      */
     public function auditTo(AuditSink|string ...$sinks): self
     {
@@ -376,7 +376,7 @@ final readonly class SettingsSetup
      * `SettingsDecorator`; the last one added wraps outermost (packages, then modules, then the
      * application). Additive: every owner's decorators are kept.
      *
-     * @param  Closure(Settings): SettingsDecorator  $decorator
+     * @param Closure(Settings): SettingsDecorator $decorator
      */
     public function decorate(Closure $decorator): self
     {
@@ -391,11 +391,11 @@ final readonly class SettingsSetup
      * decryption and casting and before redaction. A stage never sees ciphertext and cannot skip
      * validation. Additive, in the order added.
      *
-     * @param  Closure(mixed, Key): mixed  $pipe
+     * @param Closure(mixed, Key): mixed $pipe
      */
     public function pipe(Stage $stage, Closure $pipe): self
     {
-        $this->values->append('pipes.'.$stage->value, $pipe);
+        $this->values->append('pipes.' . $stage->value, $pipe);
 
         return $this;
     }
@@ -404,7 +404,7 @@ final readonly class SettingsSetup
      * Listen to one of the package's events. Additive: listeners on one event run in the order
      * added.
      *
-     * @param  Closure|class-string  $listener
+     * @param Closure|class-string $listener
      */
     public function on(string $event, Closure|string $listener): self
     {
@@ -425,10 +425,10 @@ final readonly class SettingsSetup
     public function macro(string $name, Closure $macro): self
     {
         if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name) !== 1 || method_exists(SettingsManager::class, $name)) {
-            throw SetupValues::invalid('macro()', 'macros.'.$name, 'a method name SettingsManager does not have', $name);
+            throw SetupValues::invalid('macro()', 'macros.' . $name, 'a method name SettingsManager does not have', $name);
         }
 
-        $this->values->behave('macros.'.$name, $macro);
+        $this->values->behave('macros.' . $name, $macro);
 
         return $this;
     }
@@ -444,7 +444,7 @@ final readonly class SettingsSetup
             $macro = $method->invoke($mixin);
 
             if (! $macro instanceof Closure) {
-                throw SetupValues::invalid('mixin()', 'macros.'.$method->name, 'a method returning a closure', get_debug_type($macro));
+                throw SetupValues::invalid('mixin()', 'macros.' . $method->name, 'a method returning a closure', get_debug_type($macro));
             }
 
             $this->macro($method->name, $macro);
@@ -466,7 +466,8 @@ final readonly class SettingsSetup
      *
      * @template T of object
      *
-     * @param  class-string<T>  $contract
+     * @param class-string<T> $contract
+     *
      * @return T|Closure|class-string<T>
      */
     private function contract(string $method, string $path, object|string $value, string $contract): object|string
@@ -476,10 +477,10 @@ final readonly class SettingsSetup
         }
 
         if (is_object($value)) {
-            throw SetupValues::invalid($method, $path, 'a closure or a '.$contract, $value);
+            throw SetupValues::invalid($method, $path, 'a closure or a ' . $contract, $value);
         }
 
-        return is_subclass_of($value, $contract) ? $value : throw SetupValues::invalid($method, $path, 'a class implementing '.$contract, $value);
+        return is_subclass_of($value, $contract) ? $value : throw SetupValues::invalid($method, $path, 'a class implementing ' . $contract, $value);
     }
 
     /**
@@ -487,7 +488,8 @@ final readonly class SettingsSetup
      *
      * @template T
      *
-     * @param  Closure(): T  $check
+     * @param Closure(): T $check
+     *
      * @return T
      */
     private function validated(Closure $check, string $method, string $path): mixed
@@ -495,7 +497,7 @@ final readonly class SettingsSetup
         try {
             return $check();
         } catch (InvalidConfiguration $exception) {
-            throw new InvalidConfiguration($method.' (laranail.settings.'.$path.'): '.$exception->getMessage(), $exception->getCode(), previous: $exception);
+            throw new InvalidConfiguration($method . ' (laranail.settings.' . $path . '): ' . $exception->getMessage(), $exception->getCode(), previous: $exception);
         }
     }
 }

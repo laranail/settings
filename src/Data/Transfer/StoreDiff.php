@@ -8,11 +8,11 @@ namespace Simtabi\Laranail\Settings\Data\Transfer;
 final readonly class StoreDiff
 {
     /**
-     * @param  list<string>  $added
-     * @param  list<string>  $removed
-     * @param  list<string>  $changed
-     * @param  list<string>  $unchanged
-     * @param  list<string>  $unknown
+     * @param list<string> $added
+     * @param list<string> $removed
+     * @param list<string> $changed
+     * @param list<string> $unchanged
+     * @param list<string> $unknown
      */
     public function __construct(
         public array $added = [],

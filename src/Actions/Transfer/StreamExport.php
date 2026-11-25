@@ -6,11 +6,11 @@ namespace Simtabi\Laranail\Settings\Actions\Transfer;
 
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Transfer\StoreSnapshots;
 
@@ -27,7 +27,8 @@ final readonly class StreamExport
     ) {}
 
     /**
-     * @param  resource  $stream
+     * @param resource $stream
+     *
      * @return array{settings: int, categories: int}
      */
     public function handle(ExportRequest $request, $stream, ?Actor $actor = null): array

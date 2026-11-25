@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Event;
-use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 use Simtabi\Laranail\DbTools\Schema\SchemaReadinessReport;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 
 /** A probe that counts flushes. */
 function countingProbe(): object
@@ -49,9 +49,9 @@ it('forgets schema readiness when a tenancy package switches tenants, by event n
     expect($probe->flushes)->toBe(1);
 })->with([
     'stancl initialized' => 'Stancl\Tenancy\Events\TenancyInitialized',
-    'stancl ended' => 'Stancl\Tenancy\Events\TenancyEnded',
-    'spatie current' => 'Spatie\Multitenancy\Events\MadeTenantCurrentEvent',
-    'spatie forgot' => 'Spatie\Multitenancy\Events\ForgotCurrentTenantEvent',
+    'stancl ended'       => 'Stancl\Tenancy\Events\TenancyEnded',
+    'spatie current'     => 'Spatie\Multitenancy\Events\MadeTenantCurrentEvent',
+    'spatie forgot'      => 'Spatie\Multitenancy\Events\ForgotCurrentTenantEvent',
 ]);
 
 it('does not flush on events nobody configured', function (): void {

@@ -5,19 +5,19 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 function useDedicatedStore(array $extra = []): void
 {
     useDatabase([
         'stores.settings.owners' => ['team'],
-        'stores.user_settings' => [
+        'stores.user_settings'   => [
             'layers' => ['database'],
             'owners' => ['user'],
-            'mode' => 'dedicated',
-            'owner' => ['table' => 'users'],
+            'mode'   => 'dedicated',
+            'owner'  => ['table' => 'users'],
         ] + $extra,
     ], stores: ['user_settings'], ownerTables: ['users' => 'bigint']);
 
@@ -74,13 +74,13 @@ it('refuses a dedicated store without one owner alias, an owner table or a polym
 
     expect(fn () => app(StoreRegistry::class)->all())->toThrow(InvalidConfiguration::class, $message);
 })->with([
-    'no owner alias' => [['owners' => [], 'owner' => ['table' => 'users']], 'exactly one owner alias'],
-    'two owner aliases' => [['owners' => ['user', 'admin'], 'owner' => ['table' => 'users']], 'exactly one owner alias'],
-    'no owner table' => [['owners' => ['user']], 'owner.table'],
+    'no owner alias'     => [['owners' => [], 'owner' => ['table' => 'users']], 'exactly one owner alias'],
+    'two owner aliases'  => [['owners' => ['user', 'admin'], 'owner' => ['table' => 'users']], 'exactly one owner alias'],
+    'no owner table'     => [['owners' => ['user']], 'owner.table'],
     'itself as fallback' => [['owners' => ['user'], 'owner' => ['table' => 'users'], 'fallback' => 'user_settings'], 'must be another store'],
-    'unknown fallback' => [['owners' => ['user'], 'owner' => ['table' => 'users'], 'fallback' => 'nowhere'], 'must be a configured polymorphic store'],
+    'unknown fallback'   => [['owners' => ['user'], 'owner' => ['table' => 'users'], 'fallback' => 'nowhere'], 'must be a configured polymorphic store'],
     'bad owner key type' => [['owners' => ['user'], 'owner' => ['table' => 'users', 'type' => 'serial']], '`type` one of'],
-    'unknown mode' => [['mode' => 'shared'], 'use [polymorphic] or [dedicated]'],
+    'unknown mode'       => [['mode' => 'shared'], 'use [polymorphic] or [dedicated]'],
 ]);
 
 it('has doctor compare owner_id with the owner table key', function (): void {

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route as RoutingRoute;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
-use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Routing\Route as RoutingRoute;
 use Simtabi\Laranail\Settings\Contracts\Settings;
-use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
 use Simtabi\Laranail\Settings\Http\Support\Problems;
+use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
+use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
 
 /*
  * The reference pages are held to the code they describe: each guard reads the live source of
@@ -19,13 +19,13 @@ use Simtabi\Laranail\Settings\Http\Support\Problems;
 
 function referencePage(string $path): string
 {
-    return (string) file_get_contents(dirname(__DIR__, 2).'/docs/'.$path);
+    return (string) file_get_contents(dirname(__DIR__, 2) . '/docs/' . $path);
 }
 
 /** @return list<string> class basenames in a src directory */
 function classesIn(string $directory): array
 {
-    $names = array_map(static fn (string $file): string => basename($file, '.php'), glob(dirname(__DIR__, 2).'/src/'.$directory.'/*.php') ?: []);
+    $names = array_map(static fn (string $file): string => basename($file, '.php'), glob(dirname(__DIR__, 2) . '/src/' . $directory . '/*.php') ?: []);
     sort($names);
 
     return $names;
@@ -35,7 +35,8 @@ function classesIn(string $directory): array
  * The shipped config's keys as configuration.md names them: a store or layer name becomes
  * `<name>`, an `http.routes` entry `<group>`, and a list or an open map is one key.
  *
- * @param  array<array-key, mixed>  $config
+ * @param array<array-key, mixed> $config
+ *
  * @return array<string, mixed> key => default
  */
 function documentedConfigKeys(array $config, string $prefix = ''): array
@@ -44,7 +45,7 @@ function documentedConfigKeys(array $config, string $prefix = ''): array
     $leaves = ['seed.categories', 'authorization.permissions', 'readiness.flush_on', 'importers', 'alerts.rules', 'definitions.sources', 'definitions.allowed_rules'];
 
     foreach ($config as $key => $value) {
-        $path = $prefix === '' ? (string) $key : $prefix.'.'.$key;
+        $path = $prefix === '' ? (string) $key : $prefix . '.' . $key;
         $path = (string) preg_replace(['/^stores\.[a-z_]+/', '/^layers\.[a-z_]+/', '/^http\.routes\.[a-z_]+/'], ['stores.<name>', 'layers.<name>', 'http.routes.<group>'], $path);
 
         if (is_array($value) && ! array_is_list($value) && $value !== [] && ! in_array($path, $leaves, true)) {
@@ -67,8 +68,8 @@ it('documents every method of the Settings contract, and the facade proxies each
     expect(count($methods))->toBeGreaterThanOrEqual(47);
 
     foreach ($methods as $method) {
-        expect(str_contains($page, '`'.$method.'()`'))->toBeTrue(sprintf('settings-api.md does not document %s()', $method))
-            ->and(preg_match('/@method static [^\n]+ '.$method.'\(/', $facade))->toBe(1, sprintf('the facade docblock does not list %s()', $method));
+        expect(str_contains($page, '`' . $method . '()`'))->toBeTrue(sprintf('settings-api.md does not document %s()', $method))
+            ->and(preg_match('/@method static [^\n]+ ' . $method . '\(/', $facade))->toBe(1, sprintf('the facade docblock does not list %s()', $method));
     }
 });
 
@@ -87,11 +88,11 @@ it('documents every REST route and every problem type', function (): void {
         $name = (string) preg_replace('/^laranail-settings\.api\.(owners\.)?/', '', (string) $route->getName());
 
         expect(str_contains($page, sprintf('`%s /%s`', $method, $uri)))->toBeTrue(sprintf('rest-api-reference.md does not document %s /%s', $method, $uri))
-            ->and(str_contains($page, '`'.$name.'`'))->toBeTrue(sprintf('rest-api-reference.md does not name route %s', $name));
+            ->and(str_contains($page, '`' . $name . '`'))->toBeTrue(sprintf('rest-api-reference.md does not name route %s', $name));
     }
 
     foreach ($types as $type) {
-        expect(str_contains($page, '| `'.$type.'` |'))->toBeTrue(sprintf('rest-api-reference.md does not list problem type %s', $type));
+        expect(str_contains($page, '| `' . $type . '` |'))->toBeTrue(sprintf('rest-api-reference.md does not list problem type %s', $type));
     }
 });
 
@@ -107,7 +108,7 @@ it('points every problem type URI at an anchor on the exceptions page', function
         [$base, $anchor] = explode('#', $uri, 2);
 
         expect($base)->toBe('https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions')
-            ->and(str_contains($page, '<a name="'.$anchor.'"></a>'))->toBeTrue(sprintf('exceptions.md has no anchor for problem type %s (#%s)', $type, $anchor));
+            ->and(str_contains($page, '<a name="' . $anchor . '"></a>'))->toBeTrue(sprintf('exceptions.md has no anchor for problem type %s (#%s)', $type, $anchor));
     }
 });
 
@@ -118,7 +119,7 @@ it('documents every event', function (): void {
     expect(count($events))->toBeGreaterThanOrEqual(30);
 
     foreach ($events as $event) {
-        expect(str_contains($page, '`'.$event.'`'))->toBeTrue(sprintf('events.md does not document %s', $event));
+        expect(str_contains($page, '`' . $event . '`'))->toBeTrue(sprintf('events.md does not document %s', $event));
     }
 });
 
@@ -129,7 +130,7 @@ it('documents every exception', function (): void {
     expect(count($exceptions))->toBeGreaterThanOrEqual(30);
 
     foreach ($exceptions as $exception) {
-        expect(str_contains($page, '| `'.$exception.'` |'))->toBeTrue(sprintf('exceptions.md does not document %s', $exception));
+        expect(str_contains($page, '| `' . $exception . '` |'))->toBeTrue(sprintf('exceptions.md does not document %s', $exception));
     }
 });
 
@@ -140,13 +141,13 @@ it('documents every console command', function (): void {
     expect(count($commands))->toBeGreaterThanOrEqual(17);
 
     foreach ($commands as $command) {
-        expect(preg_match('/`'.preg_quote($command, '/').'[ `]/', $page))->toBe(1, sprintf('commands.md does not document %s', $command));
+        expect(preg_match('/`' . preg_quote($command, '/') . '[ `]/', $page))->toBe(1, sprintf('commands.md does not document %s', $command));
     }
 });
 
 it('documents every shipped config key with its default', function (): void {
     /** @var array<array-key, mixed> $config */
-    $config = require dirname(__DIR__, 2).'/config/settings.php';
+    $config = require dirname(__DIR__, 2) . '/config/settings.php';
     $keys = documentedConfigKeys($config);
     $rows = array_filter(explode("\n", referencePage('configuration.md')), static fn (string $line): bool => str_starts_with($line, '| `'));
     // A default that is resolved later, or that differs by store or layer, is documented in words.
@@ -155,7 +156,7 @@ it('documents every shipped config key with its default', function (): void {
     expect(count($keys))->toBeGreaterThanOrEqual(74);
 
     foreach ($keys as $key => $default) {
-        $row = array_values(array_filter($rows, static fn (string $line): bool => str_contains(explode('|', $line)[1] ?? '', '`'.$key.'`')))[0] ?? null;
+        $row = array_values(array_filter($rows, static fn (string $line): bool => str_contains(explode('|', $line)[1] ?? '', '`' . $key . '`')))[0] ?? null;
 
         expect($row)->not->toBeNull(sprintf('configuration.md does not document %s', $key));
 
@@ -166,8 +167,8 @@ it('documents every shipped config key with its default', function (): void {
         $shown = match (true) {
             $default === null => '`null`',
             is_bool($default) => $default ? '`true`' : '`false`',
-            $default === '' => "`''`",
-            default => '`'.$default.'`',
+            $default === ''   => "`''`",
+            default           => '`' . $default . '`',
         };
 
         expect(str_contains((string) $row, $shown))->toBeTrue(sprintf('configuration.md gives %s a default other than %s', $key, $shown));
@@ -188,14 +189,14 @@ it('documents every configurator setup method, and each sub-setup on its own row
         ->and(count($setups))->toBe(11);
 
     foreach ($settings as $method) {
-        expect(str_contains($page, '`'.$method.'('))->toBeTrue(sprintf('configurator.md does not document %s()', $method));
+        expect(str_contains($page, '`' . $method . '('))->toBeTrue(sprintf('configurator.md does not document %s()', $method));
     }
 
     foreach ($setups as $setup) {
-        $row = array_values(array_filter(explode("\n", $page), static fn (string $line): bool => str_starts_with($line, '| `'.$setup.'`')))[0] ?? '';
+        $row = array_values(array_filter(explode("\n", $page), static fn (string $line): bool => str_starts_with($line, '| `' . $setup . '`')))[0] ?? '';
 
-        foreach ($methods('Simtabi\Laranail\Settings\Configurator\\'.$setup) as $method) {
-            expect(str_contains($row, '`'.$method.'()`'))->toBeTrue(sprintf('configurator.md does not list %s::%s() on its row', $setup, $method));
+        foreach ($methods('Simtabi\Laranail\Settings\Configurator\\' . $setup) as $method) {
+            expect(str_contains($row, '`' . $method . '()`'))->toBeTrue(sprintf('configurator.md does not list %s::%s() on its row', $setup, $method));
         }
     }
 });

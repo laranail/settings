@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 
 /** `POST /stores/{store}/diff`. */
 final class DiffStoreRequest extends FormRequest

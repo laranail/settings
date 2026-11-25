@@ -4,30 +4,30 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
-use Simtabi\Laranail\Settings\Actions\ForgetSetting;
-use Simtabi\Laranail\Settings\Actions\LockSetting;
-use Simtabi\Laranail\Settings\Actions\Reads\ExplainSetting;
-use Simtabi\Laranail\Settings\Actions\Reads\ReadSetting;
-use Simtabi\Laranail\Settings\Actions\Reads\ReadSettings;
-use Simtabi\Laranail\Settings\Actions\SetSetting;
-use Simtabi\Laranail\Settings\Actions\UnlockSetting;
+use Illuminate\Http\JsonResponse;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Data\SettingAddress;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
-use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
-use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
-use Simtabi\Laranail\Settings\Http\Requests\SettingRequest;
-use Simtabi\Laranail\Settings\Http\Requests\WriteSettingRequest;
-use Simtabi\Laranail\Settings\Http\Resources\ChangeRequestResource;
-use Simtabi\Laranail\Settings\Http\Resources\ExplanationResource;
-use Simtabi\Laranail\Settings\Http\Resources\SettingResource;
-use Simtabi\Laranail\Settings\Http\Support\Addresses;
+use Simtabi\Laranail\Settings\Actions\SetSetting;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Actions\LockSetting;
+use Simtabi\Laranail\Settings\Data\SettingAddress;
+use Simtabi\Laranail\Settings\Actions\ForgetSetting;
+use Simtabi\Laranail\Settings\Actions\UnlockSetting;
 use Simtabi\Laranail\Settings\Http\Support\ApiActor;
+use Simtabi\Laranail\Settings\Http\Support\Addresses;
+use Simtabi\Laranail\Settings\Actions\Reads\ReadSetting;
+use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
+use Simtabi\Laranail\Settings\Actions\Reads\ReadSettings;
+use Simtabi\Laranail\Settings\Actions\Reads\ExplainSetting;
+use Simtabi\Laranail\Settings\Http\Requests\SettingRequest;
+use Simtabi\Laranail\Settings\Http\Resources\SettingResource;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
+use Simtabi\Laranail\Settings\Http\Requests\WriteSettingRequest;
+use Simtabi\Laranail\Settings\Http\Resources\ExplanationResource;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
+use Simtabi\Laranail\Settings\Http\Resources\ChangeRequestResource;
 
 /**
  * `/stores/{store}/settings` and `/stores/{store}/owners/{alias}/{id}/settings`. A write that

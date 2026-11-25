@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Support\Json;
-use Simtabi\Laranail\Settings\Support\RecordSerializer;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Support\Translations;
+use Simtabi\Laranail\Settings\Support\DatabaseValues;
+use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
+use Simtabi\Laranail\Settings\Support\RecordSerializer;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
 it('builds and reads per-locale title maps', function (): void {
     expect(Translations::of('Mail/É', ['fr' => 'Courrier']))->toBe(['' => 'Mail/É', 'fr' => 'Courrier'])
@@ -54,8 +54,8 @@ it('reports a file record with a bad key, locale, date or version as a malformed
     expect(fn (): mixed => new RecordSerializer()->fromArray(['scope' => 'global', 'key' => 'site.name', ...$row], 'runtime.json'))
         ->toThrow(DriverFailure::class, 'A record in [runtime.json] is malformed');
 })->with([
-    'key' => [['key' => 'Not A Key']],
-    'locale' => [['locale' => 'zz-garbage-locale']],
-    'date' => [['written_at' => 'not a date']],
+    'key'     => [['key' => 'Not A Key']],
+    'locale'  => [['locale' => 'zz-garbage-locale']],
+    'date'    => [['written_at' => 'not a date']],
     'version' => [['version' => 0]],
 ]);

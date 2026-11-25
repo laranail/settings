@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Illuminate\Database\Eloquent\Collection;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Models\SettingHistory;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /**
@@ -84,19 +84,19 @@ final readonly class RescopeOwners
      * Rename an owner alias in the scopes these rows hold, and return how many changed. Their
      * timestamps stay as they are.
      *
-     * @param  Builder<SettingHistory>|Builder<SettingChangeRequest>  $rows
+     * @param Builder<SettingHistory>|Builder<SettingChangeRequest> $rows
      */
     private function rescope(Builder $rows, string $from, string $to): int
     {
         $changed = 0;
 
-        $rows->where('scope', '>=', $from.':')
-            ->where('scope', '<', $from.';')
+        $rows->where('scope', '>=', $from . ':')
+            ->where('scope', '<', $from . ';')
             ->chunkById(500, static function (Collection $models) use ($from, $to, &$changed): void {
                 foreach ($models as $model) {
                     $scope = $model->getAttribute('scope');
                     $model->timestamps = false;
-                    $model->update(['scope' => $to.substr(is_string($scope) ? $scope : '', strlen($from))]);
+                    $model->update(['scope' => $to . substr(is_string($scope) ? $scope : '', strlen($from))]);
                     $changed++;
                 }
             });

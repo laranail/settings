@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 beforeEach(function (): void {
     config()->set('laranail.settings.stores', [
-        'settings' => ['layers' => ['runtime'], 'owners' => ['tenant']],
+        'settings'      => ['layers' => ['runtime'], 'owners' => ['tenant']],
         'team_settings' => ['layers' => ['runtime'], 'owners' => ['team']],
         'user_settings' => ['layers' => ['runtime'], 'owners' => ['user']],
     ]);

@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\History;
 
-use Carbon\CarbonImmutable;
 use Closure;
 use DateTimeInterface;
+use Carbon\CarbonImmutable;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Support\LazyCollection;
-use Simtabi\Laranail\Settings\Actions\QueryHistory;
-use Simtabi\Laranail\Settings\Contracts\Settable;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\HistoryEntry;
-use Simtabi\Laranail\Settings\Data\HistoryFilter;
-use Simtabi\Laranail\Settings\Data\HistoryPage;
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\HistoryPage;
+use Simtabi\Laranail\Settings\Data\HistoryEntry;
+use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Data\HistoryFilter;
+use Simtabi\Laranail\Settings\Actions\QueryHistory;
 use Simtabi\Laranail\Settings\Models\SettingHistory;
 
 /**

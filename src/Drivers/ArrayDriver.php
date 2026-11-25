@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Drivers;
 
-use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Contracts\Driver;
 
 /**
  * Holds records in memory for the lifetime of the instance.

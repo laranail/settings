@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Resources;
 
-use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Attributes\PreserveKeys;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Override;
+use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Data\Category;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
 /**
  * A category as the API returns it, identified by slug.
@@ -28,15 +28,15 @@ final class CategoryResource extends JsonResource
         $category = $this->resource;
 
         return [
-            'slug' => $category->slug->value,
-            'store' => $category->store->value,
-            'title' => $category->title,
-            'titles' => (object) $category->titles,
-            'parent' => $category->parent?->value,
+            'slug'        => $category->slug->value,
+            'store'       => $category->store->value,
+            'title'       => $category->title,
+            'titles'      => (object) $category->titles,
+            'parent'      => $category->parent?->value,
             'description' => $category->description,
-            'icon' => $category->icon,
-            'sort_order' => $category->sortOrder,
-            'system' => $category->system,
+            'icon'        => $category->icon,
+            'sort_order'  => $category->sortOrder,
+            'system'      => $category->system,
         ];
     }
 }

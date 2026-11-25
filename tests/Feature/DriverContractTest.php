@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\RecordSet;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Simtabi\Laranail\Settings\Contracts\Driver;
-use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
-use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Data\RecordSet;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Drivers\JsonDriver;
 use Simtabi\Laranail\Settings\Enums\DriverType;
-use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
+use Simtabi\Laranail\Settings\Drivers\JsonDriver;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Support\RecordSerializer;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
-use Simtabi\Laranail\Settings\Support\RecordSerializer;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 
 /**
  * One suite over every built-in driver. The driver list is DriverType::cases(), not a
@@ -27,7 +27,7 @@ use Simtabi\Laranail\Settings\Support\RecordSerializer;
  */
 function driverFor(DriverType $type): Driver
 {
-    $path = sys_get_temp_dir().'/laranail-contract-'.bin2hex(random_bytes(4)).'.php';
+    $path = sys_get_temp_dir() . '/laranail-contract-' . bin2hex(random_bytes(4)) . '.php';
     file_put_contents($path, "<?php return ['site.name' => 'Shipped'];");
     config()->set('contract', ['site' => ['name' => 'Configured']]);
 
@@ -37,10 +37,10 @@ function driverFor(DriverType $type): Driver
 
     return app(DriverFactory::class)->make(match ($type) {
         DriverType::Database => new LayerConfig('d', 'database', true),
-        DriverType::Array => new LayerConfig('a', 'array', true),
-        DriverType::Json => new LayerConfig('j', 'json', true, ['disk' => 'local', 'path' => 'contract/{store}.json']),
-        DriverType::Php => new LayerConfig('p', 'php', false, ['path' => $path]),
-        DriverType::Config => new LayerConfig('c', 'config', false, ['prefix' => 'contract']),
+        DriverType::Array    => new LayerConfig('a', 'array', true),
+        DriverType::Json     => new LayerConfig('j', 'json', true, ['disk' => 'local', 'path' => 'contract/{store}.json']),
+        DriverType::Php      => new LayerConfig('p', 'php', false, ['path' => $path]),
+        DriverType::Config   => new LayerConfig('c', 'config', false, ['prefix' => 'contract']),
     });
 }
 
@@ -115,7 +115,7 @@ it('builds a custom driver registered with a closure and refuses to replace a bu
 /** A JSON layer on a fresh local disk of its own, for the concurrency tests. */
 function freshJsonDriver(): Driver
 {
-    $root = sys_get_temp_dir().'/laranail-json-'.bin2hex(random_bytes(6));
+    $root = sys_get_temp_dir() . '/laranail-json-' . bin2hex(random_bytes(6));
     config()->set('filesystems.disks.json-concurrency', ['driver' => 'local', 'root' => $root]);
 
     return app(DriverFactory::class)->make(new LayerConfig('j', 'json', true, ['disk' => 'json-concurrency', 'path' => 'settings/{store}.json']));
@@ -152,7 +152,7 @@ it('loses no record when two processes write one JSON file at once (SP-09)', fun
 
     if ($pid === 0) {
         for ($index = 0; $index < $writes; $index++) {
-            $driver->put($store, new Record(Scope::global(), new Key('child.k'.$index), Locale::none(), '1', version: 1));
+            $driver->put($store, new Record(Scope::global(), new Key('child.k' . $index), Locale::none(), '1', version: 1));
         }
 
         // End the child without running the parent's shutdown and test teardown.
@@ -160,7 +160,7 @@ it('loses no record when two processes write one JSON file at once (SP-09)', fun
     }
 
     for ($index = 0; $index < $writes; $index++) {
-        $driver->put($store, new Record(Scope::global(), new Key('parent.k'.$index), Locale::none(), '1', version: 1));
+        $driver->put($store, new Record(Scope::global(), new Key('parent.k' . $index), Locale::none(), '1', version: 1));
     }
 
     pcntl_waitpid($pid, $status);
@@ -169,11 +169,11 @@ it('loses no record when two processes write one JSON file at once (SP-09)', fun
 });
 
 it('reports a JSON lock it cannot take, and still version-checks a disk with no local path (SP-09)', function (): void {
-    $root = sys_get_temp_dir().'/laranail-json-'.bin2hex(random_bytes(6));
+    $root = sys_get_temp_dir() . '/laranail-json-' . bin2hex(random_bytes(6));
     config()->set('filesystems.disks.json-lockless', ['driver' => 'local', 'root' => $root]);
     $driver = app(DriverFactory::class)->make(new LayerConfig('j', 'json', true, ['disk' => 'json-lockless', 'path' => 'settings/{store}.json']));
     // A directory where the lock file belongs: it cannot be opened, so the write is refused.
-    mkdir($root.'/settings/settings.json.lock', 0o755, true);
+    mkdir($root . '/settings/settings.json.lock', 0o755, true);
 
     expect(fn () => $driver->put(new StoreName('settings'), new Record(Scope::global(), new Key('a'), Locale::none(), '1', version: 1)))->toThrow(DriverFailure::class, 'could not be locked');
 

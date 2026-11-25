@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Resources;
 
-use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Attributes\PreserveKeys;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Override;
-use Simtabi\Laranail\Settings\Data\Locale;
+use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\SettingView;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
 /**
  * A setting as the API returns it. A value the actor may not see is left out and `redacted` set;
@@ -30,14 +30,14 @@ final class SettingResource extends JsonResource
     {
         $view = $this->resource;
         $fields = [
-            'store' => $view->address->store,
-            'scope' => Scope::of($view->address->ownerRef())->value,
-            'key' => $view->address->key,
-            'locale' => new Locale($view->address->locale)->value,
-            'found' => $view->found,
-            'layer' => $view->layer,
-            'from' => $view->from,
-            'version' => $view->version,
+            'store'    => $view->address->store,
+            'scope'    => Scope::of($view->address->ownerRef())->value,
+            'key'      => $view->address->key,
+            'locale'   => new Locale($view->address->locale)->value,
+            'found'    => $view->found,
+            'layer'    => $view->layer,
+            'from'     => $view->from,
+            'version'  => $view->version,
             'redacted' => $view->redacted,
         ];
 

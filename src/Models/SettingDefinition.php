@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Models;
 
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Override;
-use Simtabi\Laranail\Settings\Data\Definition;
+use Illuminate\Database\Eloquent\Builder;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Database\Factories\SettingDefinitionFactory;
-use Simtabi\Laranail\Settings\Models\Scopes\TenantScope;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Support\Translations;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Simtabi\Laranail\Settings\Models\Scopes\TenantScope;
+use Simtabi\Laranail\Settings\Database\Factories\SettingDefinitionFactory;
 
 /**
  * A row of the definitions table, on the default store's connection. Shared by every tenant, so it
@@ -59,36 +59,37 @@ final class SettingDefinition extends SettingsModel
      * Fill the columns a definition describes. A category links to the store's central category
      * of that slug, since definitions are shared by every tenant.
      *
-     * @param  ?string  $default  the encoded default; an encrypted definition's default is never stored
-     * @param  array<array-key, mixed>|null  $categories  the store's central category ids by slug, when the caller loaded them once; null looks the slug up
+     * @param ?string $default the encoded default; an encrypted definition's default is never stored
+     * @param array<array-key, mixed>|null $categories the store's central category ids by slug, when the caller loaded them once; null looks the slug up
      */
     public function fillFromDefinition(Definition $definition, ?string $default, ?array $categories = null): static
     {
         $category = match (true) {
             $definition->category === null => null,
-            $categories !== null => $categories[$definition->category] ?? null,
-            default => $this->categoryId($definition->category),
+            $categories !== null           => $categories[$definition->category] ?? null,
+            default                        => $this->categoryId($definition->category),
         };
 
         return $this->fill([
-            'slug' => $definition->key->slug(),
-            'group' => $definition->group(),
-            'category_id' => is_string($category) ? $category : null,
-            'type' => $definition->type,
-            'default' => $definition->encrypted ? null : $default,
-            'label' => Translations::ofNullable($definition->label),
-            'description' => Translations::ofNullable($definition->description),
-            'rules' => $definition->rules,
-            'is_encrypted' => $definition->encrypted,
-            'is_public' => $definition->public,
-            'is_locked' => $definition->locked,
-            'inherits' => $definition->inherits,
+            'slug'           => $definition->key->slug(),
+            'group'          => $definition->group(),
+            'category_id'    => is_string($category) ? $category : null,
+            'type'           => $definition->type,
+            'default'        => $definition->encrypted ? null : $default,
+            'label'          => Translations::ofNullable($definition->label),
+            'description'    => Translations::ofNullable($definition->description),
+            'rules'          => $definition->rules,
+            'is_encrypted'   => $definition->encrypted,
+            'is_public'      => $definition->public,
+            'is_locked'      => $definition->locked,
+            'inherits'       => $definition->inherits,
             'overridable_by' => $definition->overridableBy,
         ]);
     }
 
     /**
-     * @param  Builder<self>  $query
+     * @param Builder<self> $query
+     *
      * @return Builder<self>
      */
     public function scopeForStore(Builder $query, StoreName|string $store): Builder
@@ -99,7 +100,8 @@ final class SettingDefinition extends SettingsModel
     /**
      * Rows edited at runtime, not synced from code or config.
      *
-     * @param  Builder<self>  $query
+     * @param Builder<self> $query
+     *
      * @return Builder<self>
      */
     public function scopeRuntime(Builder $query): Builder
@@ -124,17 +126,17 @@ final class SettingDefinition extends SettingsModel
     protected function casts(): array
     {
         return [
-            'label' => 'array',
-            'description' => 'array',
-            'rules' => 'array',
+            'label'          => 'array',
+            'description'    => 'array',
+            'rules'          => 'array',
             'overridable_by' => 'array',
-            'meta' => 'array',
-            'is_encrypted' => 'boolean',
-            'is_public' => 'boolean',
-            'is_locked' => 'boolean',
-            'autoload' => 'boolean',
-            'inherits' => 'boolean',
-            'is_system' => 'boolean',
+            'meta'           => 'array',
+            'is_encrypted'   => 'boolean',
+            'is_public'      => 'boolean',
+            'is_locked'      => 'boolean',
+            'autoload'       => 'boolean',
+            'inherits'       => 'boolean',
+            'is_system'      => 'boolean',
         ];
     }
 

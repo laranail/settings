@@ -2,34 +2,34 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Actions\Configuration\SaveDefinition;
-use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Actions\Configuration\SaveDefinition;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /** Insert a definition row edited at runtime (not is_system). */
 function runtimeDefinition(string $key, array $columns = []): void
 {
     DB::table('settings_definitions')->insert($columns + [
-        'id' => (string) Str::ulid(),
-        'store' => 'settings',
-        'slug' => str_replace('.', '-', $key),
-        'key' => $key,
-        'group' => explode('.', $key)[0],
-        'is_system' => false,
+        'id'         => (string) Str::ulid(),
+        'store'      => 'settings',
+        'slug'       => str_replace('.', '-', $key),
+        'key'        => $key,
+        'group'      => explode('.', $key)[0],
+        'is_system'  => false,
         'created_at' => now(),
         'updated_at' => now(),
     ]);
@@ -189,7 +189,7 @@ it('syncs N definitions with the same number of reads as one (SP-06)', function 
 
     $queries = static function (int $count): array {
         for ($index = 0; $index < $count; $index++) {
-            app(DefinitionRegistry::class)->define('sync.key'.$index)->ofType('string')->inCategory('mail')->register();
+            app(DefinitionRegistry::class)->define('sync.key' . $index)->ofType('string')->inCategory('mail')->register();
         }
 
         DB::flushQueryLog();

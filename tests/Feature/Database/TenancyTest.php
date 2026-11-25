@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
-use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
-use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Tenancy\NullTenantDiscriminator;
+use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 
 /*
  * Column-mode tenancy. One database; every values, categories and audit row carries

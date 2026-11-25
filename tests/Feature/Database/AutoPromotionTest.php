@@ -2,32 +2,32 @@
 
 declare(strict_types=1);
 
-use Illuminate\Contracts\Queue\Job;
-use Illuminate\Filesystem\FilesystemAdapter;
-use Illuminate\Queue\Events\JobProcessed;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use League\Flysystem\Filesystem as Flysystem;
-use League\Flysystem\Local\LocalFilesystemAdapter;
 use Psr\Log\AbstractLogger;
-use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
-use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Queue\Job;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\Data\PromotionSelection;
-use Simtabi\Laranail\Settings\Enums\ActorType;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\Channel;
+use League\Flysystem\Filesystem as Flysystem;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Enums\ActorType;
+use Simtabi\Laranail\Settings\Facades\Settings;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Events\StorePromoted;
 use Simtabi\Laranail\Settings\Events\StorePromoting;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
-use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 
 const RUNTIME_FILE = 'laranail/settings/settings.json';
 
@@ -266,7 +266,7 @@ it('defers promoteWhenReady() until the migrations when the database is not read
         ->and(Storage::disk('local')->exists(RUNTIME_FILE))->toBeTrue();
 
     // An installer migrating in the same process: the runtime switch is still in force.
-    Artisan::call('migrate', ['--path' => dirname(__DIR__, 3).'/database/migrations', '--realpath' => true]);
+    Artisan::call('migrate', ['--path' => dirname(__DIR__, 3) . '/database/migrations', '--realpath' => true]);
 
     expect(Storage::disk('local')->exists(RUNTIME_FILE))->toBeFalse()
         ->and(settings()->get('site.name'))->toBe('Acme');
@@ -361,9 +361,9 @@ it('promotes only the kinds a store selects, and the rest keep answering from th
     expect(DB::getQueryLog())->toBe([])
         ->and(array_filter(Storage::disk('local')->files('laranail/settings'), static fn (string $path): bool => ! str_ends_with($path, '.lock')))->toHaveCount($inFile === [] ? 1 : 2);
 })->with([
-    'settings only' => [['include' => ['settings']], ['global'], ['user:1', 'team:2']],
-    'owners only' => [['include' => ['owners']], ['team:2', 'user:1'], ['global']],
-    'everything' => [['include' => ['*']], ['global', 'team:2', 'user:1'], []],
+    'settings only'   => [['include' => ['settings']], ['global'], ['user:1', 'team:2']],
+    'owners only'     => [['include' => ['owners']], ['team:2', 'user:1'], ['global']],
+    'everything'      => [['include' => ['*']], ['global', 'team:2', 'user:1'], []],
     'one owner alias' => [['include' => ['owners'], 'owners' => ['user']], ['user:1'], ['global', 'team:2']],
 ]);
 

@@ -4,26 +4,26 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Configuration;
 
-use Carbon\CarbonImmutable;
 use Exception;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Str;
+use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
-use Illuminate\Database\Connection;
-use Illuminate\Database\ConnectionResolverInterface;
-use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Str;
+use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Simtabi\Laranail\Settings\Enums\DriverType;
+use Simtabi\Laranail\Settings\Logging\LogContext;
+use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Illuminate\Database\ConnectionResolverInterface;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Logging\LogContext;
-use Simtabi\Laranail\Settings\Logging\OperationalLogger;
-use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Support\Json;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
  * Store and layer configuration saved in the `settings_stores` table.
@@ -43,11 +43,11 @@ final class PersistedConfiguration
     private int $generation = 0;
 
     /**
-     * @param  DriverFactory  $drivers  validates an entry by building the stores it would produce
-     * @param  mixed  $enabled  `configuration.persisted`
-     * @param  array<array-key, mixed>  $configStores  `laranail.settings.stores`
-     * @param  array<array-key, mixed>  $configLayers  `laranail.settings.layers`
-     * @param  array<array-key, mixed>  $tables  `laranail.settings.tables`
+     * @param DriverFactory $drivers validates an entry by building the stores it would produce
+     * @param mixed $enabled `configuration.persisted`
+     * @param array<array-key, mixed> $configStores `laranail.settings.stores`
+     * @param array<array-key, mixed> $configLayers `laranail.settings.layers`
+     * @param array<array-key, mixed> $tables `laranail.settings.tables`
      */
     public function __construct(
         private readonly ConnectionResolverInterface $db,
@@ -99,7 +99,7 @@ final class PersistedConfiguration
     /**
      * Save a store entry in the configuration file's shape.
      *
-     * @param  array<array-key, mixed>  $config
+     * @param array<array-key, mixed> $config
      *
      * @throws InvalidConfiguration
      */
@@ -111,7 +111,7 @@ final class PersistedConfiguration
     /**
      * Save a layer entry.
      *
-     * @param  array<array-key, mixed>  $config
+     * @param array<array-key, mixed> $config
      *
      * @throws InvalidConfiguration
      */
@@ -149,7 +149,7 @@ final class PersistedConfiguration
         $this->check($kind, $name, $config, $stores, $layers);
 
         $now = CarbonImmutable::now();
-        $json = Json::encode($config, 'A persisted '.$kind);
+        $json = Json::encode($config, 'A persisted ' . $kind);
 
         if ($this->table()->where('kind', $kind)->where('name', $name)->exists()) {
             $this->table()->where('kind', $kind)->where('name', $name)->update(['config' => $json, 'updated_at' => $now]);
@@ -218,9 +218,9 @@ final class PersistedConfiguration
     }
 
     /**
-     * @param  array<array-key, mixed>  $config
-     * @param  array<string, array<array-key, mixed>>  $stores
-     * @param  array<string, array<array-key, mixed>>  $layers
+     * @param array<array-key, mixed> $config
+     * @param array<string, array<array-key, mixed>> $stores
+     * @param array<string, array<array-key, mixed>> $layers
      *
      * @throws InvalidConfiguration
      */
@@ -252,7 +252,7 @@ final class PersistedConfiguration
     {
         $this->problems[] = $problem;
 
-        $this->log->warning('laranail/settings skipped a persisted configuration entry: '.$problem, LogContext::of());
+        $this->log->warning('laranail/settings skipped a persisted configuration entry: ' . $problem, LogContext::of());
     }
 
     private function changed(): void

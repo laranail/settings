@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Importers;
 
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
 
 /**
  * Normalises another package's keys and gathers global values into an export document.
@@ -34,7 +34,8 @@ final readonly class ImportedKeys
      * the same settings key, naming each colliding group, so nothing is overwritten in silence.
      * The check runs before any document exists, so a dry run and an applied import fail alike.
      *
-     * @param  list<array{string, mixed, bool}>  $entries  [source key, value, locked], in source order
+     * @param list<array{string, mixed, bool}> $entries [source key, value, locked], in source order
+     *
      * @return array<string, array{mixed, bool}> key => [value, locked]
      *
      * @throws InvalidImport when a key cannot be made valid, or keys collide
@@ -65,7 +66,7 @@ final readonly class ImportedKeys
     /**
      * Global values as an export document.
      *
-     * @param  array<string, array{mixed, bool}>  $values  key => [value, locked]
+     * @param array<string, array{mixed, bool}> $values key => [value, locked]
      */
     public static function document(StoreName $store, array $values, string $source): ExportDocument
     {

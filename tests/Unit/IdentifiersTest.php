@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
 it('lower-cases keys and derives the group and a one-to-one slug', function (): void {
     $key = new Key('Mail.From_Address');

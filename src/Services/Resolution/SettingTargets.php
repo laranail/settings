@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Resolution;
 
-use Simtabi\Laranail\Settings\Contracts\Settings;
-use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\SettingAddress;
-use Simtabi\Laranail\Settings\Data\SettingTarget;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
-use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\SettingTarget;
+use Simtabi\Laranail\Settings\Data\SettingAddress;
+use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 
 /**
  * Turns a {@see SettingAddress} into the store, write target, read handle and version the actions need.

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use Illuminate\Notifications\AnonymousNotifiable;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Schema;
 use Psr\Log\AbstractLogger;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Notifications\AnonymousNotifiable;
+use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 use Simtabi\Laranail\Settings\Notifications\SettingsAlert;
 use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
-use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 
 /*
  * Alerts to a database notifiable: the rule names a model and its key; a model that no longer
@@ -27,7 +27,7 @@ function databaseAlerts(int|string $id, ?string $queue = null): void
     config()->set('laranail.settings.alerts.rules', [[
         'events' => ['SettingSaved'],
         'notify' => ['database' => ['type' => TestUser::class, 'id' => $id]],
-        'queue' => $queue,
+        'queue'  => $queue,
     ]]);
     app()->getProvider(SettingsServiceProvider::class)?->packageBooted();
 }
@@ -63,7 +63,7 @@ it('logs an alert that cannot be sent instead of failing the write', function ()
 
         public function log($level, string|Stringable $message, array $context = []): void
         {
-            $this->messages[] = $level.' '.$message;
+            $this->messages[] = $level . ' ' . $message;
         }
     };
     settings()->configuration()->logTo($logged);

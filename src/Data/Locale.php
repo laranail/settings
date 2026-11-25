@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Stringable;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
 /** A setting's locale, normalised to `ll` or `ll_CC`; empty means not localised. */
 final readonly class Locale implements Stringable
@@ -52,6 +52,6 @@ final readonly class Locale implements Stringable
             throw new InvalidIdentifier(sprintf('Invalid locale [%s]: use ll or ll_CC.', $value));
         }
 
-        return $region === null ? $language : $language.'_'.$region;
+        return $region === null ? $language : $language . '_' . $region;
     }
 }

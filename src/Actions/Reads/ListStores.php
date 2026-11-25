@@ -6,10 +6,10 @@ namespace Simtabi\Laranail\Settings\Actions\Reads;
 
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Stores\Store;
 
 /** List the configured stores the actor may view. */
 final readonly class ListStores

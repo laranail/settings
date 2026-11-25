@@ -2,30 +2,30 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Events\LayerSkipped;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Events\StorePromoted;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
+use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /** A store in bootstrap mode whose database layer points at a database that does not exist yet. */
 function bootstrapWithoutDatabase(bool $evidence): void
 {
-    config()->set('database.connections.unmigrated', ['driver' => 'sqlite', 'database' => sys_get_temp_dir().'/laranail-missing-'.bin2hex(random_bytes(4)).'/db.sqlite', 'prefix' => '']);
+    config()->set('database.connections.unmigrated', ['driver' => 'sqlite', 'database' => sys_get_temp_dir() . '/laranail-missing-' . bin2hex(random_bytes(4)) . '/db.sqlite', 'prefix' => '']);
     config()->set('laranail.settings.layers.database.connection', 'unmigrated');
     config()->set('laranail.settings.stores.settings.layers', ['database', 'runtime', 'shipped']);
     config()->set('laranail.settings.stores.settings.bootstrap', true);

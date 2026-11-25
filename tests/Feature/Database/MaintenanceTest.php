@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Actions\ReencryptSettings;
-use Simtabi\Laranail\Settings\Actions\RescopeOwners;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Artisan;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Actions\RescopeOwners;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Actions\ReencryptSettings;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
  * Reencrypt reads every secret with the current or a previous key and writes it
@@ -32,7 +32,7 @@ beforeEach(function (): void {
 function rotateKey(bool $keepPrevious): void
 {
     $old = config('app.key');
-    config()->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
+    config()->set('app.key', 'base64:' . base64_encode(random_bytes(32)));
     config()->set('app.previous_keys', $keepPrevious ? [$old] : []);
 
     foreach (['encrypter', LaravelValueEncrypter::class, ValuePipeline::class] as $abstract) {
@@ -45,7 +45,7 @@ function rotateKey(bool $keepPrevious): void
 it('re-encrypts values, history and change requests under the new key', function (): void {
     $secret = TestCredentials::secret();
     settings()->set('mail.password', $secret);
-    settings()->set('mail.password', $secret.'x');
+    settings()->set('mail.password', $secret . 'x');
     app(DefinitionRegistry::class)->define('mail.token')->encrypted()->requiresApproval()->register();
     settings()->set('mail.token', $secret);
     $before = DB::table('settings')->where('key', 'mail.password')->value('value');
@@ -68,7 +68,7 @@ it('re-encrypts values, history and change requests under the new key', function
     app()->forgetScopedInstances();
     app(DefinitionRegistry::class)->define('mail.password')->encrypted()->register();
 
-    expect(settings()->get('mail.password'))->toBe($secret.'x')
+    expect(settings()->get('mail.password'))->toBe($secret . 'x')
         ->and(settings()->historyDiff('mail.password', 1, 2)->from)->toBe($secret);
 });
 

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Simtabi\Laranail\Package\Tools\Services\Database\SeederRegistry;
+use Illuminate\Support\Facades\Artisan;
 use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Package\Tools\Services\Database\SeederRegistry;
+use Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder;
 
 /*
  * The default categories (`seed.*`): system rows, created through the settings API as the system
@@ -55,8 +55,8 @@ it('changes nothing when it runs again, a renamed category included', function (
 
 it('seeds the configured set into the listed stores, parents first', function (): void {
     useDatabase([
-        'stores.billing' => ['layers' => ['database']],
-        'seed.stores' => ['settings', 'billing'],
+        'stores.billing'  => ['layers' => ['database']],
+        'seed.stores'     => ['settings', 'billing'],
         'seed.categories' => [
             'smtp' => ['title' => 'SMTP', 'parent' => 'mail'],
             'mail' => 'Mail',
@@ -84,10 +84,10 @@ it('refuses a set it cannot seed', function (array $seed, string $message): void
 
     expect(fn () => app(DefaultCategoriesSeeder::class)->run(settings(), config()))->toThrow(InvalidConfiguration::class, $message);
 })->with([
-    'no title' => [['seed.categories' => ['mail' => ['icon' => 'x']]], 'seed.categories.mail'],
+    'no title'       => [['seed.categories' => ['mail' => ['icon' => 'x']]], 'seed.categories.mail'],
     'missing parent' => [['seed.categories' => ['smtp' => ['title' => 'SMTP', 'parent' => 'mail']]], 'smtp'],
-    'not a map' => [['seed.categories' => 'mail'], 'seed.categories'],
-    'bad stores' => [['seed.stores' => [1]], 'seed.stores'],
+    'not a map'      => [['seed.categories' => 'mail'], 'seed.categories'],
+    'bad stores'     => [['seed.stores' => [1]], 'seed.stores'],
 ]);
 
 it('runs with the application\'s db:seed through the package seeder hook', function (): void {

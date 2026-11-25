@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Benchmarks;
 
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Artisan;
-use Orchestra\Testbench\Foundation\Application as Testbench;
-use PhpBench\Attributes\BeforeMethods;
-use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\Revs;
 use PhpBench\Attributes\Warmup;
-use Simtabi\Laranail\DbTools\Providers\DbToolsServiceProvider;
-use Simtabi\Laranail\Package\Tools\Providers\PackageToolsServiceProvider;
-use Simtabi\Laranail\Settings\Contracts\Settings;
+use PhpBench\Attributes\Iterations;
+use Illuminate\Foundation\Application;
+use PhpBench\Attributes\BeforeMethods;
+use Illuminate\Support\Facades\Artisan;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
+use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
+use Orchestra\Testbench\Foundation\Application as Testbench;
+use Simtabi\Laranail\DbTools\Providers\DbToolsServiceProvider;
+use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
+use Simtabi\Laranail\Package\Tools\Providers\PackageToolsServiceProvider;
 
 /**
  * The cache's performance gate: one request's reads, with and without the settings cache.
@@ -99,37 +99,37 @@ final class ReadBench
     /** @param array<string, mixed> $cache `laranail.settings.cache` */
     private function boot(array $cache): void
     {
-        $directory = sys_get_temp_dir().'/laranail-settings-bench-'.bin2hex(random_bytes(4));
+        $directory = sys_get_temp_dir() . '/laranail-settings-bench-' . bin2hex(random_bytes(4));
         mkdir($directory);
-        touch($directory.'/database.sqlite');
+        touch($directory . '/database.sqlite');
 
         $this->app = Testbench::create(options: ['extra' => [
-            'providers' => [PackageToolsServiceProvider::class, DbToolsServiceProvider::class, SettingsServiceProvider::class],
+            'providers'     => [PackageToolsServiceProvider::class, DbToolsServiceProvider::class, SettingsServiceProvider::class],
             'dont-discover' => ['*'],
         ]]);
 
         $config = $this->app->make('config');
-        $config->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
+        $config->set('app.key', 'base64:' . base64_encode(random_bytes(32)));
         $config->set('database.default', 'bench');
-        $config->set('database.connections.bench', ['driver' => 'sqlite', 'database' => $directory.'/database.sqlite', 'prefix' => '', 'foreign_key_constraints' => true]);
-        $config->set('cache.stores.file.path', $directory.'/cache');
-        $config->set('laranail.settings.layers.shipped.path', $directory.'/none.php');
+        $config->set('database.connections.bench', ['driver' => 'sqlite', 'database' => $directory . '/database.sqlite', 'prefix' => '', 'foreign_key_constraints' => true]);
+        $config->set('cache.stores.file.path', $directory . '/cache');
+        $config->set('laranail.settings.layers.shipped.path', $directory . '/none.php');
         $config->set('laranail.settings.stores.settings.layers', ['database']);
         $config->set('laranail.settings.stores.settings.owners', ['owner', 'team']);
         $config->set('laranail.settings.stores.settings.inherits', true);
         $config->set('laranail.settings.audit.sinks', ['null']);
         $config->set('laranail.settings.cache', $cache + ['prefix' => 'bench', 'ttl' => 3600, 'stale' => 300]);
 
-        Artisan::call('migrate', ['--path' => dirname(__DIR__).'/database/migrations', '--realpath' => true]);
+        Artisan::call('migrate', ['--path' => dirname(__DIR__) . '/database/migrations', '--realpath' => true]);
 
         $settings = $this->app->make(Settings::class);
         $this->owner = new BenchOwner(1, 7);
 
         foreach (self::KEYS as $index => $key) {
             match ($index % 3) {
-                0 => $settings->set($key, 'global-'.$index),
-                1 => $settings->for(new OwnerRef('team', '7'))->set($key, 'team-'.$index),
-                default => $settings->for(new OwnerRef('owner', '1'))->set($key, 'owner-'.$index),
+                0       => $settings->set($key, 'global-' . $index),
+                1       => $settings->for(new OwnerRef('team', '7'))->set($key, 'team-' . $index),
+                default => $settings->for(new OwnerRef('owner', '1'))->set($key, 'owner-' . $index),
             };
         }
 

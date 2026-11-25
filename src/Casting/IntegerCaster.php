@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Casting;
 
-use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 /** Integers; numeric strings without a fraction are accepted. */

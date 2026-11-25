@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Verification;
 
 use Closure;
-use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Contracts\Verifier;
 
 /** A verifier from a closure, registered with `configuration()->verifyUsing()`. */
 final readonly class ClosureVerifier implements Verifier

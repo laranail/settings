@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Audit;
 
 use Psr\Log\LoggerInterface;
-use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Logging\LogContext;
+use Simtabi\Laranail\Settings\Contracts\AuditSink;
 
 /** Writes audit entries to the package's operational log at `info`. */
 final readonly class LogAuditSink implements AuditSink

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Enums\ActorType;
-use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 use Simtabi\Laranail\Settings\Support\EventSummary;
+use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 
 it('flattens an event to identifiers, and leaves out objects it does not know', function (): void {
     $event = new class

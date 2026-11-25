@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
-use Simtabi\Laranail\Settings\Actions\ForgetSetting;
-use Simtabi\Laranail\Settings\Actions\LockSetting;
+use Illuminate\Support\Facades\Blade;
 use Simtabi\Laranail\Settings\Actions\SetSetting;
+use Simtabi\Laranail\Settings\Actions\LockSetting;
+use Simtabi\Laranail\Settings\Typed\TypedSettings;
+use Simtabi\Laranail\Settings\Models\SettingsModel;
+use Simtabi\Laranail\Settings\Actions\ForgetSetting;
 use Simtabi\Laranail\Settings\Actions\UnlockSetting;
-use Simtabi\Laranail\Settings\Configurator\SettingsDecorator;
+use Simtabi\Laranail\Settings\Typed\SettingsMigration;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Models\SettingsModel;
-use Simtabi\Laranail\Settings\Typed\SettingsMigration;
-use Simtabi\Laranail\Settings\Typed\TypedSettings;
+use Simtabi\Laranail\Settings\Configurator\SettingsDecorator;
 
 /**
  * Structural rules a reviewer would otherwise have to remember.
@@ -76,7 +76,7 @@ arch('the package is headless: no view, Blade, Livewire or Filament reference')
 
 it('ships only the alert mail view and no assets, components or composers', function (): void {
     $root = dirname(__DIR__, 2);
-    $sources = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/src', FilesystemIterator::SKIP_DOTS));
+    $sources = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/src', FilesystemIterator::SKIP_DOTS));
     $inspected = 0;
     $offending = [];
 
@@ -110,8 +110,8 @@ it('ships only the alert mail view and no assets, components or composers', func
     // A scan that inspects nothing has broken, not found a clean tree.
     expect($inspected)->toBeGreaterThanOrEqual(354)
         ->and($offending)->toBe([])
-        ->and($files($root.'/resources/views'))->toBe(['mail/alert.blade.php'])
-        ->and($files($root.'/resources/assets'))->toBe(['.gitkeep']);
+        ->and($files($root . '/resources/views'))->toBe(['mail/alert.blade.php'])
+        ->and($files($root . '/resources/assets'))->toBe(['.gitkeep']);
 });
 
 /*

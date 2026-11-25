@@ -23,7 +23,7 @@ final class VerificationRequired extends SettingsException
             'Verification required: [%s] on [%s]%s needs a recent identity check.',
             $ability->value,
             $store,
-            $key === null ? '' : ' key ['.$key.']',
+            $key === null ? '' : ' key [' . $key . ']',
         ));
     }
 

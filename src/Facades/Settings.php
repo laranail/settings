@@ -5,62 +5,62 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Facades;
 
 use Closure;
-use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Container\Container;
-use Illuminate\Contracts\Debug\ExceptionHandler;
+use Throwable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Facade;
-use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
-use Simtabi\Laranail\Settings\Actions\ForgetSetting;
-use Simtabi\Laranail\Settings\Actions\LockSetting;
-use Simtabi\Laranail\Settings\Actions\QueryAudit;
-use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
-use Simtabi\Laranail\Settings\Actions\SetSetting;
-use Simtabi\Laranail\Settings\Actions\UnlockSetting;
-use Simtabi\Laranail\Settings\Actions\WriteGuard;
-use Simtabi\Laranail\Settings\Approvals\Approvals;
-use Simtabi\Laranail\Settings\Audit\AuditQuery;
-use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
-use Simtabi\Laranail\Settings\Categories\CategoryManager;
-use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
-use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
-use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
-use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
-use Simtabi\Laranail\Settings\Contracts\ModuleSettingsContributor;
-use Simtabi\Laranail\Settings\Contracts\PackageSettingsContributor;
-use Simtabi\Laranail\Settings\Contracts\Settable;
-use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
-use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Data\Definition;
-use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\Data\PromotionRequest;
-use Simtabi\Laranail\Settings\Data\PromotionSelection;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
-use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
-use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
-use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
-use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
+use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\SettingsManager;
+use Simtabi\Laranail\Settings\Testing\FakeLog;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
-use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
+use Illuminate\Contracts\Debug\ExceptionHandler;
+use Simtabi\Laranail\Settings\Actions\QueryAudit;
+use Simtabi\Laranail\Settings\Actions\SetSetting;
+use Simtabi\Laranail\Settings\Actions\WriteGuard;
+use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Actions\LockSetting;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
+use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
+use Simtabi\Laranail\Settings\Testing\SettingsFake;
+use Simtabi\Laranail\Settings\Actions\ForgetSetting;
+use Simtabi\Laranail\Settings\Actions\UnlockSetting;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
-use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
-use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Services\Resolution\Resolver;
+use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
+use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
-use Simtabi\Laranail\Settings\SettingsManager;
-use Simtabi\Laranail\Settings\Testing\FakeLog;
-use Simtabi\Laranail\Settings\Testing\SettingsFake;
-use Throwable;
+use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
+use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
+use Simtabi\Laranail\Settings\Contracts\ModuleSettingsContributor;
+use Simtabi\Laranail\Settings\Contracts\PackageSettingsContributor;
+use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
+use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
+use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
  * Static access to the {@see SettingsContract} binding.
@@ -145,15 +145,15 @@ final class Settings extends Facade
         // The engine and its resolver share the request's overrides, so they end with the request.
         $overrides = $app->make(Overrides::class);
         $fake = new SettingsFake($app->make(SettingsManager::class, [
-            'stores' => $stores,
-            'overrides' => $overrides,
-            'resolver' => new Resolver($stores, $app->make(ValuePipeline::class), $overrides, self::fallbackLocale($app->make('config')->get('app.fallback_locale')), behaviour: $app->make(ConfiguredBehaviour::class)),
-            'access' => $access,
-            'set' => $app->make(SetSetting::class, ['guard' => $guard]),
-            'forget' => $app->make(ForgetSetting::class, ['guard' => $guard]),
-            'lock' => $app->make(LockSetting::class, ['guard' => $guard]),
-            'unlock' => $app->make(UnlockSetting::class, ['guard' => $guard]),
-            'auditQuery' => new QueryAudit($stores, $access),
+            'stores'          => $stores,
+            'overrides'       => $overrides,
+            'resolver'        => new Resolver($stores, $app->make(ValuePipeline::class), $overrides, self::fallbackLocale($app->make('config')->get('app.fallback_locale')), behaviour: $app->make(ConfiguredBehaviour::class)),
+            'access'          => $access,
+            'set'             => $app->make(SetSetting::class, ['guard' => $guard]),
+            'forget'          => $app->make(ForgetSetting::class, ['guard' => $guard]),
+            'lock'            => $app->make(LockSetting::class, ['guard' => $guard]),
+            'unlock'          => $app->make(UnlockSetting::class, ['guard' => $guard]),
+            'auditQuery'      => new QueryAudit($stores, $access),
             'listDefinitions' => $app->make(ListDefinitions::class, ['access' => $access]),
         ]), $log);
 
@@ -168,7 +168,7 @@ final class Settings extends Facade
      * It runs while the application boots, so it may depend on any binding. A second
      * registration, or one made after booting started, throws naming both call sites.
      *
-     * @param  class-string<SettingsConfigurator>  $configurator
+     * @param class-string<SettingsConfigurator> $configurator
      */
     public static function useConfigurator(string $configurator): ConfiguratorRegistration
     {
@@ -184,7 +184,7 @@ final class Settings extends Facade
      * contract the class implements. Each is recorded with its call site and identity; a second
      * registration of one class or one identity throws, naming both.
      *
-     * @param  class-string<SettingsConfigurator|PackageSettingsContributor|ModuleSettingsContributor>  $class
+     * @param class-string<SettingsConfigurator|PackageSettingsContributor|ModuleSettingsContributor> $class
      */
     public static function register(string $class): ConfiguratorRegistration
     {
@@ -222,7 +222,7 @@ final class Settings extends Facade
 
     private static function application(string $method): Container
     {
-        return self::getFacadeApplication() ?? throw new SettingsMisuse($method.' needs an application: call it from a service provider.');
+        return self::getFacadeApplication() ?? throw new SettingsMisuse($method . ' needs an application: call it from a service provider.');
     }
 
     private static function fallbackLocale(mixed $configured): string

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Database\Factories;
 
 use DateTimeInterface;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Models\ModelContext;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Simtabi\Laranail\Settings\Models\SettingAuditEntry;
 
 /**
@@ -27,13 +27,13 @@ final class SettingAuditEntryFactory extends Factory
     {
         return [
             'occurred_at' => now(),
-            'action' => AuditAction::Update->value,
-            'outcome' => AuditOutcome::Allowed->value,
-            'store' => ModelContext::defaultStore()->value,
-            'scope' => 'global',
-            'key' => 'test.key',
-            'actor_type' => ActorType::System->value,
-            'channel' => Channel::Console->value,
+            'action'      => AuditAction::Update->value,
+            'outcome'     => AuditOutcome::Allowed->value,
+            'store'       => ModelContext::defaultStore()->value,
+            'scope'       => 'global',
+            'key'         => 'test.key',
+            'actor_type'  => ActorType::System->value,
+            'channel'     => Channel::Console->value,
         ];
     }
 

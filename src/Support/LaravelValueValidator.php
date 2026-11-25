@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Support;
 
-use Illuminate\Contracts\Validation\Factory;
 use Simtabi\Laranail\Settings\Data\Key;
+use Illuminate\Contracts\Validation\Factory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 /**
@@ -17,7 +17,7 @@ final readonly class LaravelValueValidator
     public function __construct(private Factory $validator) {}
 
     /**
-     * @param  list<string>  $rules
+     * @param list<string> $rules
      *
      * @throws InvalidSettingValue naming the key and the failed rule, never the value
      */

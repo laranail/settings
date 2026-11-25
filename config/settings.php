@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Simtabi\Laranail\Settings\Importers\AkauntingSettingsImporter;
-use Simtabi\Laranail\Settings\Importers\SpatieSettingsImporter;
 use Simtabi\Laranail\Settings\Importers\ToolkitJsonImporter;
+use Simtabi\Laranail\Settings\Importers\SpatieSettingsImporter;
+use Simtabi\Laranail\Settings\Importers\AkauntingSettingsImporter;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,15 +51,15 @@ return [
     */
     'stores' => [
         'settings' => [
-            'layers' => ['database', 'runtime', 'shipped'],
-            'owners' => [],
-            'strict' => false,
-            'inherits' => false,
-            'locks' => ['overridable' => false],
-            'approvals' => ['keys' => []],
-            'bootstrap' => false,
-            'promote' => 'manual',
-            'mode' => 'polymorphic',
+            'layers'       => ['database', 'runtime', 'shipped'],
+            'owners'       => [],
+            'strict'       => false,
+            'inherits'     => false,
+            'locks'        => ['overridable' => false],
+            'approvals'    => ['keys' => []],
+            'bootstrap'    => false,
+            'promote'      => 'manual',
+            'mode'         => 'polymorphic',
             'soft_deletes' => false,
         ],
     ],
@@ -84,13 +84,13 @@ return [
     | for the bare names.
     */
     'tables' => [
-        'prefix' => 'laranail_',
-        'categories' => 'settings_categories',
-        'audit' => 'settings_audit',
-        'definitions' => 'settings_definitions',
-        'history' => 'settings_history',
+        'prefix'          => 'laranail_',
+        'categories'      => 'settings_categories',
+        'audit'           => 'settings_audit',
+        'definitions'     => 'settings_definitions',
+        'history'         => 'settings_history',
         'change_requests' => 'settings_change_requests',
-        'stores' => 'settings_stores',
+        'stores'          => 'settings_stores',
     ],
 
     /*
@@ -110,7 +110,7 @@ return [
     | Simtabi\Laranail\Settings\Contracts\TenantDiscriminator.
     */
     'tenancy' => [
-        'mode' => 'none',
+        'mode'          => 'none',
         'discriminator' => 'auto',
     ],
 
@@ -121,15 +121,15 @@ return [
     | parent, sort_order, translations]`.
     */
     'seed' => [
-        'enabled' => true,
-        'stores' => [],
+        'enabled'    => true,
+        'stores'     => [],
         'categories' => [
-            'general' => ['title' => 'General', 'description' => 'Site name, contact details and other application-wide settings.', 'icon' => 'cog'],
-            'appearance' => ['title' => 'Appearance', 'description' => 'Theme, branding and layout.', 'icon' => 'swatch'],
-            'localisation' => ['title' => 'Localisation', 'description' => 'Language, time zone, date and number formats.', 'icon' => 'globe'],
-            'mail' => ['title' => 'Mail', 'description' => 'Sender name and address, and other mail options.', 'icon' => 'envelope'],
+            'general'       => ['title' => 'General', 'description' => 'Site name, contact details and other application-wide settings.', 'icon' => 'cog'],
+            'appearance'    => ['title' => 'Appearance', 'description' => 'Theme, branding and layout.', 'icon' => 'swatch'],
+            'localisation'  => ['title' => 'Localisation', 'description' => 'Language, time zone, date and number formats.', 'icon' => 'globe'],
+            'mail'          => ['title' => 'Mail', 'description' => 'Sender name and address, and other mail options.', 'icon' => 'envelope'],
             'notifications' => ['title' => 'Notifications', 'description' => 'Which notifications are sent, and how.', 'icon' => 'bell'],
-            'security' => ['title' => 'Security', 'description' => 'Sign-in, sessions and other security options.', 'icon' => 'shield'],
+            'security'      => ['title' => 'Security', 'description' => 'Sign-in, sessions and other security options.', 'icon' => 'shield'],
         ],
     ],
 
@@ -161,10 +161,10 @@ return [
     */
     'cache' => [
         'enabled' => true,
-        'store' => null,
-        'prefix' => 'laranail-settings',
-        'ttl' => 3600,
-        'stale' => 300,
+        'store'   => null,
+        'prefix'  => 'laranail-settings',
+        'ttl'     => 3600,
+        'stale'   => 300,
     ],
 
     /*
@@ -188,17 +188,17 @@ return [
     */
     'layers' => [
         'database' => [
-            'driver' => 'database',
+            'driver'     => 'database',
             'connection' => null,
         ],
         'runtime' => [
             'driver' => 'json',
-            'disk' => 'local',
-            'path' => 'laranail/settings/{store}.json',
+            'disk'   => 'local',
+            'path'   => 'laranail/settings/{store}.json',
         ],
         'shipped' => [
-            'driver' => 'php',
-            'path' => 'settings/defaults.php',
+            'driver'   => 'php',
+            'path'     => 'settings/defaults.php',
             'writable' => false,
         ],
     ],
@@ -213,7 +213,7 @@ return [
     | allowed_rules: the validation rules a database definition may use.
     */
     'definitions' => [
-        'sources' => ['code', 'config'],
+        'sources'       => ['code', 'config'],
         'allowed_rules' => ['required', 'nullable', 'string', 'integer', 'numeric', 'boolean', 'array', 'email', 'url', 'in', 'not_in', 'min', 'max', 'between', 'size', 'regex', 'date', 'alpha', 'alpha_dash', 'alpha_num'],
     ],
 
@@ -231,7 +231,7 @@ return [
     */
     'authentication' => [
         'resolver' => 'guard',
-        'guards' => [],
+        'guards'   => [],
     ],
 
     /*
@@ -243,28 +243,28 @@ return [
     | permissions:   permission names; may use {ability}, {store} and {key}.
     */
     'authorization' => [
-        'driver' => 'gate',
-        'undefined' => 'deny',
+        'driver'        => 'gate',
+        'undefined'     => 'deny',
         'require_actor' => false,
-        'permissions' => [
-            'view' => 'settings.view',
-            'view_sensitive' => 'settings.view_sensitive',
-            'update' => 'settings.update',
-            'forget' => 'settings.forget',
-            'lock' => 'settings.lock',
-            'unlock' => 'settings.unlock',
-            'override_lock' => 'settings.override_lock',
-            'approve' => 'settings.approve',
-            'view_history' => 'settings.view_history',
-            'rollback' => 'settings.rollback',
-            'view_audit' => 'settings.view_audit',
-            'export' => 'settings.export',
-            'import' => 'settings.import',
-            'promote' => 'settings.promote',
-            'manage_categories' => 'settings.manage_categories',
+        'permissions'   => [
+            'view'               => 'settings.view',
+            'view_sensitive'     => 'settings.view_sensitive',
+            'update'             => 'settings.update',
+            'forget'             => 'settings.forget',
+            'lock'               => 'settings.lock',
+            'unlock'             => 'settings.unlock',
+            'override_lock'      => 'settings.override_lock',
+            'approve'            => 'settings.approve',
+            'view_history'       => 'settings.view_history',
+            'rollback'           => 'settings.rollback',
+            'view_audit'         => 'settings.view_audit',
+            'export'             => 'settings.export',
+            'import'             => 'settings.import',
+            'promote'            => 'settings.promote',
+            'manage_categories'  => 'settings.manage_categories',
             'manage_definitions' => 'settings.manage_definitions',
-            'manage_stores' => 'settings.manage_stores',
-            'prune' => 'settings.prune',
+            'manage_stores'      => 'settings.manage_stores',
+            'prune'              => 'settings.prune',
         ],
     ],
 
@@ -276,9 +276,9 @@ return [
     |         `ttl` seconds), `none`, or a class implementing Verifier.
     */
     'verification' => [
-        'driver' => 'password_confirmation',
+        'driver'    => 'password_confirmation',
         'abilities' => ['override_lock', 'rollback', 'import', 'manage_stores'],
-        'ttl' => 900,
+        'ttl'       => 900,
     ],
 
     /*
@@ -288,7 +288,7 @@ return [
     | keep_days: retention applied by prune-audit.
     */
     'audit' => [
-        'sinks' => ['auto'],
+        'sinks'     => ['auto'],
         'keep_days' => 365,
     ],
 
@@ -299,7 +299,7 @@ return [
     */
     'logging' => [
         'channel' => null,
-        'level' => 'info',
+        'level'   => 'info',
     ],
 
     /*
@@ -313,7 +313,7 @@ return [
     | keep_versions: versions kept per setting; null to disable.
     */
     'history' => [
-        'keep_days' => 365,
+        'keep_days'     => 365,
         'keep_versions' => null,
     ],
 
@@ -327,7 +327,7 @@ return [
     */
     'listeners' => [
         'alerts' => true,
-        'log' => false,
+        'log'    => false,
     ],
 
     /*
@@ -354,10 +354,10 @@ return [
     |           tracked in `cache` (null: the default store).
     */
     'alerts' => [
-        'enabled' => false,
-        'cache' => null,
+        'enabled'  => false,
+        'cache'    => null,
         'throttle' => 300,
-        'rules' => [],
+        'rules'    => [],
     ],
 
     /*
@@ -375,9 +375,9 @@ return [
     */
     'approvals' => [
         'min_approvals' => 1,
-        'allow_self' => false,
-        'expire_after' => 7,
-        'keep_days' => 90,
+        'allow_self'    => false,
+        'expire_after'  => 7,
+        'keep_days'     => 90,
     ],
 
     /*
@@ -391,7 +391,7 @@ return [
     */
     'configuration' => [
         'persisted' => false,
-        'sources' => ['config', 'database', 'runtime'],
+        'sources'   => ['config', 'database', 'runtime'],
     ],
 
     /*
@@ -404,8 +404,8 @@ return [
     | reads.
     */
     'importers' => [
-        'spatie' => SpatieSettingsImporter::class,
-        'toolkit' => ToolkitJsonImporter::class,
+        'spatie'    => SpatieSettingsImporter::class,
+        'toolkit'   => ToolkitJsonImporter::class,
         'akaunting' => AkauntingSettingsImporter::class,
     ],
 
@@ -440,24 +440,24 @@ return [
     | classes; unset, the morph map is used.
     */
     'http' => [
-        'enabled' => false,
-        'prefix' => 'api/settings',
+        'enabled'    => false,
+        'prefix'     => 'api/settings',
         'middleware' => null,
         'rate_limit' => 60,
-        'routes' => [
-            'stores' => true,
-            'definitions' => true,
-            'settings' => true,
-            'history' => true,
-            'audit' => true,
-            'approvals' => true,
-            'categories' => true,
+        'routes'     => [
+            'stores'        => true,
+            'definitions'   => true,
+            'settings'      => true,
+            'history'       => true,
+            'audit'         => true,
+            'approvals'     => true,
+            'categories'    => true,
             'configuration' => true,
-            'transfer' => true,
+            'transfer'      => true,
         ],
         'idempotency' => [
             'cache' => null,
-            'ttl' => 86400,
+            'ttl'   => 86400,
         ],
         'page_size' => 50,
     ],

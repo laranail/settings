@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Audit;
 
 use Closure;
-use Simtabi\Laranail\Settings\Contracts\AuditSink;
-use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Models\SettingAuditEntry;

@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Configuration;
 
-use Simtabi\Laranail\Settings\Actions\Configuration\DeleteConfigurationEntry;
-use Simtabi\Laranail\Settings\Actions\Configuration\DeleteDefinition;
-use Simtabi\Laranail\Settings\Actions\Configuration\ListConfigurationEntries;
-use Simtabi\Laranail\Settings\Actions\Configuration\SaveConfigurationEntry;
-use Simtabi\Laranail\Settings\Actions\Configuration\SaveDefinition;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\ConfigurationEntry;
+use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\Definition;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Data\ConfigurationEntry;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Actions\Configuration\SaveDefinition;
+use Simtabi\Laranail\Settings\Actions\Configuration\DeleteDefinition;
+use Simtabi\Laranail\Settings\Actions\Configuration\SaveConfigurationEntry;
+use Simtabi\Laranail\Settings\Actions\Configuration\DeleteConfigurationEntry;
+use Simtabi\Laranail\Settings\Actions\Configuration\ListConfigurationEntries;
 
 /**
  * Edits the stores, layers and definitions kept in the database, as a handle's actor. Each change
@@ -48,7 +48,7 @@ final readonly class PersistedConfigurationEditor
     }
 
     /**
-     * @param  array<array-key, mixed>  $config  as `stores.<name>` would hold it
+     * @param array<array-key, mixed> $config as `stores.<name>` would hold it
      *
      * @throws InvalidConfiguration
      */
@@ -58,7 +58,7 @@ final readonly class PersistedConfigurationEditor
     }
 
     /**
-     * @param  array<array-key, mixed>  $config  as `layers.<name>` would hold it
+     * @param array<array-key, mixed> $config as `layers.<name>` would hold it
      *
      * @throws InvalidConfiguration
      */
@@ -80,7 +80,7 @@ final readonly class PersistedConfigurationEditor
     }
 
     /**
-     * @param  array<array-key, mixed>  $attributes  as `definitions.<key>` would hold them
+     * @param array<array-key, mixed> $attributes as `definitions.<key>` would hold them
      *
      * @throws InvalidDefinition
      */

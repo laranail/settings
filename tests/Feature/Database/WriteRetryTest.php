@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Support\Facades\DB;
 use Psr\Log\AbstractLogger;
-use Simtabi\Laranail\Settings\Actions\SetSetting;
+use Illuminate\Support\Facades\DB;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\SettingTarget;
+use Illuminate\Database\Events\QueryExecuted;
 use Simtabi\Laranail\Settings\Data\SettingWrite;
-use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
+use Simtabi\Laranail\Settings\Actions\SetSetting;
+use Simtabi\Laranail\Settings\Data\SettingTarget;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 
 /**
  * Make another writer change the row between this writer's read and its write: right after the
@@ -20,7 +20,7 @@ use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
  * version. Each write attempt reads twice (the lock check, then the row it continues), so read 2
  * is the first attempt's and read 4 the retry's.
  *
- * @param  list<int>  $afterReads
+ * @param list<int> $afterReads
  */
 function interveneAfterReads(array $afterReads): void
 {

@@ -25,7 +25,7 @@ final readonly class Scope implements Stringable
 
     public static function forOwner(OwnerRef $owner): self
     {
-        return new self($owner->alias.':'.$owner->id);
+        return new self($owner->alias . ':' . $owner->id);
     }
 
     /** The owner's scope, or `global` without one. */

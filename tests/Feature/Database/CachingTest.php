@@ -2,33 +2,33 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Defer\DeferredCallbackCollection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
-use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
+use Simtabi\Laranail\Settings\Data\Key;
+use Illuminate\Database\Schema\Blueprint;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\RecordSet;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Data\CacheTarget;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Data\RecordSet;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Drivers\CachingDriver;
-use Simtabi\Laranail\Settings\Drivers\JsonDriver;
-use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Drivers\JsonDriver;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Illuminate\Support\Defer\DeferredCallbackCollection;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
-use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 
 /*
  * The cache holds raw per-scope bags, keyed by connection, database, tenant, store and scope, and
@@ -73,9 +73,9 @@ function defaultTarget(): CacheTarget
 
 beforeEach(function (): void {
     useDatabase([
-        'stores.settings.owners' => ['owner'],
+        'stores.settings.owners'   => ['owner'],
         'stores.settings.inherits' => true,
-        'stores.teams' => ['layers' => ['database'], 'owners' => ['team']],
+        'stores.teams'             => ['layers' => ['database'], 'owners' => ['team']],
     ], stores: ['teams']);
 
     Schema::create('owners', static function (Blueprint $table): void {
@@ -144,11 +144,11 @@ it('makes every write path visible to the next request', function (string $path)
     nextRequest();
 
     match ($path) {
-        'set' => $owner->settings()->set('ui.theme', 'light'),
-        'forget' => $owner->settings()->forget('ui.theme'),
-        'lock' => $owner->settings()->lock('ui.theme'),
-        'unlock' => [$owner->settings()->lock('ui.theme'), nextRequest(), $owner->settings()->get('ui.theme'), $owner->settings()->unlock('ui.theme')],
-        'flush' => $owner->settings()->flush(),
+        'set'     => $owner->settings()->set('ui.theme', 'light'),
+        'forget'  => $owner->settings()->forget('ui.theme'),
+        'lock'    => $owner->settings()->lock('ui.theme'),
+        'unlock'  => [$owner->settings()->lock('ui.theme'), nextRequest(), $owner->settings()->get('ui.theme'), $owner->settings()->unlock('ui.theme')],
+        'flush'   => $owner->settings()->flush(),
         'deleted' => $owner->delete(),
     };
     nextRequest();
@@ -156,11 +156,11 @@ it('makes every write path visible to the next request', function (string $path)
     $handle = $owner->settings();
 
     match ($path) {
-        'set' => expect($handle->get('ui.theme'))->toBe('light'),
+        'set'             => expect($handle->get('ui.theme'))->toBe('light'),
         'forget', 'flush' => expect($handle->get('ui.theme'))->toBeNull(),
-        'deleted' => expect(settings()->for(new OwnerRef('owner', $owner->id))->get('ui.theme'))->toBeNull(),
-        'lock' => expect(cachedLayer()->load(new StoreName('settings'), [Scope::forOwner(new OwnerRef('owner', $owner->id))])->all()[0]->locked)->toBeTrue(),
-        'unlock' => expect(cachedLayer()->load(new StoreName('settings'), [Scope::forOwner(new OwnerRef('owner', $owner->id))])->all()[0]->locked)->toBeFalse(),
+        'deleted'         => expect(settings()->for(new OwnerRef('owner', $owner->id))->get('ui.theme'))->toBeNull(),
+        'lock'            => expect(cachedLayer()->load(new StoreName('settings'), [Scope::forOwner(new OwnerRef('owner', $owner->id))])->all()[0]->locked)->toBeTrue(),
+        'unlock'          => expect(cachedLayer()->load(new StoreName('settings'), [Scope::forOwner(new OwnerRef('owner', $owner->id))])->all()[0]->locked)->toBeFalse(),
     };
 })->with(['set', 'forget', 'lock', 'unlock', 'flush', 'deleted']);
 

@@ -6,9 +6,9 @@ namespace Simtabi\Laranail\Settings\Actions;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Filesystem\Filesystem;
-use Simtabi\Laranail\Settings\Data\GeneratedStore;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\GeneratedStore;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
@@ -26,8 +26,8 @@ final readonly class MakeStore
     private const string CONNECTION_LINE = 'private ?string $pinnedConnection = null;';
 
     /**
-     * @param  string  $migration  the package migration file to copy, or a directory holding it
-     * @param  string  $migrations  the application's migrations directory
+     * @param string $migration the package migration file to copy, or a directory holding it
+     * @param string $migrations the application's migrations directory
      */
     public function __construct(
         private Filesystem $files,
@@ -36,7 +36,7 @@ final readonly class MakeStore
     ) {}
 
     /**
-     * @param  list<string>  $owners  morph aliases the store holds values for
+     * @param list<string> $owners morph aliases the store holds values for
      *
      * @throws InvalidConfiguration when a migration for the store already exists
      */
@@ -50,14 +50,14 @@ final readonly class MakeStore
             throw new InvalidConfiguration(sprintf('Invalid connection name [%s].', $connection));
         }
 
-        $existing = glob(rtrim($this->migrations, '/')."/*_create_settings_{$store->value}_table.php") ?: [];
+        $existing = glob(rtrim($this->migrations, '/') . "/*_create_settings_{$store->value}_table.php") ?: [];
 
         if ($existing !== []) {
             throw new InvalidConfiguration(sprintf('A migration for store [%s] already exists: %s', $store, basename($existing[0])));
         }
 
         $written = [$this->write("create_settings_{$store->value}_table", CarbonImmutable::now(), [
-            self::ONLY_LINE => sprintf("private ?string \$only = '%s';", $store->value),
+            self::ONLY_LINE       => sprintf("private ?string \$only = '%s';", $store->value),
             self::CONNECTION_LINE => $connection === null ? self::CONNECTION_LINE : sprintf("private ?string \$pinnedConnection = '%s';", $connection),
         ])];
 
@@ -67,7 +67,7 @@ final readonly class MakeStore
     /** @param array<string, string> $replacements */
     private function write(string $name, CarbonImmutable $at, array $replacements): string
     {
-        $file = $this->files->isDirectory($this->migration) ? rtrim($this->migration, '/').'/'.self::MIGRATION.'.php' : $this->migration;
+        $file = $this->files->isDirectory($this->migration) ? rtrim($this->migration, '/') . '/' . self::MIGRATION . '.php' : $this->migration;
         $source = $this->files->get($file);
 
         foreach ($replacements as $search => $replace) {
@@ -79,7 +79,7 @@ final readonly class MakeStore
         }
 
         $this->files->ensureDirectoryExists($this->migrations);
-        $path = rtrim($this->migrations, '/').'/'.$at->format('Y_m_d_His')."_{$name}.php";
+        $path = rtrim($this->migrations, '/') . '/' . $at->format('Y_m_d_His') . "_{$name}.php";
         $this->files->put($path, $source);
 
         return $path;
@@ -88,7 +88,7 @@ final readonly class MakeStore
     /** @param list<string> $owners */
     private function config(StoreName $store, ?string $connection, array $owners): string
     {
-        $layer = $connection === null ? 'database' : 'database_'.preg_replace('/[^a-z0-9_]/', '_', strtolower($connection));
+        $layer = $connection === null ? 'database' : 'database_' . preg_replace('/[^a-z0-9_]/', '_', strtolower($connection));
         $owners = implode(', ', array_map(static fn (string $alias): string => "'{$alias}'", $owners));
         $entry = <<<PHP
             // config/laranail/settings.php → 'stores'
@@ -102,7 +102,7 @@ final readonly class MakeStore
             return $entry;
         }
 
-        return $entry."\n\n".<<<PHP
+        return $entry . "\n\n" . <<<PHP
             // config/laranail/settings.php → 'layers'
             '{$layer}' => ['driver' => 'database', 'connection' => '{$connection}'],
             PHP;

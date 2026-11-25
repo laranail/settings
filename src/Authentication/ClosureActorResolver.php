@@ -6,8 +6,8 @@ namespace Simtabi\Laranail\Settings\Authentication;
 
 use Closure;
 use Illuminate\Http\Request;
-use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 
 /** Resolves the actor with a closure set through `configuration()->resolveActorsUsing()`. */
 final readonly class ClosureActorResolver implements ActorResolver

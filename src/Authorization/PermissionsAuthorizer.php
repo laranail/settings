@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Authorization;
 
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Data\Decision;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Illuminate\Contracts\Auth\Access\Authorizable;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Decision;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
@@ -51,8 +51,8 @@ final readonly class PermissionsAuthorizer implements Authorizer
 
         $permission = strtr($template, [
             '{ability}' => $ability->value,
-            '{store}' => $subject->store->value,
-            '{key}' => $subject->key->value ?? '',
+            '{store}'   => $subject->store->value,
+            '{key}'     => $subject->key->value ?? '',
         ]);
 
         return $actor->user->can($permission, [$subject])

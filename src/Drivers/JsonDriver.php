@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Drivers;
 
-use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Filesystem\Filesystem;
-use Illuminate\Filesystem\FilesystemAdapter;
+use Throwable;
 use JsonException;
-use League\Flysystem\Local\LocalFilesystemAdapter;
-use Simtabi\Laranail\Settings\Contracts\Driver;
+use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Simtabi\Laranail\Settings\Data\RecordSet;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Simtabi\Laranail\Settings\Contracts\Driver;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Support\RecordSerializer;
-use Throwable;
+use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 
 /**
  * Stores records in a JSON file on a filesystem disk, one file per store.
@@ -128,7 +128,7 @@ final readonly class JsonDriver implements Driver
      * Copy the store's file aside, then replace it with only these records in one atomic rename:
      * what a selective promotion leaves in the file. Returns the archive's path.
      *
-     * @param  list<Record>  $kept
+     * @param list<Record> $kept
      */
     public function archiveKeeping(StoreName $store, CarbonImmutable $at, array $kept): string
     {
@@ -224,7 +224,7 @@ final readonly class JsonDriver implements Driver
     private function write(StoreName $store, array $records): void
     {
         $path = $this->path($store);
-        $temporary = $path.'.'.bin2hex(random_bytes(6)).'.tmp';
+        $temporary = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
 
         try {
             $json = json_encode(
@@ -246,11 +246,11 @@ final readonly class JsonDriver implements Driver
      * Run a read-modify-write under an exclusive lock on the store's sidecar lock file, released
      * whatever happens. A disk that is not local runs it unlocked.
      *
-     * @param  callable(): void  $work
+     * @param callable(): void $work
      */
     private function locked(StoreName $store, callable $work): void
     {
-        $lockPath = $this->localPath($this->path($store).'.lock');
+        $lockPath = $this->localPath($this->path($store) . '.lock');
 
         if ($lockPath === null) {
             $work();
@@ -283,7 +283,7 @@ final readonly class JsonDriver implements Driver
 
     private function archivePath(StoreName $store, CarbonImmutable $at): string
     {
-        return preg_replace('/\.json$/', '', $this->path($store)).'.promoted-'.$at->format('Ymd_His_u').'.json';
+        return preg_replace('/\.json$/', '', $this->path($store)) . '.promoted-' . $at->format('Ymd_His_u') . '.json';
     }
 
     private function path(StoreName $store): string

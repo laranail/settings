@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\ChangeProposal;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
-use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\ChangeProposal;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 
@@ -21,7 +21,8 @@ final readonly class ForgetSetting
     ) {}
 
     /**
-     * @param  ?int  $expectedVersion  forget only while the row is at this version (0: no row)
+     * @param ?int $expectedVersion forget only while the row is at this version (0: no row)
+     *
      * @return ?ChangeRequest the change request opened instead, when the setting needs approval
      */
     public function handle(SettingTarget $target, ?Actor $actor = null, ?int $expectedVersion = null): ?ChangeRequest
@@ -30,8 +31,8 @@ final readonly class ForgetSetting
             $writer = $this->writer->causedBy($actor, $target->reason);
             $removed = match (true) {
                 $expectedVersion !== null => $writer->forgetExpecting($target->store, $target->key, $target->locale, $target->owner, $target->definition, $expectedVersion, $override),
-                $override => $writer->forgetOverridingLock($target->store, $target->key, $target->locale, $target->owner, $target->definition),
-                default => $writer->forget($target->store, $target->key, $target->locale, $target->owner, $target->definition),
+                $override                 => $writer->forgetOverridingLock($target->store, $target->key, $target->locale, $target->owner, $target->definition),
+                default                   => $writer->forget($target->store, $target->key, $target->locale, $target->owner, $target->definition),
             };
 
             return [$removed?->version, null];

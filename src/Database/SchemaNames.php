@@ -56,36 +56,36 @@ final readonly class SchemaNames
 
     public function categories(): string
     {
-        return $this->prefix.$this->categories;
+        return $this->prefix . $this->categories;
     }
 
     public function audit(): string
     {
-        return $this->prefix.$this->audit;
+        return $this->prefix . $this->audit;
     }
 
     /** The optional definitions table. */
     public function definitions(): string
     {
-        return $this->prefix.$this->definitions;
+        return $this->prefix . $this->definitions;
     }
 
     /** The value history table, one per connection. */
     public function history(): string
     {
-        return $this->prefix.$this->history;
+        return $this->prefix . $this->history;
     }
 
     /** The change requests table, one per connection. */
     public function changeRequests(): string
     {
-        return $this->prefix.$this->changeRequests;
+        return $this->prefix . $this->changeRequests;
     }
 
     /** The persisted configuration table, on the default store's connection. */
     public function stores(): string
     {
-        return $this->prefix.$this->storesTable;
+        return $this->prefix . $this->storesTable;
     }
 
     /** @return array{prefix: string, categories: string, audit: string, definitions: string, history: string, change_requests: string, stores: string} the unprefixed names */
@@ -97,7 +97,7 @@ final readonly class SchemaNames
     /** A store's values table: its configured table or its name, prefixed. */
     public function store(StoreName $store, ?string $configured = null): string
     {
-        return $this->prefix.($configured ?? $store->value);
+        return $this->prefix . ($configured ?? $store->value);
     }
 
     /** @param array<array-key, mixed> $tables */

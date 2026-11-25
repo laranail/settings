@@ -9,7 +9,7 @@ declare(strict_types=1);
  */
 it('lints every PHP file: the package style for the code, the Laravel preset for the migration', function (): void {
     $root = dirname(__DIR__, 2);
-    $composer = json_decode((string) file_get_contents($root.'/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+    $composer = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
     $script = $composer['scripts']['pint'];
 
     expect($script)->toHaveCount(2)
@@ -33,7 +33,7 @@ it('lints every PHP file: the package style for the code, the Laravel preset for
 
         $inspected++;
         $relative = substr($file->getPathname(), strlen($root) + 1);
-        $isCovered = array_filter($covered, static fn (string $path): bool => $relative === $path || str_starts_with($relative, $path.'/'));
+        $isCovered = array_filter($covered, static fn (string $path): bool => $relative === $path || str_starts_with($relative, $path . '/'));
 
         if ($isCovered === []) {
             $uncovered[] = $relative;

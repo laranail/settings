@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Contracts;
 
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 
@@ -16,7 +16,7 @@ use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 interface Driver
 {
     /**
-     * @param  list<Scope>  $scopes
+     * @param list<Scope> $scopes
      *
      * @throws DriverFailure
      */

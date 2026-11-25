@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Casting;
 
 use BackedEnum;
-use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 /** A backed enum, stored as its backing value and registered under `enum:<alias>`. */

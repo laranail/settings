@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Drivers;
 
-use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Data\CacheTarget;
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\CacheTarget;
+use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 
 /**
@@ -84,7 +84,7 @@ final readonly class CachingDriver implements DatabaseBacked
     /**
      * Run an invalidation when the connection commits, or now outside a transaction.
      *
-     * @param  callable(): void  $invalidate
+     * @param callable(): void $invalidate
      */
     private function afterCommit(callable $invalidate): void
     {

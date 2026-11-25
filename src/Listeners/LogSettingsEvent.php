@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Listeners;
 
-use Psr\Log\LoggerInterface;
 use ReflectionClass;
-use Simtabi\Laranail\Settings\Events\AccessWasDenied;
+use Psr\Log\LoggerInterface;
 use Simtabi\Laranail\Settings\Events\LayerSkipped;
-use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
 use Simtabi\Laranail\Settings\Support\EventSummary;
+use Simtabi\Laranail\Settings\Events\AccessWasDenied;
+use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
 
 /**
  * Writes every package event to the operational log: refusals at `warning`, the rest at `info`.

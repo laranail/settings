@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\LayerConfig;
-use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
+use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
-use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
-use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
-use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
 
 function databaseDriver(bool $writable = true): DatabaseDriver
 {
@@ -70,7 +70,7 @@ it('identifies a row by scope, key and locale, never by group', function (): voi
 });
 
 it('keeps the identity index inside the utf8mb4 byte budget, tenant column included', function (): void {
-    $migration = (string) file_get_contents(dirname(__DIR__, 3).'/database/migrations/create_laranail_settings_tables.php');
+    $migration = (string) file_get_contents(dirname(__DIR__, 3) . '/database/migrations/create_laranail_settings_tables.php');
     $values = substr($migration, (int) strpos($migration, 'private function valuesTable'), 4000);
     preg_match_all("/string\\('(tenant|scope|key|locale)', (\\d+)\\)/", $values, $matches);
     $lengths = array_combine($matches[1], array_map(intval(...), $matches[2]));
@@ -145,7 +145,7 @@ it('refuses writes to a read-only database layer', function (): void {
 });
 
 it('refuses a group longer than the column', function (): void {
-    expect(fn () => settings()->set(str_repeat('g', 65).'.key', 1))->toThrow(InvalidSettingValue::class, 'longer than 64');
+    expect(fn () => settings()->set(str_repeat('g', 65) . '.key', 1))->toThrow(InvalidSettingValue::class, 'longer than 64');
 });
 
 it('links a setting to its category in the same store and refuses one from another store', function (): void {
@@ -205,7 +205,7 @@ it('reads a store from its configured table', function (): void {
 
 it('reads only the row it writes, never the whole scope, on set, forget, lock and unlock (SP-07)', function (): void {
     for ($index = 0; $index < 30; $index++) {
-        settings()->set('bulk.key'.$index, $index);
+        settings()->set('bulk.key' . $index, $index);
     }
 
     $rows = 0;

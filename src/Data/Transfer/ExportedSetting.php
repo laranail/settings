@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Data\Transfer;
 
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
@@ -27,7 +27,7 @@ final readonly class ExportedSetting
     ) {}
 
     /**
-     * @param  array<array-key, mixed>  $data
+     * @param array<array-key, mixed> $data
      *
      * @throws InvalidImport
      */
@@ -56,7 +56,7 @@ final readonly class ExportedSetting
     /** `scope|key|locale`: how two documents' settings are matched. */
     public function identity(): string
     {
-        return $this->scope->value.'|'.$this->key->value.'|'.$this->locale->value;
+        return $this->scope->value . '|' . $this->key->value . '|' . $this->locale->value;
     }
 
     /** @return array<string, mixed> */
@@ -73,9 +73,9 @@ final readonly class ExportedSetting
         }
 
         return $entry + array_filter([
-            'type' => $this->type,
+            'type'      => $this->type,
             'encrypted' => $this->encrypted ?: null,
-            'locked' => $this->locked ?: null,
+            'locked'    => $this->locked ?: null,
         ], static fn (mixed $value): bool => $value !== null);
     }
 }

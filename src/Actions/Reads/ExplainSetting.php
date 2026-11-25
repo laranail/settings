@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions\Reads;
 
-use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Data\SettingAddress;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;

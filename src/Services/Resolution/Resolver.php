@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Resolution;
 
-use Illuminate\Container\Attributes\Config;
-use Illuminate\Container\Attributes\Scoped;
-use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
-use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Lookup;
+use Simtabi\Laranail\Settings\Enums\Stage;
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
+use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\RecordSet;
-use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\Precedence;
-use Simtabi\Laranail\Settings\Enums\Stage;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
-use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
 
 /**
  * Resolves a read through the cascade: owner, parents, global value, then the definition default.
@@ -46,7 +46,7 @@ final readonly class Resolver
     /**
      * Load these scopes now and answer later reads of them from memory for the rest of the request.
      *
-     * @param  list<array{Store, list<Scope>}>  $groups
+     * @param list<array{Store, list<Scope>}> $groups
      */
     public function preload(array $groups): void
     {
@@ -105,8 +105,8 @@ final readonly class Resolver
      * null when none does. Adds a step per override tried, and none when no override is held, so
      * an explanation reads as before for code that never overrides.
      *
-     * @param  list<array{Store, Scope}>  $plan
-     * @param  list<string>  $steps
+     * @param list<array{Store, Scope}> $plan
+     * @param list<string> $steps
      */
     private function overridden(array $plan, Key $key, Locale $locale, ?Definition $definition, array &$steps): ?Lookup
     {
@@ -130,7 +130,8 @@ final readonly class Resolver
     /**
      * The store and scope steps to try, in order.
      *
-     * @param  list<OwnerRef>  $parents
+     * @param list<OwnerRef> $parents
+     *
      * @return list<array{Store, Scope}>
      */
     private function plan(Store $store, ?OwnerRef $owner, array $parents, ?Definition $definition): array
@@ -160,7 +161,8 @@ final readonly class Resolver
     /**
      * Load each distinct store once for every scope the plan needs from it.
      *
-     * @param  list<array{Store, Scope}>  $plan
+     * @param list<array{Store, Scope}> $plan
+     *
      * @return array<string, array<string, RecordSet>>
      */
     private function loadAll(array $plan): array
@@ -185,7 +187,8 @@ final readonly class Resolver
     /**
      * One store's records for these scopes, from memory where preloaded.
      *
-     * @param  list<Scope>  $scopes
+     * @param list<Scope> $scopes
+     *
      * @return array<string, RecordSet>
      */
     private function load(Store $store, array $scopes): array

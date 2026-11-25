@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Tests\Support;
 
-use LogicException;
 use stdClass;
+use LogicException;
 
 /**
  * The subset of JSON Schema (2020-12) the REST API response schemas in `ApiSchemas`
@@ -21,7 +21,8 @@ final readonly class JsonSchema
     /**
      * Every way `$value` breaks `$schema`, as `path: problem`; empty when it conforms.
      *
-     * @param  array<string, mixed>  $schema
+     * @param array<string, mixed> $schema
+     *
      * @return list<string>
      */
     public function errors(mixed $value, array $schema, string $path = '$'): array
@@ -69,14 +70,14 @@ final readonly class JsonSchema
 
             foreach ((array) ($schema['properties'] ?? []) as $name => $property) {
                 if (array_key_exists((string) $name, $object) && is_array($property)) {
-                    $errors = [...$errors, ...$this->errors($object[$name], $property, $path.'.'.$name)];
+                    $errors = [...$errors, ...$this->errors($object[$name], $property, $path . '.' . $name)];
                 }
             }
         }
 
         if (is_array($value) && array_is_list($value) && isset($schema['items']) && is_array($schema['items'])) {
             foreach ($value as $index => $item) {
-                $errors = [...$errors, ...$this->errors($item, $schema['items'], $path.'['.$index.']')];
+                $errors = [...$errors, ...$this->errors($item, $schema['items'], $path . '[' . $index . ']')];
             }
         }
 
@@ -89,21 +90,21 @@ final readonly class JsonSchema
         $name = substr($ref, strlen('#/components/schemas/'));
         $schemas = $this->document['components']['schemas'] ?? [];
 
-        return is_array($schemas) && is_array($schemas[$name] ?? null) ? $schemas[$name] : throw new LogicException('Unknown schema reference '.$ref);
+        return is_array($schemas) && is_array($schemas[$name] ?? null) ? $schemas[$name] : throw new LogicException('Unknown schema reference ' . $ref);
     }
 
     private function is(mixed $value, string $type): bool
     {
         return match ($type) {
-            'null' => $value === null,
-            'string' => is_string($value),
+            'null'    => $value === null,
+            'string'  => is_string($value),
             'integer' => is_int($value),
-            'number' => is_int($value) || is_float($value),
+            'number'  => is_int($value) || is_float($value),
             'boolean' => is_bool($value),
             // JSON decoded as arrays: an empty array is an empty object or an empty list.
-            'array' => is_array($value) && array_is_list($value),
+            'array'  => is_array($value) && array_is_list($value),
             'object' => $value instanceof stdClass || (is_array($value) && ($value === [] || ! array_is_list($value))),
-            default => false,
+            default  => false,
         };
     }
 }

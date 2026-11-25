@@ -24,6 +24,6 @@ final readonly class SettingAddress
     /** The ETag of the setting at a version. */
     public function etag(int $version): string
     {
-        return '"'.sha1($this->store.'|'.Scope::of($this->ownerRef())->value.'|'.$this->key.'|'.new Locale($this->locale)->value.'@'.$version).'"';
+        return '"' . sha1($this->store . '|' . Scope::of($this->ownerRef())->value . '|' . $this->key . '|' . new Locale($this->locale)->value . '@' . $version) . '"';
     }
 }

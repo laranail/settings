@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Authentication;
 
 use Closure;
-use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\Request;
-use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Simtabi\Laranail\Settings\Data\ActorContext;
+use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
@@ -21,9 +21,9 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 final readonly class SanctumActorResolver implements ActorResolver
 {
     /**
-     * @param  list<string>  $guards
-     * @param  Closure(): ?Request  $request  the current request, or null outside HTTP
-     * @param  string  $marker  the class whose presence proves Sanctum is installed
+     * @param list<string> $guards
+     * @param Closure(): ?Request $request the current request, or null outside HTTP
+     * @param string $marker the class whose presence proves Sanctum is installed
      */
     public function __construct(
         private AuthFactory $auth,

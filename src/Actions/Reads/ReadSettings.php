@@ -6,12 +6,12 @@ namespace Simtabi\Laranail\Settings\Actions\Reads;
 
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\SettingAddress;
 use Simtabi\Laranail\Settings\Data\SettingView;
+use Simtabi\Laranail\Settings\Data\SettingAddress;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Services\Resolution\ScopeKeys;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
  * Read a page of a scope's settings in key order, leaving out keys the actor may not view.

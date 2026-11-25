@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Illuminate\Events\Dispatcher;
 use Illuminate\Routing\Router;
+use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
@@ -36,10 +36,10 @@ it('lists the 39 API routes from routes/api.php when the API is enabled', functi
         'configuration.destroy', 'configuration.index', 'configuration.update',
         'definitions.destroy', 'definitions.index', 'definitions.update', 'stores.index',
         'transfer.diff', 'transfer.export', 'transfer.import',
-        ...array_map(static fn (string $action): string => 'settings.'.$action, $settings),
-        ...array_map(static fn (string $action): string => 'owners.settings.'.$action, $settings),
+        ...array_map(static fn (string $action): string => 'settings.' . $action, $settings),
+        ...array_map(static fn (string $action): string => 'owners.settings.' . $action, $settings),
     ];
-    $expected = array_map(static fn (string $name): string => 'laranail-settings.api.'.$name, $expected);
+    $expected = array_map(static fn (string $name): string => 'laranail-settings.api.' . $name, $expected);
     sort($expected);
 
     expect($listed)->toHaveCount(39)
@@ -54,12 +54,12 @@ it('moves every route under http.prefix, and mounts them at /v1 when it is empty
     $uris = array_map(static fn (array $row): string => (string) $row['uri'], listedSettingsRoutes());
 
     expect($uris)->toHaveCount(39)
-        ->and(array_filter($uris, static fn (string $uri): bool => ! str_starts_with($uri, $base.'/')))->toBe([])
-        ->and(route('laranail-settings.api.settings.show', ['store' => 'settings', 'key' => 'site.name']))->toBe(url($base.'/stores/settings/settings/site.name'))
-        ->and(route('laranail-settings.api.owners.settings.show', ['store' => 'settings', 'alias' => 'user', 'id' => 1, 'key' => 'theme']))->toBe(url($base.'/stores/settings/owners/user/1/settings/theme'));
+        ->and(array_filter($uris, static fn (string $uri): bool => ! str_starts_with($uri, $base . '/')))->toBe([])
+        ->and(route('laranail-settings.api.settings.show', ['store' => 'settings', 'key' => 'site.name']))->toBe(url($base . '/stores/settings/settings/site.name'))
+        ->and(route('laranail-settings.api.owners.settings.show', ['store' => 'settings', 'alias' => 'user', 'id' => 1, 'key' => 'theme']))->toBe(url($base . '/stores/settings/owners/user/1/settings/theme'));
 })->with([
-    'the default' => ['api/settings', 'api/settings/v1'],
-    'a custom prefix' => ['/internal/config/', 'internal/config/v1'],
+    'the default'      => ['api/settings', 'api/settings/v1'],
+    'a custom prefix'  => ['/internal/config/', 'internal/config/v1'],
     'no prefix at all' => ['', 'v1'],
 ]);
 
@@ -73,9 +73,9 @@ it('ships a web route file that registers nothing and is not loaded', function (
     $this->rebootWith(['laranail.settings.http.enabled' => true]);
     $router = new Router(new Dispatcher);
 
-    require dirname(__DIR__, 2).'/routes/web.php';
+    require dirname(__DIR__, 2) . '/routes/web.php';
 
-    expect(is_file(dirname(__DIR__, 2).'/routes/web.php'))->toBeTrue()
+    expect(is_file(dirname(__DIR__, 2) . '/routes/web.php'))->toBeTrue()
         ->and($router->getRoutes()->getRoutes())->toBe([])
         ->and(array_filter(listedSettingsRoutes(), static fn (array $row): bool => str_starts_with((string) $row['name'], 'laranail-settings.web.')))->toBe([]);
 });
@@ -88,7 +88,7 @@ it('ships a web route file that registers nothing and is not loaded', function (
  */
 function messageKeysUsedInSource(): array
 {
-    $root = dirname(__DIR__, 2).'/src';
+    $root = dirname(__DIR__, 2) . '/src';
     $keys = [];
     $files = 0;
 
@@ -107,12 +107,12 @@ function messageKeysUsedInSource(): array
 
     expect($files)->toBeGreaterThanOrEqual(354);
 
-    $problems = (string) file_get_contents($root.'/Http/Support/Problems.php');
+    $problems = (string) file_get_contents($root . '/Http/Support/Problems.php');
     preg_match_all("/this->make\\(\\d+, '([a-z-]+)'/", $problems, $fixed);
     $types = [...problemTypes(), SettingsException::TYPE, ...$fixed[1]];
 
     foreach ($types as $type) {
-        $keys[] = 'problems.titles.'.$type;
+        $keys[] = 'problems.titles.' . $type;
     }
 
     $keys = array_values(array_unique($keys));
@@ -124,7 +124,8 @@ function messageKeysUsedInSource(): array
 /**
  * Every leaf key of the packaged English file, as a dot path.
  *
- * @param  array<array-key, mixed>  $lines
+ * @param array<array-key, mixed> $lines
+ *
  * @return list<string>
  */
 function messageKeysInFile(array $lines, string $prefix = ''): array
@@ -133,8 +134,8 @@ function messageKeysInFile(array $lines, string $prefix = ''): array
 
     foreach ($lines as $name => $line) {
         $keys = is_array($line)
-            ? [...$keys, ...messageKeysInFile($line, $prefix.$name.'.')]
-            : [...$keys, $prefix.$name];
+            ? [...$keys, ...messageKeysInFile($line, $prefix . $name . '.')]
+            : [...$keys, $prefix . $name];
     }
 
     sort($keys);
@@ -144,7 +145,7 @@ function messageKeysInFile(array $lines, string $prefix = ''): array
 
 it('has every message key the source reads in the lang file, and no other', function (): void {
     $used = messageKeysUsedInSource();
-    $shipped = messageKeysInFile(require dirname(__DIR__, 2).'/resources/lang/en/settings.php');
+    $shipped = messageKeysInFile(require dirname(__DIR__, 2) . '/resources/lang/en/settings.php');
 
     // Floor: 85 keys read today (28 problem titles, 5 problem details, 11 alert lines, 41 console
     // lines; counted 2026-11-10). A scan that suddenly finds fewer has broken.

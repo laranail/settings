@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Notifications;
 
+use ReflectionClass;
 use Illuminate\Bus\Queueable;
+use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Contracts\Translation\Translator;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
-use ReflectionClass;
 use Simtabi\Laranail\Settings\Data\AlertContext;
+use Illuminate\Notifications\Messages\MailMessage;
 
 /**
  * A notification about a settings event, sent by mail, database or Slack. It carries identifiers
@@ -21,7 +21,7 @@ final class SettingsAlert extends Notification implements ShouldQueue
     use Queueable;
 
     /** Kept as a split string so tooling does not turn it into a `::class` of an optional class. */
-    public const string SLACK_MESSAGE = 'Illuminate\\Notifications\\Messages\\'.'SlackMessage';
+    public const string SLACK_MESSAGE = 'Illuminate\\Notifications\\Messages\\' . 'SlackMessage';
 
     public const string VIEW = 'laranail/settings::mail.alert';
 
@@ -42,9 +42,9 @@ final class SettingsAlert extends Notification implements ShouldQueue
     ];
 
     /**
-     * @param  list<string>  $channels  the channels this copy is sent on
-     * @param  string  $slackMessage  the Slack message class to build (the Slack channel package's, by default)
-     * @param  array<string, string>  $texts  translated lines by message key; read from the translator when empty
+     * @param list<string> $channels the channels this copy is sent on
+     * @param string $slackMessage the Slack message class to build (the Slack channel package's, by default)
+     * @param array<string, string> $texts translated lines by message key; read from the translator when empty
      */
     public function __construct(
         public readonly AlertContext $context,
@@ -64,7 +64,7 @@ final class SettingsAlert extends Notification implements ShouldQueue
         $texts = [];
 
         foreach (self::KEYS as $key) {
-            $line = $translator->get(self::NAMESPACE.$key);
+            $line = $translator->get(self::NAMESPACE . $key);
             $texts[$key] = is_string($line) ? $line : $key;
         }
 
@@ -90,8 +90,8 @@ final class SettingsAlert extends Notification implements ShouldQueue
             // Larastan cannot see the package's view namespace; PackageLayoutTest proves it exists.
             ->markdown(self::VIEW, [ // @phpstan-ignore argument.type
                 'headline' => $this->context->headline(),
-                'lines' => $this->lines(),
-                'footer' => $this->text('alert.footer'),
+                'lines'    => $this->lines(),
+                'footer'   => $this->text('alert.footer'),
             ]);
     }
 
@@ -115,7 +115,7 @@ final class SettingsAlert extends Notification implements ShouldQueue
         }
 
         $message = new ReflectionClass($this->slackMessage)->newInstance();
-        $text = $this->context->headline()."\n".implode("\n", array_map(
+        $text = $this->context->headline() . "\n" . implode("\n", array_map(
             static fn (string $label, string $value): string => sprintf('%s: %s', $label, $value),
             array_keys($this->lines()),
             $this->lines(),
@@ -132,14 +132,14 @@ final class SettingsAlert extends Notification implements ShouldQueue
     private function lines(): array
     {
         $lines = [
-            $this->text('alert.labels.event') => $this->context->event,
-            $this->text('alert.labels.store') => $this->context->store ?? '-',
-            $this->text('alert.labels.key') => $this->context->key ?? '-',
-            $this->text('alert.labels.scope') => $this->context->scope ?? '-',
-            $this->text('alert.labels.locale') => $this->context->locale === null || $this->context->locale === '' ? '-' : $this->context->locale,
-            $this->text('alert.labels.actor') => $this->context->actor,
+            $this->text('alert.labels.event')   => $this->context->event,
+            $this->text('alert.labels.store')   => $this->context->store ?? '-',
+            $this->text('alert.labels.key')     => $this->context->key ?? '-',
+            $this->text('alert.labels.scope')   => $this->context->scope ?? '-',
+            $this->text('alert.labels.locale')  => $this->context->locale === null || $this->context->locale === '' ? '-' : $this->context->locale,
+            $this->text('alert.labels.actor')   => $this->context->actor,
             $this->text('alert.labels.outcome') => $this->context->outcome,
-            $this->text('alert.labels.at') => $this->context->occurredAt->toIso8601String(),
+            $this->text('alert.labels.at')      => $this->context->occurredAt->toIso8601String(),
         ];
 
         foreach ($this->context->details as $name => $value) {
@@ -151,7 +151,7 @@ final class SettingsAlert extends Notification implements ShouldQueue
 
     private function text(string $key): string
     {
-        $line = $this->texts[$key] ?? __(self::NAMESPACE.$key);
+        $line = $this->texts[$key] ?? __(self::NAMESPACE . $key);
 
         return is_string($line) ? $line : $key;
     }

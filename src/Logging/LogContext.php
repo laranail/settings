@@ -16,7 +16,8 @@ final class LogContext
     public const array KEYS = ['store', 'key', 'scope', 'actor', 'channel'];
 
     /**
-     * @param  array<string, mixed>  $extra
+     * @param array<string, mixed> $extra
+     *
      * @return array<string, mixed>
      */
     public static function of(
@@ -28,10 +29,10 @@ final class LogContext
         array $extra = [],
     ): array {
         return [
-            'store' => $store,
-            'key' => $key,
-            'scope' => $scope,
-            'actor' => $actor?->toArray(),
+            'store'   => $store,
+            'key'     => $key,
+            'scope'   => $scope,
+            'actor'   => $actor?->toArray(),
             'channel' => $channel ?? $actor?->channel->value,
             ...$extra,
         ];
@@ -40,7 +41,8 @@ final class LogContext
     /**
      * The given context with the five standard keys first, null where the entry has none.
      *
-     * @param  array<array-key, mixed>  $context
+     * @param array<array-key, mixed> $context
+     *
      * @return array<array-key, mixed>
      */
     public static function normalise(array $context): array

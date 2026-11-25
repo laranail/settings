@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Services\Transfer;
 
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
-use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Data\Category;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Simtabi\Laranail\Settings\Support\ValueEncoder;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
-use Simtabi\Laranail\Settings\Models\SettingCategory;
-use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
-use Simtabi\Laranail\Settings\Support\ValueEncoder;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
 
 /**
  * Exports a store's current-tenant rows to an {@see ExportDocument} and compares a store with one.
@@ -70,7 +70,8 @@ final readonly class StoreSnapshots
      * {@see ExportDocument::toJson()} produce, reading 500 rows at a time instead of holding the
      * store in memory.
      *
-     * @param  resource  $stream
+     * @param resource $stream
+     *
      * @return array{settings: int, categories: int}
      *
      * @throws StoreNotWritable when the store has no active database layer
@@ -98,7 +99,7 @@ final readonly class StoreSnapshots
         // Each entry as toJson() nests it: two levels in, so every line gains eight spaces.
         $database->eachRecord($store->name, function (Record $record) use ($write, $mode, &$written): void {
             $entry = json_encode($this->setting($record, $mode)->toArray(), ExportDocument::JSON_FLAGS);
-            $write(($written === 0 ? "[\n" : ",\n").preg_replace('/^/m', '        ', $entry));
+            $write(($written === 0 ? "[\n" : ",\n") . preg_replace('/^/m', '        ', $entry));
             $written++;
         });
 
@@ -123,8 +124,8 @@ final readonly class StoreSnapshots
 
             $bucket = match (true) {
                 ! $existing instanceof ExportedSetting => 'added',
-                $setting->redacted => 'unknown',
-                default => self::same($existing, $setting) ? 'unchanged' : 'changed',
+                $setting->redacted                     => 'unknown',
+                default                                => self::same($existing, $setting) ? 'unchanged' : 'changed',
             };
             $diff[$bucket][] = $identity;
         }
@@ -162,9 +163,9 @@ final readonly class StoreSnapshots
         }
 
         return match ($mode) {
-            ExportMode::Redacted => $make(redacted: true),
+            ExportMode::Redacted   => $make(redacted: true),
             ExportMode::Ciphertext => $make(ciphertext: $record->payload),
-            ExportMode::Plaintext => $make($this->encoder->decode($record->key, $this->encrypter->decrypt($record->payload))),
+            ExportMode::Plaintext  => $make($this->encoder->decode($record->key, $this->encrypter->decrypt($record->payload))),
         };
     }
 

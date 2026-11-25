@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Resources;
 
-use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Attributes\PreserveKeys;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Override;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Illuminate\Http\Resources\Attributes\PreserveKeys;
 
 /**
  * How a read resolved: the steps tried and the answer, its value left out when redacted.
@@ -27,11 +27,11 @@ final class ExplanationResource extends JsonResource
     {
         $lookup = $this->resource->lookup;
         $fields = [
-            'found' => $lookup->isFound(),
-            'layer' => $lookup->layer(),
-            'from' => $lookup->scope()?->value,
+            'found'    => $lookup->isFound(),
+            'layer'    => $lookup->layer(),
+            'from'     => $lookup->scope()?->value,
             'redacted' => $lookup->isRedacted(),
-            'steps' => $this->resource->steps,
+            'steps'    => $this->resource->steps,
         ];
 
         if ($lookup->isFound() && ! $lookup->isRedacted()) {

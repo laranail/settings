@@ -5,131 +5,131 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Providers;
 
 use Closure;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Cache\Repository as CacheRepository;
-use Illuminate\Contracts\Auth\Access\Gate;
-use Illuminate\Contracts\Auth\Factory as AuthFactory;
-use Illuminate\Contracts\Cache\Factory as Caches;
-use Illuminate\Contracts\Config\Repository;
-use Illuminate\Contracts\Debug\ExceptionHandler;
-use Illuminate\Contracts\Encryption\StringEncrypter;
-use Illuminate\Contracts\Events\Dispatcher;
-use Illuminate\Contracts\Filesystem\Factory as Disks;
-use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Contracts\Foundation\CachesConfiguration;
-use Illuminate\Contracts\Foundation\CachesRoutes;
-use Illuminate\Contracts\Notifications\Dispatcher as Notifications;
-use Illuminate\Contracts\Translation\Translator;
-use Illuminate\Database\ConnectionResolverInterface;
-use Illuminate\Database\Events\MigrationsEnded;
-use Illuminate\Filesystem\Filesystem;
-use Illuminate\Http\Request;
-use Illuminate\Log\LogManager;
-use Illuminate\Queue\Events\JobProcessed;
-use Illuminate\Queue\Events\JobProcessing;
-use Illuminate\Support\Facades\Route;
-use InvalidArgumentException;
 use Override;
-use Psr\Log\LoggerInterface;
+use Throwable;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
-use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
-use Simtabi\Laranail\Package\Tools\Commands\InstallCommand;
+use Illuminate\Http\Request;
+use Psr\Log\LoggerInterface;
+use InvalidArgumentException;
+use Illuminate\Log\LogManager;
+use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Queue\Events\JobProcessed;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Contracts\Config\Repository;
+use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Package\Tools\Package;
-use Simtabi\Laranail\Package\Tools\Providers\PackageServiceProvider;
-use Simtabi\Laranail\Package\Tools\Support\Definitions\AutoSeederDefinition;
-use Simtabi\Laranail\Settings\Actions\ClearCache;
-use Simtabi\Laranail\Settings\Actions\FindForeignTables;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\Channel;
+use Simtabi\Laranail\Settings\Support\Clock;
+use Simtabi\Laranail\Settings\Data\AlertRule;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\SettingsManager;
+use Illuminate\Database\Events\MigrationsEnded;
+use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Translation\Translator;
 use Simtabi\Laranail\Settings\Actions\MakeStore;
-use Simtabi\Laranail\Settings\Actions\MigrateSettings;
-use Simtabi\Laranail\Settings\Actions\PromoteReadyStores;
-use Simtabi\Laranail\Settings\Actions\PromoteWhenReady;
-use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
-use Simtabi\Laranail\Settings\Audit\AutoAuditSink;
-use Simtabi\Laranail\Settings\Audit\DatabaseAuditSink;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Illuminate\Contracts\Cache\Factory as Caches;
+use Illuminate\Contracts\Foundation\CachesRoutes;
+use Simtabi\Laranail\Settings\Actions\ClearCache;
 use Simtabi\Laranail\Settings\Audit\LogAuditSink;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Contracts\Verifier;
+use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Logging\LogContext;
+use Simtabi\Laranail\Settings\Audit\AutoAuditSink;
 use Simtabi\Laranail\Settings\Audit\NullAuditSink;
-use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
-use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
-use Simtabi\Laranail\Settings\Authentication\SanctumActorResolver;
-use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
-use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
-use Simtabi\Laranail\Settings\Authorization\GateAuthorizer;
-use Simtabi\Laranail\Settings\Authorization\PermissionsAuthorizer;
-use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
-use Simtabi\Laranail\Settings\Configurator\SettingsDecorator;
-use Simtabi\Laranail\Settings\Console\ClearCacheCommand;
-use Simtabi\Laranail\Settings\Console\ConfiguratorCommand;
 use Simtabi\Laranail\Settings\Console\DiffCommand;
+use Simtabi\Laranail\Settings\Console\ShowCommand;
+use Simtabi\Laranail\Settings\Contracts\AuditSink;
+use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
+use Simtabi\Laranail\Settings\Models\ModelContext;
+use Simtabi\Laranail\Settings\Typed\TypedSettings;
+use Illuminate\Cache\Repository as CacheRepository;
+use Simtabi\Laranail\Settings\Contracts\Authorizer;
+use Simtabi\Laranail\Settings\Support\ValueEncoder;
+use Illuminate\Contracts\Encryption\StringEncrypter;
+use Illuminate\Database\ConnectionResolverInterface;
 use Simtabi\Laranail\Settings\Console\DoctorCommand;
 use Simtabi\Laranail\Settings\Console\ExportCommand;
-use Simtabi\Laranail\Settings\Console\HistoryCommand;
 use Simtabi\Laranail\Settings\Console\ImportCommand;
-use Simtabi\Laranail\Settings\Console\MakeStoreCommand;
+use Simtabi\Laranail\Settings\Http\Support\Problems;
+use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Illuminate\Contracts\Filesystem\Factory as Disks;
+use Simtabi\Laranail\Settings\Console\HistoryCommand;
 use Simtabi\Laranail\Settings\Console\PromoteCommand;
+use Simtabi\Laranail\Settings\Console\RescopeCommand;
+use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
+use Simtabi\Laranail\Settings\Support\ConfigDefaults;
+use Simtabi\Laranail\Settings\Typed\SettingsMigrator;
+use Simtabi\Laranail\Settings\Actions\MigrateSettings;
+use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
+use Simtabi\Laranail\Settings\Audit\DatabaseAuditSink;
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
+use Simtabi\Laranail\Settings\Services\Access\Auditor;
+use Simtabi\Laranail\Settings\Typed\SettingsMigration;
+use Simtabi\Laranail\Settings\Actions\PromoteWhenReady;
+use Simtabi\Laranail\Settings\Console\MakeStoreCommand;
+use Simtabi\Laranail\Settings\Console\ReencryptCommand;
+use Simtabi\Laranail\Settings\Console\WarmCacheCommand;
+use Simtabi\Laranail\Settings\Support\RecordSerializer;
+use Illuminate\Contracts\Foundation\CachesConfiguration;
+use Simtabi\Laranail\Settings\Actions\FindForeignTables;
+use Simtabi\Laranail\Settings\Console\ClearCacheCommand;
 use Simtabi\Laranail\Settings\Console\PruneAuditCommand;
+use Simtabi\Laranail\Settings\Logging\OperationalLogger;
+use Simtabi\Laranail\Settings\Verification\NullVerifier;
+use Simtabi\Laranail\Settings\Actions\PromoteReadyStores;
+use Simtabi\Laranail\Settings\Listeners\LogSettingsEvent;
+use Simtabi\Laranail\Settings\Console\ConfiguratorCommand;
 use Simtabi\Laranail\Settings\Console\PruneChangesCommand;
 use Simtabi\Laranail\Settings\Console\PruneHistoryCommand;
 use Simtabi\Laranail\Settings\Console\PruneOrphansCommand;
-use Simtabi\Laranail\Settings\Console\ReencryptCommand;
-use Simtabi\Laranail\Settings\Console\RescopeCommand;
-use Simtabi\Laranail\Settings\Console\ShowCommand;
-use Simtabi\Laranail\Settings\Console\SyncDefinitionsCommand;
-use Simtabi\Laranail\Settings\Console\WarmCacheCommand;
-use Simtabi\Laranail\Settings\Contracts\ActorResolver;
-use Simtabi\Laranail\Settings\Contracts\AuditSink;
-use Simtabi\Laranail\Settings\Contracts\Authorizer;
-use Simtabi\Laranail\Settings\Contracts\Settings;
-use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
-use Simtabi\Laranail\Settings\Contracts\Verifier;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\AlertRule;
-use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder;
-use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Enums\Channel;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
-use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
-use Simtabi\Laranail\Settings\Http\Support\Problems;
-use Simtabi\Laranail\Settings\Listeners\LogSettingsEvent;
 use Simtabi\Laranail\Settings\Listeners\SendSettingsAlert;
-use Simtabi\Laranail\Settings\Logging\LogContext;
-use Simtabi\Laranail\Settings\Logging\OperationalLogger;
-use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Services\Access\Auditor;
-use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
-use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
-use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
-use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
-use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
-use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
-use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Services\Tenancy\TenantDiscriminators;
-use Simtabi\Laranail\Settings\SettingsManager;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
-use Simtabi\Laranail\Settings\Support\Clock;
-use Simtabi\Laranail\Settings\Support\ConfigDefaults;
-use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
-use Simtabi\Laranail\Settings\Support\RecordSerializer;
-use Simtabi\Laranail\Settings\Support\ValueEncoder;
-use Simtabi\Laranail\Settings\Typed\SettingsMigration;
-use Simtabi\Laranail\Settings\Typed\SettingsMigrator;
-use Simtabi\Laranail\Settings\Typed\TypedSettings;
-use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
+use Simtabi\Laranail\Package\Tools\Commands\InstallCommand;
+use Simtabi\Laranail\Settings\Authorization\GateAuthorizer;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
 use Simtabi\Laranail\Settings\Verification\ClosureVerifier;
-use Simtabi\Laranail\Settings\Verification\NullVerifier;
+use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
+use Simtabi\Laranail\Settings\Configurator\SettingsDecorator;
+use Simtabi\Laranail\Settings\Console\SyncDefinitionsCommand;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
+use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
+use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
+use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
+use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
+use Simtabi\Laranail\Settings\Authentication\SanctumActorResolver;
+use Simtabi\Laranail\Settings\Authorization\PermissionsAuthorizer;
+use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
+use Illuminate\Contracts\Notifications\Dispatcher as Notifications;
+use Simtabi\Laranail\Package\Tools\Providers\PackageServiceProvider;
+use Simtabi\Laranail\Settings\Services\Tenancy\TenantDiscriminators;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
+use Simtabi\Laranail\Settings\Database\Seeders\DefaultCategoriesSeeder;
+use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
 use Simtabi\Laranail\Settings\Verification\PasswordConfirmationVerifier;
-use Throwable;
+use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Package\Tools\Support\Definitions\AutoSeederDefinition;
+use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
 /**
  * Registers laranail/settings with the host application.
@@ -159,7 +159,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 $user = $request->user()?->getAuthIdentifier();
 
                 return $perMinute > 0
-                    ? Limit::perMinute($perMinute)->by(is_scalar($user) ? 'user:'.$user : 'ip:'.$request->ip())
+                    ? Limit::perMinute($perMinute)->by(is_scalar($user) ? 'user:' . $user : 'ip:' . $request->ip())
                     : Limit::none();
             })
             ->hasCommands([
@@ -276,7 +276,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
     private static function cacheStore(Application $app, mixed $name, string $path): CacheRepository
     {
         if ($name !== null && (! is_string($name) || $name === '')) {
-            throw new InvalidConfiguration($path.': a cache store name, or null for the default store.');
+            throw new InvalidConfiguration($path . ': a cache store name, or null for the default store.');
         }
 
         try {
@@ -331,9 +331,9 @@ final class SettingsServiceProvider extends PackageServiceProvider
     private static function authorizer(Application $app, mixed $driver, string $path): Authorizer
     {
         return match ($driver) {
-            'gate' => new GateAuthorizer($app->make(Gate::class)),
+            'gate'        => new GateAuthorizer($app->make(Gate::class)),
             'permissions' => new PermissionsAuthorizer($app->make(Repository::class)->array('laranail.settings.authorization.permissions', [])),
-            default => self::instance($app, $driver, Authorizer::class, $path),
+            default       => self::instance($app, $driver, Authorizer::class, $path),
         };
     }
 
@@ -343,11 +343,11 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $database = static fn (): DatabaseAuditSink => new DatabaseAuditSink(static fn (): StoreRegistry => $app->make(StoreRegistry::class));
 
         return match ($sink) {
-            'auto' => new AutoAuditSink($database(), new LogAuditSink($app->make(OperationalLogger::class))),
+            'auto'     => new AutoAuditSink($database(), new LogAuditSink($app->make(OperationalLogger::class))),
             'database' => $database(),
-            'log' => new LogAuditSink($app->make(OperationalLogger::class)),
-            'null' => new NullAuditSink,
-            default => self::instance($app, $sink, AuditSink::class, $path),
+            'log'      => new LogAuditSink($app->make(OperationalLogger::class)),
+            'null'     => new NullAuditSink,
+            default    => self::instance($app, $sink, AuditSink::class, $path),
         };
     }
 
@@ -356,7 +356,8 @@ final class SettingsServiceProvider extends PackageServiceProvider
      *
      * @template T of object
      *
-     * @param  class-string<T>  $contract
+     * @param class-string<T> $contract
+     *
      * @return T
      */
     private static function instance(Application $app, mixed $class, string $contract, string $path): object
@@ -461,8 +462,9 @@ final class SettingsServiceProvider extends PackageServiceProvider
      *
      * @template T of object
      *
-     * @param  class-string<T>  $contract
-     * @param  Closure(Closure): T  $wrap
+     * @param class-string<T> $contract
+     * @param Closure(Closure): T $wrap
+     *
      * @return T
      */
     private static function configured(Application $app, object|string $value, string $contract, Closure $wrap, string $path): object
@@ -487,7 +489,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
         }
 
         $config = $this->app->make(Repository::class);
-        $defaults = require dirname(__DIR__, 2).'/config/settings.php';
+        $defaults = require dirname(__DIR__, 2) . '/config/settings.php';
         $application = $config->get('laranail.settings', []);
 
         if (is_array($defaults)) {
@@ -516,7 +518,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 $app,
                 $app instanceof CachesConfiguration && $app->configurationIsCached(),
                 static function (string $path, mixed $value) use ($config): void {
-                    $config->set('laranail.settings.'.$path, $value);
+                    $config->set('laranail.settings.' . $path, $value);
                 },
                 SettingsFacade::reporter($app),
             );
@@ -595,7 +597,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $app->make(Repository::class)->array('laranail.settings.layers', []),
             $app->make(CasterRegistry::class),
             static function (string $change) use ($app): void {
-                $app->make(OperationalLogger::class)->info('laranail/settings runtime configuration: '.$change, LogContext::of(extra: ['change' => $change]));
+                $app->make(OperationalLogger::class)->info('laranail/settings runtime configuration: ' . $change, LogContext::of(extra: ['change' => $change]));
                 $app->make(Auditor::class)->record(AuditAction::Configure, AuditOutcome::Allowed, null, null, meta: ['change' => $change]);
             },
         ));
@@ -622,7 +624,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
         $this->app->bind(MakeStore::class, static fn (Application $app): MakeStore => new MakeStore(
             $app->make(Filesystem::class),
-            dirname(__DIR__, 2).'/database/migrations/'.MakeStore::MIGRATION.'.php',
+            dirname(__DIR__, 2) . '/database/migrations/' . MakeStore::MIGRATION . '.php',
             $app->databasePath('migrations'),
         ));
     }
@@ -679,10 +681,10 @@ final class SettingsServiceProvider extends PackageServiceProvider
 
             return new OperationalLogger(
                 match (true) {
-                    $configured === false => new NullLogger,
+                    $configured === false                  => new NullLogger,
                     $configured instanceof LoggerInterface => $configured,
-                    $channel === false => new NullLogger,
-                    default => $app->make(LogManager::class)->channel(is_string($channel) ? $channel : null),
+                    $channel === false                     => new NullLogger,
+                    default                                => $app->make(LogManager::class)->channel(is_string($channel) ? $channel : null),
                 },
                 $config->string('laranail.settings.logging.level', LogLevel::INFO),
                 $app->make(RuntimeConfiguration::class),
@@ -702,7 +704,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             );
 
             return new Auditor(
-                [...array_values(array_map(static fn (mixed $sink, int|string $index): AuditSink => self::auditSink($app, $sink, 'laranail.settings.audit.sinks.'.$index), $sinks, array_keys($sinks))), ...$configured],
+                [...array_values(array_map(static fn (mixed $sink, int|string $index): AuditSink => self::auditSink($app, $sink, 'laranail.settings.audit.sinks.' . $index), $sinks, array_keys($sinks))), ...$configured],
                 $app->make(Clock::class),
                 $app->make(RuntimeConfiguration::class),
             );
@@ -722,7 +724,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
             $driver = $app->make(Repository::class)->get('laranail.settings.authorization.driver', 'gate');
 
             return is_array($driver)
-                ? new ChainAuthorizer(array_values(array_map(static fn (mixed $name, int|string $index): Authorizer => self::authorizer($app, $name, 'laranail.settings.authorization.driver.'.$index), $driver, array_keys($driver))))
+                ? new ChainAuthorizer(array_values(array_map(static fn (mixed $name, int|string $index): Authorizer => self::authorizer($app, $name, 'laranail.settings.authorization.driver.' . $index), $driver, array_keys($driver))))
                 : self::authorizer($app, $driver, 'laranail.settings.authorization.driver');
         });
 
@@ -734,7 +736,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
                 $app->make(Clock::class),
             ),
             'actor' => $app->make(ActorTimestampVerifier::class),
-            'none' => new NullVerifier,
+            'none'  => new NullVerifier,
             default => is_object($driver) ? self::configured($app, $driver, Verifier::class, static fn (Closure $closure): Verifier => new ClosureVerifier($closure), 'laranail.settings.verification.driver') : self::instance($app, $driver, Verifier::class, 'laranail.settings.verification.driver'),
         });
 
@@ -749,9 +751,9 @@ final class SettingsServiceProvider extends PackageServiceProvider
             }
 
             return match ($resolver = $app->make(Repository::class)->get('laranail.settings.authentication.resolver', 'guard')) {
-                'guard' => new GuardActorResolver($app->make(AuthFactory::class), $guards, $request),
+                'guard'   => new GuardActorResolver($app->make(AuthFactory::class), $guards, $request),
                 'sanctum' => new SanctumActorResolver($app->make(AuthFactory::class), $guards, $request),
-                default => self::instance($app, $resolver, ActorResolver::class, 'laranail.settings.authentication.resolver'),
+                default   => self::instance($app, $resolver, ActorResolver::class, 'laranail.settings.authentication.resolver'),
             };
         });
 
@@ -772,7 +774,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
                     throw $exception;
                 }
 
-                $app->make(OperationalLogger::class)->warning('laranail/settings has no usable authorizer, so every actor is denied: '.$exception->getMessage(), LogContext::of(extra: ['exception' => $exception::class]));
+                $app->make(OperationalLogger::class)->warning('laranail/settings has no usable authorizer, so every actor is denied: ' . $exception->getMessage(), LogContext::of(extra: ['exception' => $exception::class]));
 
                 return AccessGuard::closed();
             }
@@ -952,7 +954,7 @@ final class SettingsServiceProvider extends PackageServiceProvider
         $prefix = trim($config->string('laranail.settings.http.prefix', 'api/settings'), '/');
 
         if (! $this->app instanceof CachesRoutes || ! $this->app->routesAreCached()) {
-            Route::prefix(ltrim($prefix.'/v1', '/'))
+            Route::prefix(ltrim($prefix . '/v1', '/'))
                 ->name('laranail-settings.api.')
                 ->middleware([...$middleware, 'throttle:laranail-settings'])
                 ->where(['store' => '[a-z][a-z0-9_]*', 'key' => '[A-Za-z0-9_.]+', 'alias' => '[a-z][a-z0-9_]*', 'kind' => 'stores|layers'])

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Drivers\JsonDriver;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Data\PromotionSelection;
-use Simtabi\Laranail\Settings\Drivers\JsonDriver;
 use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
-use Simtabi\Laranail\Settings\Stores\Store;
 
 /**
  * Promote a store's runtime file if it is ready to be promoted: the file exists, the database

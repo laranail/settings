@@ -4,30 +4,30 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Configurator;
 
-use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Http\Request;
 use Override;
-use Simtabi\Laranail\Settings\Approvals\Approvals;
-use Simtabi\Laranail\Settings\Audit\AuditQuery;
-use Simtabi\Laranail\Settings\Categories\CategoryManager;
-use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
-use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
-use Simtabi\Laranail\Settings\Contracts\Settable;
-use Simtabi\Laranail\Settings\Contracts\Settings;
+use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\Data\PromotionRequest;
-use Simtabi\Laranail\Settings\Data\PromotionSelection;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
-use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
-use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**

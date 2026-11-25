@@ -24,8 +24,8 @@ final class AccessDenied extends SettingsException
             'Access denied: [%s] on [%s]%s%s.',
             $ability->value,
             $store,
-            $key === null ? '' : ' key ['.$key.']',
-            $reason === null ? '' : ' ('.$reason.')',
+            $key === null ? '' : ' key [' . $key . ']',
+            $reason === null ? '' : ' (' . $reason . ')',
         ));
     }
 

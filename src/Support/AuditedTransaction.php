@@ -7,11 +7,11 @@ namespace Simtabi\Laranail\Settings\Support;
 use Closure;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
  * Commits a change and its `allowed` audit entry in one transaction. On failure it rolls back,
@@ -26,10 +26,11 @@ final readonly class AuditedTransaction
     /**
      * @template T
      *
-     * @param  Closure(): T  $work
-     * @param  (Closure(T): array{from?: ?int, to?: ?int, meta?: array<string, scalar|null>})|null  $allowed  audit details from the result
-     * @param  (Closure(T): void)|null  $then  runs inside the transaction after the audit entry
-     * @param  array<string, scalar|null>  $meta
+     * @param Closure(): T $work
+     * @param (Closure(T): array{from?: ?int, to?: ?int, meta?: array<string, scalar|null>})|null $allowed audit details from the result
+     * @param (Closure(T): void)|null $then runs inside the transaction after the audit entry
+     * @param array<string, scalar|null> $meta
+     *
      * @return T
      */
     public function run(

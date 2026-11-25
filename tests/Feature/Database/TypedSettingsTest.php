@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
-use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Typed\BrokenSettings;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Typed\MailSettings;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Typed\Plan;
-use Simtabi\Laranail\Settings\Typed\Attributes\Type;
-use Simtabi\Laranail\Settings\Typed\SettingsMigration;
 use Simtabi\Laranail\Settings\Typed\TypedProperty;
 use Simtabi\Laranail\Settings\Typed\TypedSettings;
+use Simtabi\Laranail\Settings\Typed\Attributes\Type;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
+use Simtabi\Laranail\Settings\Typed\SettingsMigration;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Typed\Plan;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
+use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Typed\MailSettings;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Typed\BrokenSettings;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
  * Typed settings classes over the key-value engine. The typed API and the key-value
@@ -35,14 +35,14 @@ it('maps properties to keys and loads defaults until values are stored', functio
 
     expect(array_map(static fn (TypedProperty $property): string => $property->key, MailSettings::properties()))->toBe([
         'fromAddress' => 'mail.from_address',
-        'port' => 'mail.port',
-        'timeout' => 'mail.timeout',
-        'secure' => 'mail.secure',
-        'cc' => 'mail.cc',
-        'plan' => 'mail.plan',
-        'launchedAt' => 'mail.launched_at',
-        'password' => 'mail.password',
-        'siteName' => 'site.name',
+        'port'        => 'mail.port',
+        'timeout'     => 'mail.timeout',
+        'secure'      => 'mail.secure',
+        'cc'          => 'mail.cc',
+        'plan'        => 'mail.plan',
+        'launchedAt'  => 'mail.launched_at',
+        'password'    => 'mail.password',
+        'siteName'    => 'site.name',
     ])
         ->and($mail->fromAddress)->toBe('hello@example.test')
         ->and($mail->plan)->toBe(Plan::Free)

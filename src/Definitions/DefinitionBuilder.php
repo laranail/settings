@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Definitions;
 
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\Precedence;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 

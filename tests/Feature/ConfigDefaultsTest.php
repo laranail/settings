@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
 use Simtabi\Laranail\Settings\Support\ConfigDefaults;
+use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
 
 it('fills the keys a partial section leaves out from the shipped defaults', function (): void {
     $merged = ConfigDefaults::merge(
@@ -13,24 +13,24 @@ it('fills the keys a partial section leaves out from the shipped defaults', func
 
     expect($merged)->toBe([
         'tables' => ['prefix' => 'acme_', 'audit' => 'settings_audit'],
-        'cache' => ['ttl' => 60, 'stale' => 300],
+        'cache'  => ['ttl' => 60, 'stale' => 300],
     ]);
 });
 
 it('keeps lists and application-named maps exactly as the application wrote them', function (): void {
     $merged = ConfigDefaults::merge(
         [
-            'stores' => ['settings' => ['layers' => ['database', 'runtime', 'shipped']]],
-            'layers' => ['database' => ['driver' => 'database'], 'runtime' => ['driver' => 'json']],
-            'importers' => ['toolkit' => 'A', 'spatie' => 'B'],
-            'seed' => ['categories' => ['general' => ['title' => 'General']], 'enabled' => true],
+            'stores'      => ['settings' => ['layers' => ['database', 'runtime', 'shipped']]],
+            'layers'      => ['database' => ['driver' => 'database'], 'runtime' => ['driver' => 'json']],
+            'importers'   => ['toolkit' => 'A', 'spatie' => 'B'],
+            'seed'        => ['categories' => ['general' => ['title' => 'General']], 'enabled' => true],
             'definitions' => ['sources' => ['code', 'config']],
         ],
         [
-            'stores' => ['teams' => ['layers' => ['runtime']]],
-            'layers' => ['runtime' => ['driver' => 'json']],
-            'importers' => ['custom' => 'C'],
-            'seed' => ['categories' => ['billing' => ['title' => 'Billing']]],
+            'stores'      => ['teams' => ['layers' => ['runtime']]],
+            'layers'      => ['runtime' => ['driver' => 'json']],
+            'importers'   => ['custom' => 'C'],
+            'seed'        => ['categories' => ['billing' => ['title' => 'Billing']]],
             'definitions' => ['sources' => ['code']],
         ],
     );

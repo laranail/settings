@@ -6,10 +6,10 @@ namespace Simtabi\Laranail\Settings\Actions\Approvals;
 
 use Illuminate\Database\Eloquent\Builder;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\ChangeFilter;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\ChangeFilter;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;

@@ -3,35 +3,35 @@
 declare(strict_types=1);
 
 use Psr\Log\AbstractLogger;
-use Simtabi\Laranail\Package\Tools\Exceptions\PackageBootException;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Contracts\Caster;
+use Simtabi\Laranail\Settings\Data\LayerConfig;
+use Simtabi\Laranail\Settings\Contracts\Verifier;
+use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
 use Simtabi\Laranail\Settings\Configurator\LayerSetup;
-use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
 use Simtabi\Laranail\Settings\Configurator\StoreSetup;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
-use Simtabi\Laranail\Settings\Contracts\Caster;
-use Simtabi\Laranail\Settings\Contracts\Verifier;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\LayerConfig;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
-use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
-use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Verification\NullVerifier;
+use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
+use Simtabi\Laranail\Settings\Services\Transfer\Importers;
+use Simtabi\Laranail\Settings\Verification\ClosureVerifier;
+use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
 use Simtabi\Laranail\Settings\Importers\ToolkitJsonImporter;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
-use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
-use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
+use Simtabi\Laranail\Package\Tools\Exceptions\PackageBootException;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Services\Transfer\Importers;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ContributorsProvider;
+use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\NobodyResolver;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ContributorsProvider;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedConfigurator;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedPackageContributor;
-use Simtabi\Laranail\Settings\Verification\ClosureVerifier;
-use Simtabi\Laranail\Settings\Verification\NullVerifier;
 
 /** Boots with the application configurator, and the package contributor first when given. */
 function bootSeams(Closure $app, ?Closure $package = null): void
@@ -210,11 +210,11 @@ it('refuses a behaviour name two owners declare, and an application decision fro
 it('refuses a behaviour value it cannot use, naming the method', function (Closure $app, string $message): void {
     expect(seamFailure($app))->toContain($message);
 })->with([
-    'a built-in driver name' => [static fn (SettingsSetup $settings): SettingsSetup => $settings->driver('json', static fn (LayerConfig $layer): ArrayDriver => new ArrayDriver), 'driver() (laranail.settings.drivers.json): expected a name that is not a built-in driver'],
+    'a built-in driver name'      => [static fn (SettingsSetup $settings): SettingsSetup => $settings->driver('json', static fn (LayerConfig $layer): ArrayDriver => new ArrayDriver), 'driver() (laranail.settings.drivers.json): expected a name that is not a built-in driver'],
     'a class that is no importer' => [static fn (SettingsSetup $settings): SettingsSetup => $settings->importer('legacy', stdClass::class), 'importer() (laranail.settings.importers.legacy)'],
     'a class that is no verifier' => [static fn (SettingsSetup $settings): SettingsSetup => $settings->verifyUsing(stdClass::class), 'verifyUsing() (laranail.settings.verification.driver)'],
-    'a bad caster alias' => [static fn (SettingsSetup $settings): SettingsSetup => $settings->caster('Upper', upperCaster()), 'caster() (laranail.settings.casters.Upper)'],
-    'a bad key' => [static fn (SettingsSetup $settings): SettingsSetup => $settings->define('', static fn (DefinitionBuilder $definition): DefinitionBuilder => $definition), 'define() (laranail.settings.definitions)'],
+    'a bad caster alias'          => [static fn (SettingsSetup $settings): SettingsSetup => $settings->caster('Upper', upperCaster()), 'caster() (laranail.settings.casters.Upper)'],
+    'a bad key'                   => [static fn (SettingsSetup $settings): SettingsSetup => $settings->define('', static fn (DefinitionBuilder $definition): DefinitionBuilder => $definition), 'define() (laranail.settings.definitions)'],
 ]);
 
 it('keeps behaviour when config is cached, since config cannot hold it', function (): void {

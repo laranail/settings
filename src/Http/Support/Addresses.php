@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Support;
 
-use Simtabi\Laranail\Settings\Data\Http\AddressInput;
 use Simtabi\Laranail\Settings\Data\SettingAddress;
+use Simtabi\Laranail\Settings\Data\Http\AddressInput;
 use Simtabi\Laranail\Settings\Exceptions\UnknownOwner;
 use Simtabi\Laranail\Settings\Owners\MorphMapOwnerResolver;
 

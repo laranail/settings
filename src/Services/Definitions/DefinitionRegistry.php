@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Definitions;
 
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\Precedence;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
+use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
 
 /**
@@ -79,7 +79,7 @@ final class DefinitionRegistry
     /**
      * Build a definition from config-style attributes without registering it.
      *
-     * @param  array<array-key, mixed>  $attributes
+     * @param array<array-key, mixed> $attributes
      *
      * @throws InvalidDefinition
      */
@@ -166,6 +166,6 @@ final class DefinitionRegistry
 
     private function index(StoreName $store, Key $key): string
     {
-        return $store->value.'|'.$key->value;
+        return $store->value . '|' . $key->value;
     }
 }

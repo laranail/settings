@@ -4,31 +4,31 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Access;
 
-use Illuminate\Contracts\Events\Dispatcher;
+use Psr\Log\NullLogger;
 use Illuminate\Http\Request;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
-use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
-use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
-use Simtabi\Laranail\Settings\Contracts\ActorResolver;
-use Simtabi\Laranail\Settings\Contracts\Authorizer;
-use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Decision;
+use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Data\Decision;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Logging\LogContext;
+use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Events\AccessWasDenied;
-use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
-use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
-use Simtabi\Laranail\Settings\Logging\LogContext;
-use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
-use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Verification\NullVerifier;
+use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
+use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
+use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
+use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
+use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
  * Enforces access for one call: actor requirement, token ceiling, authorizer and verification.

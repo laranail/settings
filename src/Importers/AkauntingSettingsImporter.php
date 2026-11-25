@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Importers;
 
 use Exception;
-use Illuminate\Database\ConnectionResolverInterface;
-use Simtabi\Laranail\Settings\Contracts\Importer;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Contracts\Importer;
+use Illuminate\Database\ConnectionResolverInterface;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 
 /**
  * Imports akaunting/laravel-setting's database table. Every value arrives as a string, so define

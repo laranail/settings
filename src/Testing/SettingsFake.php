@@ -4,34 +4,34 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Testing;
 
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\Assert;
-use Simtabi\Laranail\Settings\Approvals\Approvals;
-use Simtabi\Laranail\Settings\Audit\AuditQuery;
-use Simtabi\Laranail\Settings\Categories\CategoryManager;
-use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
-use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
-use Simtabi\Laranail\Settings\Contracts\Settable;
-use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\AuditEntry;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\Data\PromotionRequest;
-use Simtabi\Laranail\Settings\Data\PromotionSelection;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
-use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
-use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
+use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\History\HistoryQuery;
+use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Resolution\Explanation;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
@@ -379,8 +379,8 @@ final readonly class SettingsFake implements Settings
         Assert::assertNotEmpty($matches, sprintf(
             'No [%s]%s audit entry%s was recorded.',
             $action->value,
-            $outcome instanceof AuditOutcome ? ' '.$outcome->value : '',
-            $key === null ? '' : ' for ['.$key.']',
+            $outcome instanceof AuditOutcome ? ' ' . $outcome->value : '',
+            $key === null ? '' : ' for [' . $key . ']',
         ));
     }
 
@@ -394,6 +394,6 @@ final readonly class SettingsFake implements Settings
                 && (! $ability instanceof Ability || $entry->action === AuditAction::fromAbility($ability)),
         );
 
-        Assert::assertNotEmpty($matches, sprintf('No denial%s was recorded for [%s].', $ability instanceof Ability ? ' of ['.$ability->value.']' : '', $key));
+        Assert::assertNotEmpty($matches, sprintf('No denial%s was recorded for [%s].', $ability instanceof Ability ? ' of [' . $ability->value . ']' : '', $key));
     }
 }

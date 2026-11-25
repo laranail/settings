@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
-use Illuminate\Filesystem\Filesystem;
 use InvalidArgumentException;
-use Simtabi\Laranail\Console\Tools\Commands\Command;
-use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
-use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
-use Simtabi\Laranail\Settings\Contracts\DiskImporter;
-use Simtabi\Laranail\Settings\Contracts\Importer;
+use Illuminate\Filesystem\Filesystem;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Contracts\Importer;
+use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Settings\Contracts\DiskImporter;
+use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
-use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
+use Simtabi\Laranail\Settings\Services\Transfer\Importers;
+use Simtabi\Laranail\Settings\Actions\Transfer\ImportStore;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Services\Transfer\Importers;
+use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
+use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
  * Import an export file, or another package's settings with `--from=<importer>`. A dry run unless
@@ -114,19 +114,19 @@ final class ImportCommand extends Command
     private function report(ImportReport $report): void
     {
         $this->info(trans_choice('laranail/settings::settings.console.imported', count($report->categories), [
-            'prefix' => $report->applied ? __('laranail/settings::settings.console.import_applied') : __('laranail/settings::settings.console.import_dry_run'),
-            'created' => count($report->created),
-            'updated' => count($report->updated),
+            'prefix'    => $report->applied ? __('laranail/settings::settings.console.import_applied') : __('laranail/settings::settings.console.import_dry_run'),
+            'created'   => count($report->created),
+            'updated'   => count($report->updated),
             'unchanged' => count($report->unchanged),
-            'skipped' => count($report->skipped),
+            'skipped'   => count($report->skipped),
         ]));
 
-        foreach ([...array_map(static fn (string $id): string => '+ '.$id, $report->created), ...array_map(static fn (string $id): string => '~ '.$id, $report->updated)] as $line) {
-            $this->line('  '.$line);
+        foreach ([...array_map(static fn (string $id): string => '+ ' . $id, $report->created), ...array_map(static fn (string $id): string => '~ ' . $id, $report->updated)] as $line) {
+            $this->line('  ' . $line);
         }
 
         foreach ($report->skipped as $identity => $reason) {
-            $this->line('  ! '.__('laranail/settings::settings.console.import_skipped', ['identity' => $identity, 'reason' => $reason]));
+            $this->line('  ! ' . __('laranail/settings::settings.console.import_skipped', ['identity' => $identity, 'reason' => $reason]));
         }
 
         if ($report->proposed !== []) {

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
-use Simtabi\Laranail\Settings\Contracts\DiskImporter;
+use Illuminate\Database\Schema\Blueprint;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Contracts\DiskImporter;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Services\Transfer\Importers;
 
@@ -24,7 +24,7 @@ beforeEach(function (): void {
 
 function toolkitFile(array $data): string
 {
-    $path = sys_get_temp_dir().'/laranail-toolkit-'.bin2hex(random_bytes(4)).'.json';
+    $path = sys_get_temp_dir() . '/laranail-toolkit-' . bin2hex(random_bytes(4)) . '.json';
     file_put_contents($path, json_encode($data));
 
     return $path;
@@ -41,11 +41,11 @@ it('refuses toolkit keys that collide after normalising, in a dry run and when a
     expect(fn () => app(Importers::class)->get('toolkit')->read($path, new StoreName('settings')))->toThrow(InvalidImport::class, $group)
         ->and(DB::table('settings')->count())->toBe(0);
 })->with([
-    'case' => [['Mail' => ['Host' => 'a'], 'mail' => ['host' => 'b'], 'site' => 'kept'], '[Mail.Host, mail.host] -> mail.host'],
+    'case'                 => [['Mail' => ['Host' => 'a'], 'mail' => ['host' => 'b'], 'site' => 'kept'], '[Mail.Host, mail.host] -> mail.host'],
     'hyphen vs underscore' => [['mail-host' => 'a', 'mail_host' => 'b', 'site' => 'kept'], '[mail-host, mail_host] -> mail_host'],
-    'case and hyphen' => [['Mail-Host' => 'a', 'mail_host' => 'b', 'site' => 'kept'], '[Mail-Host, mail_host] -> mail_host'],
-    'space vs underscore' => [['debug mode' => true, 'debug_mode' => false], '[debug mode, debug_mode] -> debug_mode'],
-    'nested vs dotted' => [['mail' => ['host' => 'a'], 'mail.host' => 'b'], '[mail.host, mail.host] -> mail.host'],
+    'case and hyphen'      => [['Mail-Host' => 'a', 'mail_host' => 'b', 'site' => 'kept'], '[Mail-Host, mail_host] -> mail_host'],
+    'space vs underscore'  => [['debug mode' => true, 'debug_mode' => false], '[debug mode, debug_mode] -> debug_mode'],
+    'nested vs dotted'     => [['mail' => ['host' => 'a'], 'mail.host' => 'b'], '[mail.host, mail.host] -> mail.host'],
 ]);
 
 it('names every colliding group in one failure', function (): void {
@@ -82,10 +82,10 @@ it('refuses colliding spatie and akaunting keys before writing', function (): vo
 });
 
 it('imports a non-colliding toolkit file exactly as before', function (): void {
-    $fixtures = __DIR__.'/../../Fixtures/Importers/';
-    $document = app(Importers::class)->get('toolkit')->read($fixtures.'toolkit-non-colliding.json', new StoreName('settings'));
+    $fixtures = __DIR__ . '/../../Fixtures/Importers/';
+    $document = app(Importers::class)->get('toolkit')->read($fixtures . 'toolkit-non-colliding.json', new StoreName('settings'));
 
-    expect($document->toJson())->toBe(file_get_contents($fixtures.'toolkit-non-colliding.export.json'));
+    expect($document->toJson())->toBe(file_get_contents($fixtures . 'toolkit-non-colliding.export.json'));
 });
 
 it('reads the toolkit file from a filesystem disk', function (): void {

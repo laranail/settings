@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
+use Psr\Log\AbstractLogger;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\Repository;
-use Illuminate\Contracts\Cache\Factory as CacheFactory;
-use Illuminate\Contracts\Cache\Repository as CacheContract;
 use Illuminate\Support\Facades\Cache;
-use Psr\Log\AbstractLogger;
-use Simtabi\Laranail\Settings\Data\CacheTarget;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\RecordSet;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Data\CacheTarget;
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
+use Illuminate\Contracts\Cache\Repository as CacheContract;
 use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 
 /*
@@ -34,14 +34,14 @@ function cacheTarget(string $connection = 'mysql', string $database = 'app'): Ca
 /**
  * A loader returning one record per requested scope, recording each call.
  *
- * @param  list<list<string>>  $calls
+ * @param list<list<string>> $calls
  */
 function countingLoader(array &$calls): Closure
 {
     return static function (array $scopes) use (&$calls): RecordSet {
         $calls[] = array_map(static fn (Scope $scope): string => $scope->value, $scopes);
 
-        return new RecordSet(array_map(static fn (Scope $scope): Record => new Record($scope, new Key('a'), Locale::none(), '"'.$scope->value.'"'), $scopes));
+        return new RecordSet(array_map(static fn (Scope $scope): Record => new Record($scope, new Key('a'), Locale::none(), '"' . $scope->value . '"'), $scopes));
     };
 }
 
@@ -197,7 +197,7 @@ it('reads from the database and reports it when the cache fails', function (): v
     $calls = [];
     $failures = [];
     $cache = new SettingsCache(brokenCache(), log: failureLog(static function (array $context, string $message) use (&$failures): void {
-        $failures[] = $context['operation'].': '.(str_contains($message, 'cache down') ? 'cache down' : $message);
+        $failures[] = $context['operation'] . ': ' . (str_contains($message, 'cache down') ? 'cache down' : $message);
     }));
 
     $records = $cache->load(cacheTarget(), [Scope::global()], countingLoader($calls));
@@ -251,8 +251,8 @@ it('lets the first of two concurrent readers create a missing token', function (
 it('refuses an empty prefix, a ttl under a second and a negative stale window', function (array $arguments): void {
     expect(fn (): SettingsCache => new SettingsCache(new Repository(new ArrayStore), ...$arguments))->toThrow(InvalidConfiguration::class, 'laranail.settings.cache');
 })->with([
-    'empty prefix' => [['prefix' => '']],
-    'zero ttl' => [['ttl' => 0]],
+    'empty prefix'   => [['prefix' => '']],
+    'zero ttl'       => [['ttl' => 0]],
     'negative stale' => [['stale' => -1]],
 ]);
 
@@ -263,8 +263,8 @@ it('refuses a cache store that does not exist or is misnamed', function (mixed $
     expect(fn () => app(SettingsCache::class))->toThrow(InvalidConfiguration::class, 'laranail.settings.cache.store');
 })->with([
     'unknown' => ['nowhere'],
-    'empty' => [''],
-    'number' => [5],
+    'empty'   => [''],
+    'number'  => [5],
 ]);
 
 it('builds on the configured store, prefix and windows', function (): void {

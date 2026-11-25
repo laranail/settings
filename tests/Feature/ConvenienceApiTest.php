@@ -3,19 +3,20 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Gate;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
-use Simtabi\Laranail\Settings\Facades\Settings;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\SettingsManager;
+use Simtabi\Laranail\Settings\Facades\Settings;
+use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 
 use function Simtabi\Laranail\Settings\settings as settingsHelper;
+
+use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 it('reports a missing key as the opposite of has()', function (): void {
     expect(settings()->missing('site.name'))->toBeTrue();
@@ -29,9 +30,9 @@ it('reads many keys at once, with per-key defaults', function (): void {
     settings()->set('site.name', 'Acme');
 
     expect(settings()->many(['site.name', 'site.tagline' => 'Welcome', 'site.logo']))->toBe([
-        'site.name' => 'Acme',
+        'site.name'    => 'Acme',
         'site.tagline' => 'Welcome',
-        'site.logo' => null,
+        'site.logo'    => null,
     ]);
 });
 
@@ -70,9 +71,9 @@ it('lists every visible value in key order, filtered by prefix', function (): vo
     settings()->setMany(['site.name' => 'Acme', 'mail.from' => 'a@acme.test', 'sitemap.enabled' => true]);
 
     expect(settings()->all())->toBe([
-        'mail.from' => 'a@acme.test',
-        'site.locale' => 'en',
-        'site.name' => 'Acme',
+        'mail.from'       => 'a@acme.test',
+        'site.locale'     => 'en',
+        'site.name'       => 'Acme',
         'sitemap.enabled' => true,
     ])->and(settings()->all('site'))->toBe(['site.locale' => 'en', 'site.name' => 'Acme'])
         ->and(settings()->all('site.'))->toBe(['site.locale' => 'en', 'site.name' => 'Acme'])

@@ -29,7 +29,7 @@ final readonly class Record
 
     public static function identityOf(Scope $scope, Key $key, Locale $locale): string
     {
-        return $scope->value.'|'.$key->value.'|'.$locale->value;
+        return $scope->value . '|' . $key->value . '|' . $locale->value;
     }
 
     public function hasValue(): bool

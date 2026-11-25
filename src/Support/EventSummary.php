@@ -22,11 +22,11 @@ final readonly class EventSummary
         foreach (get_object_vars($event) as $property => $value) {
             $name = (string) $property;
             match (true) {
-                $value instanceof Subject => $summary += self::subject($value),
-                $value instanceof Actor => $summary['actor'] = self::actor($value),
-                $value instanceof BackedEnum => $summary[$name] = $value->value,
+                $value instanceof Subject            => $summary += self::subject($value),
+                $value instanceof Actor              => $summary['actor'] = self::actor($value),
+                $value instanceof BackedEnum         => $summary[$name] = $value->value,
                 is_scalar($value) || $value === null => $summary[$name] = $value,
-                default => null,
+                default                              => null,
             };
         }
 
@@ -43,10 +43,10 @@ final readonly class EventSummary
     private static function subject(Subject $subject): array
     {
         return [
-            'store' => $subject->store->value,
-            'scope' => $subject->scope()->value,
-            'key' => $subject->key?->value,
-            'locale' => $subject->locale->value,
+            'store'    => $subject->store->value,
+            'scope'    => $subject->scope()->value,
+            'key'      => $subject->key?->value,
+            'locale'   => $subject->locale->value,
             'category' => $subject->category,
         ];
     }

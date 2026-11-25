@@ -13,8 +13,8 @@ use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 final readonly class Json
 {
     /**
-     * @param  array<array-key, mixed>  $value
-     * @param  string  $what  what is being encoded, for the error message
+     * @param array<array-key, mixed> $value
+     * @param string $what what is being encoded, for the error message
      *
      * @throws DriverFailure
      */
@@ -23,7 +23,7 @@ final readonly class Json
         try {
             return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } catch (JsonException $exception) {
-            throw new DriverFailure($what.' could not be encoded.', 0, $exception);
+            throw new DriverFailure($what . ' could not be encoded.', 0, $exception);
         }
     }
 

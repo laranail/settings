@@ -5,36 +5,36 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions\Approvals;
 
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Events\Dispatcher;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
-use Simtabi\Laranail\Settings\Data\ChangeDecision;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\StoreName;
+use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Enums\ChangeStatus;
-use Simtabi\Laranail\Settings\Events\ChangeApplied;
-use Simtabi\Laranail\Settings\Events\ChangeApproved;
 use Simtabi\Laranail\Settings\Events\ChangeStale;
+use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
+use Simtabi\Laranail\Settings\Data\ChangeDecision;
+use Simtabi\Laranail\Settings\Events\ChangeApplied;
+use Simtabi\Laranail\Settings\Enums\ChangeOperation;
+use Simtabi\Laranail\Settings\Events\ChangeApproved;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
-use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
-use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
+use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
 
 /**
  * Approve a change request; needs `approve` on its setting. With enough approvals the change is
@@ -104,7 +104,7 @@ final readonly class ApproveChange
 
                 $this->access->auditor()->record(AuditAction::Approve, AuditOutcome::Allowed, $subject, $actor, $decision->reason, $request->baseVersion > 0 ? $request->baseVersion : null, $version, [
                     'change_request' => $request->id,
-                    'operation' => $request->operation->value,
+                    'operation'      => $request->operation->value,
                 ]);
 
                 return $version;
@@ -157,7 +157,7 @@ final readonly class ApproveChange
         $locale = new Locale($request->locale);
         $owner = $request->owner();
         $scope = Scope::of($owner);
-        $writer = $this->writer->causedBy($actor, $reason ?? 'change request '.$request->id);
+        $writer = $this->writer->causedBy($actor, $reason ?? 'change request ' . $request->id);
 
         if ($request->operation === ChangeOperation::Set) {
             $value = $this->pipeline->fromRecord(new Record($scope, $key, $locale, $request->payload, $request->type, $request->encrypted), $definition);
@@ -173,8 +173,8 @@ final readonly class ApproveChange
 
         return match ($request->operation) {
             ChangeOperation::Forget => $writer->forget($store, $key, $locale, $owner, $definition)->version ?? $current,
-            ChangeOperation::Lock => $writer->lock($store, $key, $locale, $owner, $definition)->version,
-            default => $writer->unlock($store, $key, $locale, $owner, $definition)->version,
+            ChangeOperation::Lock   => $writer->lock($store, $key, $locale, $owner, $definition)->version,
+            default                 => $writer->unlock($store, $key, $locale, $owner, $definition)->version,
         };
     }
 }

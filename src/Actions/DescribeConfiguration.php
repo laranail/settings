@@ -6,13 +6,13 @@ namespace Simtabi\Laranail\Settings\Actions;
 
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Contracts\Foundation\CachesConfiguration;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
 use Simtabi\Laranail\Settings\Data\ConfigurationValue;
 use Simtabi\Laranail\Settings\Data\ConfiguratorReport;
-use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
-use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
-use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
+use Illuminate\Contracts\Foundation\CachesConfiguration;
 use Simtabi\Laranail\Settings\Support\LeftoverEnvironment;
+use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
+use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
 /**
  * Describe how the package is set up: the registrations and what became of each, and every
@@ -34,16 +34,16 @@ final readonly class DescribeConfiguration
     {
         $applied = $this->registry->applied();
         /** @var array<array-key, mixed> $defaults */
-        $defaults = require dirname(__DIR__, 2).'/config/settings.php';
+        $defaults = require dirname(__DIR__, 2) . '/config/settings.php';
         $flatDefaults = self::flatten($defaults);
         $entries = [];
 
         foreach (self::flatten($this->config->array('laranail.settings', [])) as $key => $value) {
             $owner = $applied?->owner($key);
             $source = match (true) {
-                $owner !== null => 'configurator',
+                $owner !== null                                                         => 'configurator',
                 array_key_exists($key, $flatDefaults) && $flatDefaults[$key] === $value => 'default',
-                default => 'config',
+                default                                                                 => 'config',
             };
             $entries[] = new ConfigurationValue($key, $this->redacted($key, $value), $source, $owner);
         }
@@ -51,7 +51,7 @@ final readonly class DescribeConfiguration
         if ($this->persisted->isEnabled()) {
             foreach (['stores' => $this->persisted->stores(), 'layers' => $this->persisted->layers()] as $kind => $named) {
                 foreach ($named as $name => $config) {
-                    foreach (self::flatten($config, $kind.'.'.$name) as $key => $value) {
+                    foreach (self::flatten($config, $kind . '.' . $name) as $key => $value) {
                         $entries[] = new ConfigurationValue($key, $this->redacted($key, $value), 'persisted');
                     }
                 }
@@ -72,7 +72,8 @@ final readonly class DescribeConfiguration
     /**
      * Dot keys to leaf values; a list is a leaf.
      *
-     * @param  array<array-key, mixed>  $values
+     * @param array<array-key, mixed> $values
+     *
      * @return array<string, mixed>
      */
     private static function flatten(array $values, string $prefix = ''): array
@@ -80,7 +81,7 @@ final readonly class DescribeConfiguration
         $flat = [];
 
         foreach ($values as $key => $value) {
-            $path = $prefix === '' ? (string) $key : $prefix.'.'.$key;
+            $path = $prefix === '' ? (string) $key : $prefix . '.' . $key;
 
             if (is_array($value) && $value !== [] && ! array_is_list($value)) {
                 $flat = [...$flat, ...self::flatten($value, $path)];
@@ -94,7 +95,7 @@ final readonly class DescribeConfiguration
 
     private function redacted(string $key, mixed $value): mixed
     {
-        $last = (string) strrchr('.'.$key, '.');
+        $last = (string) strrchr('.' . $key, '.');
 
         return $value !== null && preg_match(self::SECRET, substr($last, 1)) === 1 ? '[redacted]' : $value;
     }

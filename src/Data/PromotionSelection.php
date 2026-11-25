@@ -27,8 +27,8 @@ final readonly class PromotionSelection
     /**
      * Build a selection from configuration or console options.
      *
-     * @param  mixed  $include  `['*']`, or a list of `settings` and `owners`
-     * @param  mixed  $owners  null, or a list of owner aliases
+     * @param mixed $include `['*']`, or a list of `settings` and `owners`
+     * @param mixed $owners null, or a list of owner aliases
      *
      * @throws InvalidConfiguration naming `$path`
      */
@@ -37,7 +37,7 @@ final readonly class PromotionSelection
         $kinds = is_array($include) ? array_values(array_filter($include, is_string(...))) : null;
 
         if ($kinds === null || $kinds === [] || count($kinds) !== count($include)) {
-            throw new InvalidConfiguration($path.'.include: a list of settings and owners, or [*].');
+            throw new InvalidConfiguration($path . '.include: a list of settings and owners, or [*].');
         }
 
         $unknown = array_diff($kinds, ['*', ...self::KINDS]);
@@ -49,7 +49,7 @@ final readonly class PromotionSelection
         $aliases = is_array($owners) ? array_values(array_filter($owners, is_string(...))) : null;
 
         if ($owners !== null && ($aliases === null || $aliases === [] || count($aliases) !== count($owners))) {
-            throw new InvalidConfiguration($path.'.owners: a list of owner aliases, or null for every owner.');
+            throw new InvalidConfiguration($path . '.owners: a list of owner aliases, or null for every owner.');
         }
 
         $all = in_array('*', $kinds, true);

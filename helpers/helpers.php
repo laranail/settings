@@ -18,7 +18,7 @@ namespace Simtabi\Laranail\Settings;
 use Illuminate\Container\Container;
 use Simtabi\Laranail\Settings\Contracts\Settings;
 
-if (! function_exists(__NAMESPACE__.'\settings')) {
+if (! function_exists(__NAMESPACE__ . '\settings')) {
     /**
      * The settings handle, or the value of `$key` when one is given.
      *

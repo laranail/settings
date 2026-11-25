@@ -6,8 +6,8 @@ namespace Simtabi\Laranail\Settings\Data;
 
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Enums\ActorType;
-use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Enums\ChangeStatus;
+use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 
 /**
  * A write waiting for approval. `payload` is stored as the values table would store it and is
@@ -54,7 +54,7 @@ final readonly class ChangeRequest
     /** An `approvals` entry as {@see actorKey()} writes it now; older entries named token actors apart. */
     public static function normaliseKey(string $key): string
     {
-        return str_starts_with($key, ActorType::Token->value.':') ? ActorType::User->value.substr($key, strlen(ActorType::Token->value)) : $key;
+        return str_starts_with($key, ActorType::Token->value . ':') ? ActorType::User->value . substr($key, strlen(ActorType::Token->value)) : $key;
     }
 
     public function requesterKey(): string
@@ -86,28 +86,28 @@ final readonly class ChangeRequest
     public function toArray(): array
     {
         return [
-            'id' => $this->id,
-            'store' => $this->store,
-            'scope' => $this->scope,
-            'key' => $this->key,
-            'locale' => $this->locale,
-            'operation' => $this->operation->value,
-            'encrypted' => $this->encrypted,
-            'base_version' => $this->baseVersion,
-            'status' => $this->status->value,
-            'requested_by' => ['type' => $this->requestedByType->value, 'alias' => $this->requestedByAlias, 'id' => $this->requestedById],
-            'approvals' => $this->approvals,
-            'decided_by' => $this->decidedByType instanceof ActorType ? ['type' => $this->decidedByType->value, 'alias' => $this->decidedByAlias, 'id' => $this->decidedById] : null,
-            'decided_at' => $this->decidedAt?->toIso8601String(),
-            'reason' => $this->reason,
+            'id'              => $this->id,
+            'store'           => $this->store,
+            'scope'           => $this->scope,
+            'key'             => $this->key,
+            'locale'          => $this->locale,
+            'operation'       => $this->operation->value,
+            'encrypted'       => $this->encrypted,
+            'base_version'    => $this->baseVersion,
+            'status'          => $this->status->value,
+            'requested_by'    => ['type' => $this->requestedByType->value, 'alias' => $this->requestedByAlias, 'id' => $this->requestedById],
+            'approvals'       => $this->approvals,
+            'decided_by'      => $this->decidedByType instanceof ActorType ? ['type' => $this->decidedByType->value, 'alias' => $this->decidedByAlias, 'id' => $this->decidedById] : null,
+            'decided_at'      => $this->decidedAt?->toIso8601String(),
+            'reason'          => $this->reason,
             'decision_reason' => $this->decisionReason,
-            'expires_at' => $this->expiresAt?->toIso8601String(),
-            'created_at' => $this->createdAt?->toIso8601String(),
+            'expires_at'      => $this->expiresAt?->toIso8601String(),
+            'created_at'      => $this->createdAt?->toIso8601String(),
         ];
     }
 
     private static function identity(ActorType $type, ?string $alias, ?string $id): string
     {
-        return ($type === ActorType::Token ? ActorType::User : $type)->value.':'.($alias ?? '').':'.($id ?? '');
+        return ($type === ActorType::Token ? ActorType::User : $type)->value . ':' . ($alias ?? '') . ':' . ($id ?? '');
     }
 }

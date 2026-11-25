@@ -6,30 +6,30 @@ namespace Simtabi\Laranail\Settings\Services\Stores;
 
 use Closure;
 use Illuminate\Contracts\Events\Dispatcher;
-use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Contracts\Driver;
-use Simtabi\Laranail\Settings\Data\LayerConfig;
-use Simtabi\Laranail\Settings\Data\PromotionSelection;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Database\SchemaNames;
-use Simtabi\Laranail\Settings\Drivers\BootstrapGatedDriver;
-use Simtabi\Laranail\Settings\Drivers\CachingDriver;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Enums\DriverType;
 use Simtabi\Laranail\Settings\Enums\IdType;
-use Simtabi\Laranail\Settings\Enums\StoreMode;
-use Simtabi\Laranail\Settings\Events\LayerSkipped;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
-use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
-use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
-use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
-use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
-use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
-use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
-use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 use Simtabi\Laranail\Settings\Stores\Layer;
 use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Enums\StoreMode;
+use Simtabi\Laranail\Settings\Contracts\Driver;
+use Simtabi\Laranail\Settings\Data\LayerConfig;
+use Simtabi\Laranail\Settings\Enums\DriverType;
+use Simtabi\Laranail\Settings\Events\LayerSkipped;
+use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Drivers\CachingDriver;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
+use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
+use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
+use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
+use Simtabi\Laranail\Settings\Drivers\BootstrapGatedDriver;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Simtabi\Laranail\Settings\Services\Cache\SettingsCache;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
 
 /**
  * Builds and validates every store from configuration on first use.
@@ -43,11 +43,11 @@ final class StoreRegistry
     private string $builtGeneration = '';
 
     /**
-     * @param  array<array-key, mixed>  $storeConfig  `laranail.settings.stores`
-     * @param  array<array-key, mixed>  $layerConfig  `laranail.settings.layers`
-     * @param  ?Dispatcher  $events  receives {@see LayerSkipped} when bootstrap mode skips a layer
-     * @param  list<string>  $sources  merge order of config, database and runtime entries; later wins
-     * @param  mixed  $promote  `laranail.settings.promote`: overrides every store's `promote` when set
+     * @param array<array-key, mixed> $storeConfig `laranail.settings.stores`
+     * @param array<array-key, mixed> $layerConfig `laranail.settings.layers`
+     * @param ?Dispatcher $events receives {@see LayerSkipped} when bootstrap mode skips a layer
+     * @param list<string> $sources merge order of config, database and runtime entries; later wins
+     * @param mixed $promote `laranail.settings.promote`: overrides every store's `promote` when set
      */
     public function __construct(
         private readonly DriverFactory $drivers,
@@ -117,7 +117,7 @@ final class StoreRegistry
     /** @return array<string, Store> */
     public function all(): array
     {
-        $generation = ($this->runtime?->generation() ?? 0).':'.($this->persisted?->generation() ?? 0);
+        $generation = ($this->runtime?->generation() ?? 0) . ':' . ($this->persisted?->generation() ?? 0);
 
         if ($this->stores === null || $this->builtGeneration !== $generation) {
             $this->stores = $this->build();
@@ -134,19 +134,19 @@ final class StoreRegistry
         $claimed = [];
 
         foreach ($this->storeConfigs() as $name => $config) {
-            $path = 'laranail.settings.stores.'.$name;
+            $path = 'laranail.settings.stores.' . $name;
 
             if (! is_array($config)) {
-                throw new InvalidConfiguration($path.': an array is required.');
+                throw new InvalidConfiguration($path . ': an array is required.');
             }
 
             try {
                 $storeName = new StoreName((string) $name);
             } catch (InvalidIdentifier $exception) {
-                throw new InvalidConfiguration($path.': '.$exception->getMessage(), $exception->getCode(), previous: $exception);
+                throw new InvalidConfiguration($path . ': ' . $exception->getMessage(), $exception->getCode(), previous: $exception);
             }
 
-            $owners = $this->strings($config['owners'] ?? [], $path.'.owners');
+            $owners = $this->strings($config['owners'] ?? [], $path . '.owners');
 
             foreach ($owners as $alias) {
                 if (isset($claimed[$alias])) {
@@ -156,30 +156,30 @@ final class StoreRegistry
                 $claimed[$alias] = $storeName->value;
             }
 
-            $layerNames = $this->strings($config['layers'] ?? [], $path.'.layers');
+            $layerNames = $this->strings($config['layers'] ?? [], $path . '.layers');
 
             if ($layerNames === []) {
-                throw new InvalidConfiguration($path.'.layers: at least one layer is required.');
+                throw new InvalidConfiguration($path . '.layers: at least one layer is required.');
             }
 
             $table = $config['table'] ?? null;
 
             if ($table !== null) {
                 if (! is_string($table)) {
-                    throw new InvalidConfiguration($path.'.table: a table name is required.');
+                    throw new InvalidConfiguration($path . '.table: a table name is required.');
                 }
 
-                SchemaNames::assertTable($table, $path.'.table');
+                SchemaNames::assertTable($table, $path . '.table');
             }
 
             $bootstrap = ($config['bootstrap'] ?? false) === true;
             $softDeletes = $config['soft_deletes'] ?? false;
 
             if (! is_bool($softDeletes)) {
-                throw new InvalidConfiguration($path.'.soft_deletes: true or false.');
+                throw new InvalidConfiguration($path . '.soft_deletes: true or false.');
             }
 
-            $promote = $this->promotion($storeName, $config['promote'] ?? 'manual', $path.'.promote');
+            $promote = $this->promotion($storeName, $config['promote'] ?? 'manual', $path . '.promote');
             $owner = $this->dedicatedOwner($config, $storeName, $path);
             $options = ['table' => $table, 'soft_deletes' => $softDeletes, 'owner' => $owner];
 
@@ -189,12 +189,12 @@ final class StoreRegistry
                 owners: $owners,
                 strict: ($config['strict'] ?? false) === true,
                 inherits: ($config['inherits'] ?? false) === true,
-                locksOverridable: $this->locksOverridable($config['locks'] ?? [], $path.'.locks'),
+                locksOverridable: $this->locksOverridable($config['locks'] ?? [], $path . '.locks'),
                 bootstrap: $bootstrap,
                 table: $table,
                 mode: $owner === null ? StoreMode::Polymorphic : StoreMode::Dedicated,
                 fallback: $owner === null ? null : new StoreName($owner['fallback']),
-                approvalKeys: $this->approvalKeys($config['approvals'] ?? [], $path.'.approvals'),
+                approvalKeys: $this->approvalKeys($config['approvals'] ?? [], $path . '.approvals'),
                 softDeletes: $softDeletes,
                 autoPromote: $this->autoPromote($promote['mode'], $promote['modePath']),
                 promotion: PromotionSelection::from($promote['include'], $promote['owners'], $promote['path']),
@@ -276,9 +276,10 @@ final class StoreRegistry
     }
 
     /**
-     * @param  array<array-key, mixed>  $config
-     * @param  Closure(): array<array-key, mixed>  $persisted
-     * @param  array<array-key, mixed>  $runtime
+     * @param array<array-key, mixed> $config
+     * @param Closure(): array<array-key, mixed> $persisted
+     * @param array<array-key, mixed> $runtime
+     *
      * @return array<array-key, mixed>
      */
     private function merged(array $config, Closure $persisted, array $runtime): array
@@ -287,10 +288,10 @@ final class StoreRegistry
 
         foreach ($this->sources as $source) {
             $merged = array_replace($merged, match ($source) {
-                'config' => $config,
+                'config'   => $config,
                 'database' => $persisted(),
-                'runtime' => $runtime,
-                default => throw new InvalidConfiguration(sprintf('laranail.settings.configuration.sources: [%s] is not config, database or runtime.', $source)),
+                'runtime'  => $runtime,
+                default    => throw new InvalidConfiguration(sprintf('laranail.settings.configuration.sources: [%s] is not config, database or runtime.', $source)),
             });
         }
 
@@ -305,7 +306,8 @@ final class StoreRegistry
     /**
      * The owner of a dedicated store, or null for a polymorphic one.
      *
-     * @param  array<array-key, mixed>  $config
+     * @param array<array-key, mixed> $config
+     *
      * @return array{alias: string, table: string, key: string, type: ?string, fallback: string}|null
      */
     private function dedicatedOwner(array $config, StoreName $store, string $path): ?array
@@ -314,7 +316,7 @@ final class StoreRegistry
         $mode = is_string($mode) ? StoreMode::tryFrom($mode) : null;
 
         if (! $mode instanceof StoreMode) {
-            throw new InvalidConfiguration($path.'.mode: use [polymorphic] or [dedicated].');
+            throw new InvalidConfiguration($path . '.mode: use [polymorphic] or [dedicated].');
         }
 
         if ($mode === StoreMode::Polymorphic) {
@@ -324,21 +326,21 @@ final class StoreRegistry
         $owners = $config['owners'] ?? [];
 
         if (! is_array($owners) || count($owners) !== 1 || ! is_string($owners[array_key_first($owners)])) {
-            throw new InvalidConfiguration($path.'.owners: a dedicated store holds exactly one owner alias.');
+            throw new InvalidConfiguration($path . '.owners: a dedicated store holds exactly one owner alias.');
         }
 
         $owner = $config['owner'] ?? [];
 
         if (! is_array($owner) || ! is_string($owner['table'] ?? null)) {
-            throw new InvalidConfiguration($path.'.owner.table: a dedicated store names the table its owners live in.');
+            throw new InvalidConfiguration($path . '.owner.table: a dedicated store names the table its owners live in.');
         }
 
-        SchemaNames::assertTable($owner['table'], $path.'.owner.table');
+        SchemaNames::assertTable($owner['table'], $path . '.owner.table');
         $key = $owner['key'] ?? 'id';
         $type = $owner['type'] ?? null;
 
         if (! is_string($key) || preg_match('/^[a-z_][a-z0-9_]{0,63}$/', $key) !== 1 || ($type !== null && (! is_string($type) || ! IdType::parse($type) instanceof IdType))) {
-            throw new InvalidConfiguration($path.'.owner: `key` is a column name and `type` one of bigint, uuid, ulid.');
+            throw new InvalidConfiguration($path . '.owner: `key` is a column name and `type` one of bigint, uuid, ulid.');
         }
 
         $fallback = $config['fallback'] ?? $this->default;
@@ -346,11 +348,11 @@ final class StoreRegistry
         try {
             $fallback = new StoreName(is_string($fallback) ? $fallback : '');
         } catch (InvalidIdentifier $exception) {
-            throw new InvalidConfiguration($path.'.fallback: '.$exception->getMessage(), 0, $exception);
+            throw new InvalidConfiguration($path . '.fallback: ' . $exception->getMessage(), 0, $exception);
         }
 
         if ($fallback->value === $store->value) {
-            throw new InvalidConfiguration($path.'.fallback: a dedicated store has no global rows, so its fallback must be another store.');
+            throw new InvalidConfiguration($path . '.fallback: a dedicated store has no global rows, so its fallback must be another store.');
         }
 
         return ['alias' => $owners[array_key_first($owners)], 'table' => $owner['table'], 'key' => $key, 'type' => $type, 'fallback' => $fallback->value];
@@ -377,7 +379,7 @@ final class StoreRegistry
         $configured = is_array($promote)
             ? ['mode' => $promote['mode'] ?? 'manual', 'include' => $promote['include'] ?? ['*'], 'owners' => $promote['owners'] ?? null]
             : ['mode' => $promote, 'include' => ['*'], 'owners' => null];
-        $modePath = is_array($promote) ? $path.'.mode' : $path;
+        $modePath = is_array($promote) ? $path . '.mode' : $path;
 
         if ($this->promote !== null && $this->promote !== '') {
             [$configured['mode'], $modePath] = [$this->promote, 'laranail.settings.promote'];
@@ -391,16 +393,16 @@ final class StoreRegistry
     private function autoPromote(mixed $mode, string $path): bool
     {
         return match ($mode) {
-            'auto' => true,
+            'auto'   => true,
             'manual' => false,
-            default => throw new InvalidConfiguration($path.': use [manual] or [auto].'),
+            default  => throw new InvalidConfiguration($path . ': use [manual] or [auto].'),
         };
     }
 
     private function locksOverridable(mixed $locks, string $path): bool
     {
         if (! is_array($locks)) {
-            throw new InvalidConfiguration($path.': an array is required.');
+            throw new InvalidConfiguration($path . ': an array is required.');
         }
 
         return ($locks['overridable'] ?? false) === true;
@@ -410,10 +412,10 @@ final class StoreRegistry
     private function approvalKeys(mixed $approvals, string $path): array
     {
         if (! is_array($approvals)) {
-            throw new InvalidConfiguration($path.': an array is required.');
+            throw new InvalidConfiguration($path . ': an array is required.');
         }
 
-        $globs = $this->strings($approvals['keys'] ?? [], $path.'.keys');
+        $globs = $this->strings($approvals['keys'] ?? [], $path . '.keys');
 
         foreach ($globs as $glob) {
             if (preg_match('/^[a-z0-9_.*?\[\]]+$/', $glob) !== 1) {
@@ -430,7 +432,7 @@ final class StoreRegistry
         $strings = is_array($value) ? array_values(array_filter($value, is_string(...))) : null;
 
         if ($strings === null || count($strings) !== count($value)) {
-            throw new InvalidConfiguration($path.': a list of strings is required.');
+            throw new InvalidConfiguration($path . ': a list of strings is required.');
         }
 
         return $strings;
