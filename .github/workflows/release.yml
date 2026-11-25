@@ -46,7 +46,7 @@ jobs:
         id: changelog
         run: |
           version="${GITHUB_REF_NAME#v}"
-          notes=$(awk -v v="$version" '
+          notes=$(awk -v v="${version%%-*}" '
             index($0, "## [" v "]") == 1 { f=1; next }
             f && /^## \[/ { exit }
             f { print }
