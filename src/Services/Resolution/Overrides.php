@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Resolution;
 
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\Locale;
 use Illuminate\Container\Attributes\Scoped;
-use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\StoreName;
 
 /**
  * Values that win over every stored layer for the current request or job, held in memory only.
@@ -88,6 +88,6 @@ final class Overrides
     /** One slot per tenant and store; `|` cannot occur in a store name. */
     private function slot(StoreName $store): string
     {
-        return ($this->tenant?->current() ?? '') . '|' . $store->value;
+        return ($this->tenant?->current() ?? '').'|'.$store->value;
     }
 }

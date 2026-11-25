@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Concerns;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Illuminate\Database\Eloquent\Model;
 use Simtabi\Laranail\Settings\Contracts\Settable;
 use Simtabi\Laranail\Settings\Contracts\Settings;
-use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Facades\Settings as SettingsFacade;
 
 /**
@@ -74,7 +74,7 @@ trait HasSettings
     /**
      * Eager-load the settings of every model the query returns, one read per store.
      *
-     * @param Builder<static> $query
+     * @param  Builder<static>  $query
      */
     public function scopeWithSettings(Builder $query): void
     {

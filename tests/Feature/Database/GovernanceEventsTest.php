@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Event;
-use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Actions\PruneAudit;
+use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
+use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Events\AuditPruned;
 use Simtabi\Laranail\Settings\Events\CategoryMoved;
-use Simtabi\Laranail\Settings\Events\CategorySaved;
 use Simtabi\Laranail\Settings\Events\CategoryRenamed;
-use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
+use Simtabi\Laranail\Settings\Events\CategorySaved;
 use Simtabi\Laranail\Settings\Events\DefinitionsSynced;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 

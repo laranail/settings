@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Support;
 
-use Throwable;
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Throwable;
 
 /**
  * Converts one scope's records to and from the plain array the cache holds. A payload that does
@@ -96,8 +96,8 @@ final readonly class BagCodec
     }
 
     /**
-     * @param array<array-key, mixed> $row
-     * @param list<string> $fields
+     * @param  array<array-key, mixed>  $row
+     * @param  list<string>  $fields
      */
     private function nullableStrings(array $row, array $fields): bool
     {
@@ -105,8 +105,8 @@ final readonly class BagCodec
     }
 
     /**
-     * @param array<array-key, mixed> $row
-     * @param list<string> $fields
+     * @param  array<array-key, mixed>  $row
+     * @param  list<string>  $fields
      */
     private function booleans(array $row, array $fields): bool
     {

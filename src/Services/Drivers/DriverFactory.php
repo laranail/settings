@@ -6,23 +6,23 @@ namespace Simtabi\Laranail\Settings\Services\Drivers;
 
 use Closure;
 use Illuminate\Contracts\Config\Repository;
-use Simtabi\Laranail\Settings\Enums\IdType;
+use Illuminate\Contracts\Filesystem\Factory as Disks;
+use Illuminate\Database\ConnectionResolverInterface;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\LayerConfig;
-use Simtabi\Laranail\Settings\Enums\DriverType;
-use Simtabi\Laranail\Settings\Drivers\PhpDriver;
-use Simtabi\Laranail\Settings\Enums\TenancyMode;
-use Simtabi\Laranail\Settings\Drivers\JsonDriver;
-use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
 use Simtabi\Laranail\Settings\Drivers\ConfigDriver;
-use Illuminate\Database\ConnectionResolverInterface;
-use Illuminate\Contracts\Filesystem\Factory as Disks;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Drivers\JsonDriver;
+use Simtabi\Laranail\Settings\Drivers\PhpDriver;
 use Simtabi\Laranail\Settings\Drivers\ReadOnlyValues;
-use Simtabi\Laranail\Settings\Support\RecordSerializer;
+use Simtabi\Laranail\Settings\Enums\DriverType;
+use Simtabi\Laranail\Settings\Enums\IdType;
+use Simtabi\Laranail\Settings\Enums\TenancyMode;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
+use Simtabi\Laranail\Settings\Support\RecordSerializer;
 
 /**
  * Builds a layer's driver from a built-in {@see DriverType} or a closure registered with {@see extend()}.
@@ -56,7 +56,7 @@ final class DriverFactory
     /**
      * A copy that can also build these custom drivers, leaving the shared factory unchanged.
      *
-     * @param array<string, Closure(LayerConfig): Driver> $drivers
+     * @param  array<string, Closure(LayerConfig): Driver>  $drivers
      */
     public function withExtensions(array $drivers): self
     {
@@ -87,10 +87,10 @@ final class DriverFactory
 
         return match ($type) {
             DriverType::Database => $this->database($layer),
-            DriverType::Array    => new ArrayDriver($layer->writable),
-            DriverType::Json     => $this->json($layer),
-            DriverType::Php      => new PhpDriver($this->path($layer, $this->stringOption($layer, 'path')), $this->reader),
-            DriverType::Config   => new ConfigDriver($this->config, $this->stringOption($layer, 'prefix'), $this->reader),
+            DriverType::Array => new ArrayDriver($layer->writable),
+            DriverType::Json => $this->json($layer),
+            DriverType::Php => new PhpDriver($this->path($layer, $this->stringOption($layer, 'path')), $this->reader),
+            DriverType::Config => new ConfigDriver($this->config, $this->stringOption($layer, 'prefix'), $this->reader),
         };
     }
 
@@ -176,6 +176,6 @@ final class DriverFactory
             throw new InvalidConfiguration(sprintf('laranail.settings.layers.%s.path: must not contain "..".', $layer->name));
         }
 
-        return str_starts_with($path, '/') ? $path : rtrim($this->basePath, '/') . '/' . $path;
+        return str_starts_with($path, '/') ? $path : rtrim($this->basePath, '/').'/'.$path;
     }
 }

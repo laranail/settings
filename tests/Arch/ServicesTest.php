@@ -1,14 +1,14 @@
 <?php
 
 declare(strict_types=1);
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
+use Simtabi\Laranail\Settings\Contracts\AuditSink;
+use Simtabi\Laranail\Settings\Contracts\Authorizer;
 use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Contracts\Importer;
-use Simtabi\Laranail\Settings\Contracts\Verifier;
-use Simtabi\Laranail\Settings\Contracts\AuditSink;
-use Simtabi\Laranail\Settings\Contracts\Authorizer;
-use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
+use Simtabi\Laranail\Settings\Contracts\Verifier;
 
 /*
  * Stateful collaborators that own I/O or a body of rules live under Services\, and nowhere else.
@@ -23,27 +23,27 @@ const PLUGIN_CONTRACTS = [
 
 /** The 15 classes moved into Services\ in 0.1 that still exist, whose old names were removed: old name => new name. */
 const MOVED_SERVICES = [
-    'Database\\SchemaInspector'           => 'Services\\Database\\SchemaInspector',
-    'Stores\\SettingWriter'               => 'Services\\Stores\\SettingWriter',
-    'Stores\\StoreRegistry'               => 'Services\\Stores\\StoreRegistry',
-    'Resolution\\Resolver'                => 'Services\\Resolution\\Resolver',
-    'Resolution\\PreloadedRecords'        => 'Services\\Resolution\\PreloadedRecords',
-    'Authorization\\AccessGuard'          => 'Services\\Access\\AccessGuard',
-    'Audit\\Auditor'                      => 'Services\\Access\\Auditor',
+    'Database\\SchemaInspector' => 'Services\\Database\\SchemaInspector',
+    'Stores\\SettingWriter' => 'Services\\Stores\\SettingWriter',
+    'Stores\\StoreRegistry' => 'Services\\Stores\\StoreRegistry',
+    'Resolution\\Resolver' => 'Services\\Resolution\\Resolver',
+    'Resolution\\PreloadedRecords' => 'Services\\Resolution\\PreloadedRecords',
+    'Authorization\\AccessGuard' => 'Services\\Access\\AccessGuard',
+    'Audit\\Auditor' => 'Services\\Access\\Auditor',
     'Configuration\\RuntimeConfiguration' => 'Services\\Configuration\\RuntimeConfiguration',
-    'Definitions\\DefinitionRegistry'     => 'Services\\Definitions\\DefinitionRegistry',
-    'Definitions\\DatabaseDefinitions'    => 'Services\\Definitions\\DatabaseDefinitions',
-    'Tenancy\\TenantDiscriminators'       => 'Services\\Tenancy\\TenantDiscriminators',
-    'Casting\\CasterRegistry'             => 'Services\\Casting\\CasterRegistry',
-    'Support\\ValuePipeline'              => 'Services\\Values\\ValuePipeline',
-    'Drivers\\DriverFactory'              => 'Services\\Drivers\\DriverFactory',
-    'Caching\\SettingsCache'              => 'Services\\Cache\\SettingsCache',
+    'Definitions\\DefinitionRegistry' => 'Services\\Definitions\\DefinitionRegistry',
+    'Definitions\\DatabaseDefinitions' => 'Services\\Definitions\\DatabaseDefinitions',
+    'Tenancy\\TenantDiscriminators' => 'Services\\Tenancy\\TenantDiscriminators',
+    'Casting\\CasterRegistry' => 'Services\\Casting\\CasterRegistry',
+    'Support\\ValuePipeline' => 'Services\\Values\\ValuePipeline',
+    'Drivers\\DriverFactory' => 'Services\\Drivers\\DriverFactory',
+    'Caching\\SettingsCache' => 'Services\\Cache\\SettingsCache',
 ];
 
 /** @return array<string, string> path relative to src/ => contents */
 function servicesSources(): array
 {
-    $root = dirname(__DIR__, 2) . '/src/';
+    $root = dirname(__DIR__, 2).'/src/';
     $files = [];
 
     foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)) as $file) {
@@ -62,11 +62,11 @@ it('keeps contract implementations out of Services', function (): void {
     $offenders = [];
 
     foreach ($services as $path) {
-        $class = 'Simtabi\\Laranail\\Settings\\' . str_replace(['/', '.php'], ['\\', ''], $path);
+        $class = 'Simtabi\\Laranail\\Settings\\'.str_replace(['/', '.php'], ['\\', ''], $path);
 
         foreach (PLUGIN_CONTRACTS as $contract) {
             if (is_subclass_of($class, $contract)) {
-                $offenders[] = $class . ' implements ' . $contract;
+                $offenders[] = $class.' implements '.$contract;
             }
         }
     }
@@ -98,6 +98,6 @@ it('leaves no old name for a moved class, and every new name loads', function ()
     $base = 'Simtabi\\Laranail\\Settings\\';
 
     expect(count(MOVED_SERVICES))->toBe(15)
-        ->and(array_keys(array_filter(MOVED_SERVICES, static fn (string $new, string $old): bool => class_exists($base . $old), ARRAY_FILTER_USE_BOTH)))->toBe([])
-        ->and(array_values(array_filter(MOVED_SERVICES, static fn (string $new): bool => ! class_exists($base . $new))))->toBe([]);
+        ->and(array_keys(array_filter(MOVED_SERVICES, static fn (string $new, string $old): bool => class_exists($base.$old), ARRAY_FILTER_USE_BOTH)))->toBe([])
+        ->and(array_values(array_filter(MOVED_SERVICES, static fn (string $new): bool => ! class_exists($base.$new))))->toBe([]);
 });

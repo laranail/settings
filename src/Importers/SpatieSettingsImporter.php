@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Importers;
 
 use Exception;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Contracts\Importer;
 use Illuminate\Database\ConnectionResolverInterface;
-use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
+use Simtabi\Laranail\Settings\Contracts\Importer;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 
 /**
  * Imports spatie/laravel-settings' table: each row becomes the global key `<group>.<name>`.
@@ -40,7 +40,7 @@ final readonly class SpatieSettingsImporter implements Importer
             $group = is_string($row['group'] ?? null) ? $row['group'] : '';
             $name = is_string($row['name'] ?? null) ? $row['name'] : '';
             $payload = is_string($row['payload'] ?? null) ? json_decode($row['payload'], true) : null;
-            $entries[] = [$group . '.' . $name, $payload, (bool) ($row['locked'] ?? false)];
+            $entries[] = [$group.'.'.$name, $payload, (bool) ($row['locked'] ?? false)];
         }
 
         return ImportedKeys::document($store, ImportedKeys::values($entries, 'spatie'), 'spatie');

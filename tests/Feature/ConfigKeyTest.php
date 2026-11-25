@@ -8,7 +8,7 @@ declare(strict_types=1);
  * lives in lines a test may never execute.
  */
 it('reads configuration only at the registered laranail.settings key', function (): void {
-    $this->assertReadsConfigAtRegisteredKey(dirname(__DIR__, 2) . '/src', 'settings');
+    $this->assertReadsConfigAtRegisteredKey(dirname(__DIR__, 2).'/src', 'settings');
 
     expect(true)->toBeTrue();
 });

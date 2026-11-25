@@ -5,21 +5,21 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Drivers\BootstrapGatedDriver;
 use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
-use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
-use Simtabi\Laranail\Settings\Drivers\BootstrapGatedDriver;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 
 it('flushes one owner\'s values from every writable layer and leaves others alone', function (): void {
     useDatabase(['stores.settings.owners' => ['user']]);
@@ -93,11 +93,11 @@ it('keeps a skipped database layer out of reads and writes', function (): void {
 
 it('reports a promotion as plain data', function (): void {
     expect(new PromotionReport('settings', ['global|a|'], ['global|b|' => 'exists'], 'x.json')->toArray())->toBe([
-        'store'    => 'settings',
+        'store' => 'settings',
         'promoted' => ['global|a|'],
-        'skipped'  => ['global|b|' => 'exists'],
-        'archive'  => 'x.json',
-        'kept'     => [],
+        'skipped' => ['global|b|' => 'exists'],
+        'archive' => 'x.json',
+        'kept' => [],
     ]);
 });
 

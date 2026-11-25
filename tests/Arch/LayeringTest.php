@@ -18,9 +18,9 @@ declare(strict_types=1);
 /** @return array<string, string> path relative to src/ => contents, for the PHP files under a src/ directory */
 function sourceFiles(string $directory): array
 {
-    $root = dirname(__DIR__, 2) . '/src/';
+    $root = dirname(__DIR__, 2).'/src/';
     $files = [];
-    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . $directory, FilesystemIterator::SKIP_DOTS));
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.$directory, FilesystemIterator::SKIP_DOTS));
 
     foreach ($iterator as $file) {
         if ($file instanceof SplFileInfo && $file->getExtension() === 'php') {
@@ -36,14 +36,14 @@ function sourceFiles(string $directory): array
 /** @return class-string the class a src/ file declares */
 function classOf(string $path): string
 {
-    return 'Simtabi\\Laranail\\Settings\\' . str_replace(['/', '.php'], ['\\', ''], $path);
+    return 'Simtabi\\Laranail\\Settings\\'.str_replace(['/', '.php'], ['\\', ''], $path);
 }
 
 /** Actions with more than handle() public, and why. */
 const ACTION_EXEMPTIONS = [
-    'Actions\\WriteGuard'                => 'run(): the guard every write action runs through; not an intent of its own',
+    'Actions\\WriteGuard' => 'run(): the guard every write action runs through; not an intent of its own',
     'Actions\\Categories\\CategoryGuard' => 'run(): the guard every category action runs through',
-    'Actions\\QueryAudit'                => 'get(), cursor(), paginate(): one authorized read in three result shapes, part of the public API',
+    'Actions\\QueryAudit' => 'get(), cursor(), paginate(): one authorized read in three result shapes, part of the public API',
 ];
 
 it('gives every action handle() as its only public method', function (): void {

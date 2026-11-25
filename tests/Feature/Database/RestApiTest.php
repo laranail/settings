@@ -2,40 +2,40 @@
 
 declare(strict_types=1);
 
+use Illuminate\Cache\Events\CacheMissed;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Events\TransactionBeginning;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Testing\TestResponse;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Cache\Events\CacheMissed;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Testing\TestResponse;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\NewCategory;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Database\Events\TransactionBeginning;
-use Simtabi\Laranail\Settings\Http\Support\Problems;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
+use Simtabi\Laranail\Settings\Http\Support\Problems;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
+use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
 use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use Simtabi\Laranail\Settings\Tests\Support\ApiSchemas;
 use Simtabi\Laranail\Settings\Tests\Support\JsonSchema;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
-use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
-use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
-use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /*
  * The REST API runs the actions the PHP API runs, answers problem details, ETags and
@@ -45,7 +45,7 @@ use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 beforeEach(function (): void {
     $this->rebootWith([
-        'laranail.settings.http.enabled'    => true,
+        'laranail.settings.http.enabled' => true,
         'laranail.settings.http.middleware' => ['api', 'auth'],
     ]);
     useDatabase(['stores.settings.owners' => ['user'], 'definitions.sources' => ['code', 'config', 'database'], 'configuration.persisted' => true, 'verification.driver' => 'none']);
@@ -57,7 +57,7 @@ beforeEach(function (): void {
 /** Call the API and check the response against its shape. */
 function api(string $method, string $uri, array $data = [], array $headers = []): TestResponse
 {
-    $response = test()->json($method, '/api/settings/v1/' . $uri, $data, $headers);
+    $response = test()->json($method, '/api/settings/v1/'.$uri, $data, $headers);
     $route = $response->baseRequest->route();
 
     $status = $response->baseResponse->getStatusCode();
@@ -157,18 +157,18 @@ it('answers 202 with a change request, and approves it through the API', functio
     $id = api('PUT', 'stores/settings/settings/mail.host', ['value' => 'smtp.test'])->assertStatus(202)->json('data.id');
 
     api('GET', 'stores/settings/changes')->assertOk()->assertJsonPath('data.0.id', $id);
-    api('GET', 'stores/settings/changes/' . $id)->assertOk()->assertJsonPath('data.status', 'pending');
-    api('POST', 'stores/settings/changes/' . $id . '/approve')->assertForbidden();
+    api('GET', 'stores/settings/changes/'.$id)->assertOk()->assertJsonPath('data.status', 'pending');
+    api('POST', 'stores/settings/changes/'.$id.'/approve')->assertForbidden();
 
     $this->actingAs(user(2));
-    api('POST', 'stores/settings/changes/' . $id . '/approve', ['reason' => 'ok'])->assertOk()->assertJsonPath('data.status', 'applied');
+    api('POST', 'stores/settings/changes/'.$id.'/approve', ['reason' => 'ok'])->assertOk()->assertJsonPath('data.status', 'applied');
 
     $proposed = api('POST', 'stores/settings/changes', ['key' => 'mail.host', 'value' => 'other.test'])->assertStatus(202)->json('data.id');
-    api('POST', 'stores/settings/changes/' . $proposed . '/cancel')->assertOk()->assertJsonPath('data.status', 'cancelled');
+    api('POST', 'stores/settings/changes/'.$proposed.'/cancel')->assertOk()->assertJsonPath('data.status', 'cancelled');
     $again = api('POST', 'stores/settings/changes', ['key' => 'mail.host', 'value' => 'x.test', 'owner' => ['alias' => 'user', 'id' => '1']])->json('data.id');
     $this->actingAs(user(1));
-    api('POST', 'stores/settings/changes/' . $again . '/reject', ['reason' => 'no'])->assertOk()->assertJsonPath('data.status', 'rejected');
-    api('POST', 'stores/settings/changes/' . $again . '/reject')->assertStatus(409);
+    api('POST', 'stores/settings/changes/'.$again.'/reject', ['reason' => 'no'])->assertOk()->assertJsonPath('data.status', 'rejected');
+    api('POST', 'stores/settings/changes/'.$again.'/reject')->assertStatus(409);
     api('GET', 'stores/settings/changes/01ARZ3NDEKTSV4RRFFQ69G5FAV')->assertNotFound();
 
     expect(settings()->get('mail.host'))->toBe('smtp.test');
@@ -262,7 +262,7 @@ it('keys a replay by the resolved actor, not only by the session user', function
 });
 
 it('keeps a stored idempotent response encrypted, since it can hold a secret', function (): void {
-    $directory = sys_get_temp_dir() . '/laranail-settings-idempotency-' . bin2hex(random_bytes(6));
+    $directory = sys_get_temp_dir().'/laranail-settings-idempotency-'.bin2hex(random_bytes(6));
     config()->set('cache.stores.idempotency', ['driver' => 'file', 'path' => $directory]);
     config()->set('laranail.settings.http.idempotency.cache', 'idempotency');
     app(DefinitionRegistry::class)->define('mail.password')->encrypted()->register();
@@ -431,7 +431,7 @@ it('applies values.max_bytes to REST writes, imports and promotion alike', funct
         ->assertJsonPath('type', 'https://opensource.simtabi.com/documentation/laranail/settings/tools/exceptions#invalid-value');
 
     $document = ['format' => 'laranail/settings', 'version' => 1, 'store' => 'settings', 'mode' => 'redacted', 'exported_at' => now()->toIso8601String(), 'categories' => [],
-        'settings'        => [['scope' => 'global', 'key' => 'site.name', 'locale' => '', 'value' => $big, 'encrypted' => false]]];
+        'settings' => [['scope' => 'global', 'key' => 'site.name', 'locale' => '', 'value' => $big, 'encrypted' => false]]];
     api('POST', 'stores/settings/import', ['document' => $document, 'apply' => true])->assertUnprocessable()->assertJsonPath('detail', fn (string $detail): bool => str_contains($detail, 'over the 64-byte limit'));
 
     Storage::disk('local')->put('laranail/settings/settings.json', (string) json_encode(['records' => [
@@ -445,15 +445,15 @@ it('applies values.max_bytes to REST writes, imports and promotion alike', funct
 it('refuses a malformed cursor instead of serving the first page', function (string $uri): void {
     settings()->set('site.name', 'Acme');
 
-    api('GET', $uri . '?cursor=' . rawurlencode('not a cursor!'))->assertUnprocessable()
+    api('GET', $uri.'?cursor='.rawurlencode('not a cursor!'))->assertUnprocessable()
         ->assertHeader('Content-Type', 'application/problem+json')
         ->assertJsonStructure(['errors' => ['cursor']]);
 })->with([
     'settings' => ['stores/settings/settings'],
-    'owner'    => ['stores/settings/owners/user/1/settings'],
-    'history'  => ['stores/settings/settings/site.name/history'],
-    'changes'  => ['stores/settings/changes'],
-    'audit'    => ['audit'],
+    'owner' => ['stores/settings/owners/user/1/settings'],
+    'history' => ['stores/settings/settings/site.name/history'],
+    'changes' => ['stores/settings/changes'],
+    'audit' => ['audit'],
 ]);
 
 it('accepts the cursors its listings hand out', function (): void {
@@ -465,9 +465,9 @@ it('accepts the cursors its listings hand out', function (): void {
     $history = api('GET', 'stores/settings/settings/site.name/history?limit=1')->json('meta.next_cursor');
     $audit = api('GET', 'audit?limit=1')->json('meta.next_cursor');
 
-    api('GET', 'stores/settings/settings?limit=1&cursor=' . rawurlencode((string) $settings))->assertOk()->assertJsonPath('data.0.key', 'theme');
-    api('GET', 'stores/settings/settings/site.name/history?limit=1&cursor=' . rawurlencode((string) $history))->assertOk()->assertJsonCount(1, 'data');
-    api('GET', 'audit?limit=1&cursor=' . rawurlencode((string) $audit))->assertOk()->assertJsonCount(1, 'data');
+    api('GET', 'stores/settings/settings?limit=1&cursor='.rawurlencode((string) $settings))->assertOk()->assertJsonPath('data.0.key', 'theme');
+    api('GET', 'stores/settings/settings/site.name/history?limit=1&cursor='.rawurlencode((string) $history))->assertOk()->assertJsonCount(1, 'data');
+    api('GET', 'audit?limit=1&cursor='.rawurlencode((string) $audit))->assertOk()->assertJsonCount(1, 'data');
 });
 
 it('needs an authenticated user and switches route groups off', function (): void {
@@ -535,7 +535,7 @@ it('pages listings by http.page_size, 50 by default and clamped to 1 to 200', fu
 });
 
 it('fails closed, with one warning, when the API is on and no authorizer can be built', function (): void {
-    $log = sys_get_temp_dir() . '/laranail-settings-closed-' . bin2hex(random_bytes(4)) . '.log';
+    $log = sys_get_temp_dir().'/laranail-settings-closed-'.bin2hex(random_bytes(4)).'.log';
     config()->set('logging.channels.settings_closed', ['driver' => 'single', 'path' => $log]);
     config()->set('laranail.settings.logging.channel', 'settings_closed');
     config()->set('laranail.settings.authorization.driver', 'Nope\\Authorizer');

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Closure;
-use Throwable;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Throwable;
 
 /**
  * Promotes every store set to `promote: auto` whose runtime file is waiting and whose database is

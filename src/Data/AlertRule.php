@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /** One entry of `alerts.rules`: which events it answers, and where it sends them. */
 final readonly class AlertRule
 {
     /**
-     * @param list<string> $events
-     * @param list<string>|null $keys
-     * @param list<string>|null $stores
-     * @param list<string>|null $outcomes
-     * @param list<string> $mail
-     * @param array{type: class-string<Model>, id: int|string}|null $database
+     * @param  list<string>  $events
+     * @param  list<string>|null  $keys
+     * @param  list<string>|null  $stores
+     * @param  list<string>|null  $outcomes
+     * @param  list<string>  $mail
+     * @param  array{type: class-string<Model>, id: int|string}|null  $database
      */
     public function __construct(
         public array $events,
@@ -32,23 +32,23 @@ final readonly class AlertRule
     ) {}
 
     /**
-     * @param array<array-key, mixed> $rule
+     * @param  array<array-key, mixed>  $rule
      *
      * @throws InvalidConfiguration naming the rule's config path
      */
     public static function fromConfig(array $rule, int|string $index): self
     {
-        $path = 'laranail.settings.alerts.rules.' . $index;
+        $path = 'laranail.settings.alerts.rules.'.$index;
         $notify = $rule['notify'] ?? [];
 
         if (! is_array($notify)) {
-            throw new InvalidConfiguration($path . '.notify: an array of mail, slack and database.');
+            throw new InvalidConfiguration($path.'.notify: an array of mail, slack and database.');
         }
 
-        $events = self::strings($rule['events'] ?? null, $path . '.events', nullable: false) ?? [];
+        $events = self::strings($rule['events'] ?? null, $path.'.events', nullable: false) ?? [];
 
         if ($events === []) {
-            throw new InvalidConfiguration($path . '.events: name at least one event.');
+            throw new InvalidConfiguration($path.'.events: name at least one event.');
         }
 
         $sensitive = $rule['sensitive_only'] ?? false;
@@ -56,26 +56,26 @@ final readonly class AlertRule
         $queue = $rule['queue'] ?? null;
 
         if (! is_bool($sensitive)) {
-            throw new InvalidConfiguration($path . '.sensitive_only: true or false.');
+            throw new InvalidConfiguration($path.'.sensitive_only: true or false.');
         }
 
         if ($slack !== null && (! is_string($slack) || $slack === '')) {
-            throw new InvalidConfiguration($path . '.notify.slack: a webhook URL, or null.');
+            throw new InvalidConfiguration($path.'.notify.slack: a webhook URL, or null.');
         }
 
         if ($queue !== null && (! is_string($queue) || $queue === '')) {
-            throw new InvalidConfiguration($path . '.queue: a queue name, or null to send at once.');
+            throw new InvalidConfiguration($path.'.queue: a queue name, or null to send at once.');
         }
 
         return new self(
             $events,
-            self::strings($rule['keys'] ?? null, $path . '.keys'),
-            self::strings($rule['stores'] ?? null, $path . '.stores'),
+            self::strings($rule['keys'] ?? null, $path.'.keys'),
+            self::strings($rule['stores'] ?? null, $path.'.stores'),
             $sensitive,
-            self::strings($rule['outcomes'] ?? null, $path . '.outcomes'),
-            self::strings($notify['mail'] ?? [], $path . '.notify.mail', nullable: false) ?? [],
+            self::strings($rule['outcomes'] ?? null, $path.'.outcomes'),
+            self::strings($notify['mail'] ?? [], $path.'.notify.mail', nullable: false) ?? [],
             $slack,
-            self::database($notify['database'] ?? null, $path . '.notify.database'),
+            self::database($notify['database'] ?? null, $path.'.notify.database'),
             $queue,
         );
     }
@@ -110,7 +110,7 @@ final readonly class AlertRule
         }
 
         if (! is_array($value) || ! array_all($value, static fn (mixed $item): bool => is_string($item) && $item !== '')) {
-            throw new InvalidConfiguration($path . ': a list of strings' . ($nullable ? ', or null for any.' : '.'));
+            throw new InvalidConfiguration($path.': a list of strings'.($nullable ? ', or null for any.' : '.'));
         }
 
         /** @var list<string> */
@@ -128,7 +128,7 @@ final readonly class AlertRule
         $id = is_array($value) ? ($value['id'] ?? null) : null;
 
         if (! is_string($type) || ! is_subclass_of($type, Model::class) || (! is_int($id) && ! is_string($id))) {
-            throw new InvalidConfiguration($path . ': [type => an Eloquent model class using Notifiable, id => its key], or null.');
+            throw new InvalidConfiguration($path.': [type => an Eloquent model class using Notifiable, id => its key], or null.');
         }
 
         return ['type' => $type, 'id' => $id];

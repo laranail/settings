@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions\Approvals;
 
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Locale;
 use Illuminate\Contracts\Events\Dispatcher;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\ChangeDecision;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Enums\ChangeStatus;
-use Simtabi\Laranail\Settings\Data\ChangeDecision;
 use Simtabi\Laranail\Settings\Events\ChangeCancelled;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
 use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
 
 /** Withdraw a change request; only its requester or trusted code may. */
 final readonly class CancelChange

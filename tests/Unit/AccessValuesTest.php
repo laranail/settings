@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\GenericUser;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\Decision;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\Channel;
-use Simtabi\Laranail\Settings\Enums\Verdict;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\Definition;
-use Simtabi\Laranail\Settings\Data\ActorContext;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Verification\ClosureVerifier;
 use Simtabi\Laranail\Settings\Authorization\ChainAuthorizer;
 use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\ActorContext;
+use Simtabi\Laranail\Settings\Data\Decision;
+use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Enums\Channel;
+use Simtabi\Laranail\Settings\Enums\Verdict;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
 use Simtabi\Laranail\Settings\Verification\ActorTimestampVerifier;
+use Simtabi\Laranail\Settings\Verification\ClosureVerifier;
 
 function subjectFor(string $key = 'site.name'): Subject
 {
@@ -81,9 +81,9 @@ it('maps closure results onto decisions', function (mixed $result, Verdict $verd
 
     expect($authorizer->authorize(Actor::system(), Ability::View, subjectFor())->verdict)->toBe($verdict);
 })->with([
-    'true'     => [true, Verdict::Allow],
-    'false'    => [false, Verdict::Deny],
-    'null'     => [null, Verdict::Abstain],
+    'true' => [true, Verdict::Allow],
+    'false' => [false, Verdict::Deny],
+    'null' => [null, Verdict::Abstain],
     'decision' => [Decision::requiresVerification(), Verdict::RequiresVerification],
 ]);
 

@@ -4,29 +4,29 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\Record;
 use Illuminate\Contracts\Config\Repository;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Enums\Channel;
+use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Settings\Actions\Reads\ExplainSetting;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Data\Definition;
-use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\SettingAddress;
-use Simtabi\Laranail\Console\Tools\Commands\Command;
 use Simtabi\Laranail\Settings\Drivers\CachingDriver;
-use Simtabi\Laranail\Settings\Resolution\Explanation;
-use Simtabi\Laranail\Settings\Actions\Reads\ExplainSetting;
+use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
+use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
+use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
-use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Settings\Stores\Store;
 
 /**
  * Show how one setting resolves: value, layer, type, version, flags and the latest audit entry.
@@ -87,7 +87,7 @@ final class ShowCommand extends Command
         ]);
 
         foreach ($explanation->steps as $step) {
-            $this->line('  ' . $step);
+            $this->line('  '.$step);
         }
 
         return self::SUCCESS;
@@ -166,7 +166,7 @@ final class ShowCommand extends Command
         $stale = $version($cached) !== $version($stored);
 
         return [
-            ['Stored', 'version ' . $version($stored)],
+            ['Stored', 'version '.$version($stored)],
             ['Cache', $stale ? 'stale: run laranail::settings.clear-cache' : 'current'],
         ];
     }
@@ -182,18 +182,18 @@ final class ShowCommand extends Command
         $lookup = $explanation->lookup;
 
         return match (true) {
-            ! $lookup->isFound()                                                  => '(not set)',
+            ! $lookup->isFound() => '(not set)',
             $lookup->isRedacted(), $sensitive && $this->option('reveal') !== true => '[protected]',
-            default                                                               => (string) json_encode($lookup->value(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            default => (string) json_encode($lookup->value(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
         };
     }
 
     private function flag(?bool $value): string
     {
         return match ($value) {
-            true  => 'yes',
+            true => 'yes',
             false => 'no',
-            null  => '-',
+            null => '-',
         };
     }
 
@@ -204,7 +204,7 @@ final class ShowCommand extends Command
             $entry->action->value,
             $entry->outcome->value,
             $entry->actorType->value,
-            $entry->actorId === null ? '' : ':' . $entry->actorAlias . ':' . $entry->actorId,
+            $entry->actorId === null ? '' : ':'.$entry->actorAlias.':'.$entry->actorId,
             $entry->channel->value,
             $entry->occurredAt->toIso8601String(),
         );

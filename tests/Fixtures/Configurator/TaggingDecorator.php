@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Tests\Fixtures\Configurator;
 
 use Override;
-use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Configurator\SettingsDecorator;
+use Simtabi\Laranail\Settings\Contracts\Settings;
 
 /** Records its tag on every read, so a test can see which decorators a call went through, in order. */
 final class TaggingDecorator extends SettingsDecorator

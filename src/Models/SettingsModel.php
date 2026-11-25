@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Models;
 
-use Override;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use Simtabi\Laranail\Settings\Models\Scopes\TenantScope;
+use Illuminate\Database\Eloquent\Model;
+use Override;
 use Simtabi\Laranail\Settings\Models\Concerns\BelongsToTenant;
+use Simtabi\Laranail\Settings\Models\Scopes\TenantScope;
 
 /**
  * The base of the package's models: ULID keys, the current tenant in column-mode tenancy, and the
@@ -31,8 +31,7 @@ abstract class SettingsModel extends Model
     /**
      * Every tenant's rows, for maintenance that works across tenants.
      *
-     * @param Builder<static> $query
-     *
+     * @param  Builder<static>  $query
      * @return Builder<static>
      */
     public function scopeAllTenants(Builder $query): Builder

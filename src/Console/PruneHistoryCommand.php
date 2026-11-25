@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Config\Repository;
-use Simtabi\Laranail\Settings\Actions\PruneHistory;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Settings\Actions\PruneHistory;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
  * Apply the history retention policy, `history.keep_days` and `history.keep_versions` (or
@@ -59,10 +59,10 @@ final class PruneHistoryCommand extends Command
     private function number(mixed $value): int|false|null
     {
         return match (true) {
-            $value === null                          => null,
-            is_int($value)                           => $value,
+            $value === null => null,
+            is_int($value) => $value,
             is_string($value) && ctype_digit($value) => (int) $value,
-            default                                  => false,
+            default => false,
         };
     }
 }

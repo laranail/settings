@@ -5,16 +5,16 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\NewCategory;
-use Simtabi\Laranail\Settings\Events\CategorySaved;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Events\CategoryDeleted;
+use Simtabi\Laranail\Settings\Events\CategorySaved;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
-use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
-use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 beforeEach(function (): void {

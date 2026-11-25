@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Casting;
 
-use Throwable;
-use DateTimeInterface;
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Key;
+use DateTimeInterface;
 use Simtabi\Laranail\Settings\Contracts\Caster;
+use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Throwable;
 
 /** Date-times, stored as ISO-8601 and read back as CarbonImmutable. */
 final class DateTimeCaster implements Caster

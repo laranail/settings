@@ -2,32 +2,32 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Str;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Database\Schema\Blueprint;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\NewCategory;
-use Simtabi\Laranail\Settings\Enums\ExportMode;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
-use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
-use Simtabi\Laranail\Settings\Services\Transfer\Importers;
+use Illuminate\Support\Str;
 use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Actions\Transfer\StreamExport;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\NewCategory;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
+use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Services\Transfer\Importers;
 
 /*
  * Exports name categories by slug and settings by scope, key and locale; secrets
@@ -112,9 +112,9 @@ it('round-trips a store into an empty one through a dry run, then an apply', fun
 
 it('skips redacted values and owners the store does not accept, and reports why', function (): void {
     $document = ExportDocument::fromArray([
-        'format'   => 'laranail/settings',
-        'version'  => 1,
-        'store'    => 'settings',
+        'format' => 'laranail/settings',
+        'version' => 1,
+        'store' => 'settings',
         'settings' => [
             ['scope' => 'global', 'key' => 'mail.password', 'redacted' => true, 'encrypted' => true],
             ['scope' => 'team:3', 'key' => 'theme', 'value' => 'dark'],
@@ -131,7 +131,7 @@ it('skips redacted values and owners the store does not accept, and reports why'
 
 it('applies locks and system categories only from a trusted import, through the command', function (): void {
     seedStore();
-    $path = sys_get_temp_dir() . '/laranail-settings-export-' . bin2hex(random_bytes(4)) . '.json';
+    $path = sys_get_temp_dir().'/laranail-settings-export-'.bin2hex(random_bytes(4)).'.json';
 
     expect(Artisan::call('laranail::settings.export', ['path' => $path, '--with-secrets' => true]))->toBe(0);
 
@@ -148,7 +148,7 @@ it('applies locks and system categories only from a trusted import, through the 
 
 it('asks for the store name before writing decrypted secrets', function (): void {
     seedStore();
-    $path = sys_get_temp_dir() . '/laranail-settings-export-' . bin2hex(random_bytes(4)) . '.json';
+    $path = sys_get_temp_dir().'/laranail-settings-export-'.bin2hex(random_bytes(4)).'.json';
 
     $this->artisan('laranail::settings.export', ['path' => $path, '--decrypt' => true])
         ->expectsQuestion('This writes decrypted secrets. Type the store name [settings] to continue', 'nope')
@@ -189,7 +189,7 @@ it('imports spatie/laravel-settings rows, keeping their locks for a trusted impo
 });
 
 it('imports toolkit\'s JSON store, flattening nested keys and keeping lists as values', function (): void {
-    $path = sys_get_temp_dir() . '/laranail-toolkit-' . bin2hex(random_bytes(4)) . '.json';
+    $path = sys_get_temp_dir().'/laranail-toolkit-'.bin2hex(random_bytes(4)).'.json';
     file_put_contents($path, json_encode(['mail' => ['host' => 'smtp.test', 'cc' => ['a@x.test', 'b@x.test']], 'debug' => false]));
 
     $document = app(Importers::class)->get('toolkit')->read($path, new StoreName('settings'));
@@ -260,13 +260,13 @@ it('streams an empty store as the same bytes too (SP-10)', function (): void {
 it('reads the store 500 rows at a time when it streams an export (SP-10)', function (): void {
     $now = now()->toDateTimeString();
     DB::table('settings')->insert(array_map(static fn (int $index): array => [
-        'id'    => (string) Str::ulid(), 'uid' => (string) Str::ulid(), 'scope' => 'global', 'key' => 'bulk.k' . $index, 'locale' => '',
+        'id' => (string) Str::ulid(), 'uid' => (string) Str::ulid(), 'scope' => 'global', 'key' => 'bulk.k'.$index, 'locale' => '',
         'value' => (string) $index, 'version' => 1, 'autoload' => true, 'sort_order' => 0, 'group' => 'bulk', 'created_at' => $now, 'updated_at' => $now,
     ], range(1, 1100)));
 
     DB::flushQueryLog();
     DB::enableQueryLog();
-    $path = sys_get_temp_dir() . '/laranail-settings-stream-' . bin2hex(random_bytes(4)) . '.json';
+    $path = sys_get_temp_dir().'/laranail-settings-stream-'.bin2hex(random_bytes(4)).'.json';
     expect(Artisan::call('laranail::settings.export', ['path' => $path]))->toBe(0);
     $chunks = array_values(array_filter(DB::getQueryLog(), static fn (array $query): bool => preg_match('/from ["`]settings["`] .*limit 500/i', $query['query']) === 1));
     DB::disableQueryLog();
@@ -277,7 +277,7 @@ it('reads the store 500 rows at a time when it streams an export (SP-10)', funct
 
 it('reports what stops a streamed export: an unknown store, an unwritable path, no database layer, a refusal (SP-10)', function (): void {
     expect(Artisan::call('laranail::settings.export', ['--store' => 'nope']))->toBe(1)
-        ->and(Artisan::call('laranail::settings.export', ['path' => sys_get_temp_dir() . '/no-such-directory-' . bin2hex(random_bytes(4)) . '/x.json']))->toBe(1);
+        ->and(Artisan::call('laranail::settings.export', ['path' => sys_get_temp_dir().'/no-such-directory-'.bin2hex(random_bytes(4)).'/x.json']))->toBe(1);
 
     config()->set('laranail.settings.stores.filed', ['layers' => ['runtime']]);
     app()->forgetScopedInstances();

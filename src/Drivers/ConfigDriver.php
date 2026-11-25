@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Drivers;
 
+use Illuminate\Contracts\Config\Repository;
+use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
-use Illuminate\Contracts\Config\Repository;
 use Simtabi\Laranail\Settings\Data\RecordSet;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Contracts\Driver;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 
 /**
@@ -29,7 +29,7 @@ final readonly class ConfigDriver implements Driver
     {
         $section = $this->config->get($this->prefix, []);
 
-        return $this->reader->toRecordSet(is_array($section) ? $this->flatten($section) : [], $scopes, 'config:' . $this->prefix);
+        return $this->reader->toRecordSet(is_array($section) ? $this->flatten($section) : [], $scopes, 'config:'.$this->prefix);
     }
 
     public function put(StoreName $store, Record $record): void
@@ -48,8 +48,7 @@ final readonly class ConfigDriver implements Driver
     }
 
     /**
-     * @param array<array-key, mixed> $values
-     *
+     * @param  array<array-key, mixed>  $values
      * @return array<string, mixed>
      */
     private function flatten(array $values, string $prefix = ''): array
@@ -57,10 +56,10 @@ final readonly class ConfigDriver implements Driver
         $flat = [];
 
         foreach ($values as $name => $value) {
-            $key = $prefix . $name;
+            $key = $prefix.$name;
 
             if (is_array($value) && $value !== [] && ! array_is_list($value)) {
-                $flat += $this->flatten($value, $key . '.');
+                $flat += $this->flatten($value, $key.'.');
 
                 continue;
             }

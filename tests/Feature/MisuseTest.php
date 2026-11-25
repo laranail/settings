@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Facade;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Lookup;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Exceptions\SettingsError;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
 use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Typed\SettingsMigration;
-use Simtabi\Laranail\Settings\Exceptions\SettingsError;
-use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
  * Calling the package wrongly throws SettingsMisuse: still a LogicException, so existing catch
@@ -28,7 +28,7 @@ function expectMisuse(Closure $call, string $message): void
         return;
     }
 
-    test()->fail('Expected SettingsMisuse: ' . $message);
+    test()->fail('Expected SettingsMisuse: '.$message);
 }
 
 it('throws SettingsMisuse when a missing or redacted lookup is read', function (): void {
@@ -71,7 +71,7 @@ it('throws SettingsMisuse when a settings migration runs without the provider', 
 });
 
 it('never throws a bare LogicException from the source', function (): void {
-    $root = dirname(__DIR__, 2) . '/src';
+    $root = dirname(__DIR__, 2).'/src';
     $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
     $inspected = 0;
     $offending = [];
@@ -95,8 +95,8 @@ it('never throws a bare LogicException from the source', function (): void {
 
 it('lets one catch take every settings exception', function (): void {
     $classes = array_map(
-        static fn (string $file): string => 'Simtabi\\Laranail\\Settings\\Exceptions\\' . basename($file, '.php'),
-        glob(dirname(__DIR__, 2) . '/src/Exceptions/*.php') ?: [],
+        static fn (string $file): string => 'Simtabi\\Laranail\\Settings\\Exceptions\\'.basename($file, '.php'),
+        glob(dirname(__DIR__, 2).'/src/Exceptions/*.php') ?: [],
     );
     $throwables = array_values(array_filter($classes, static fn (string $class): bool => is_a($class, Throwable::class, true)));
 

@@ -6,13 +6,13 @@ namespace Simtabi\Laranail\Settings\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\HistoryFilter;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\HistoryFilter;
+use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
 use Simtabi\Laranail\Settings\Models\SettingHistory;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /** Build the value history query for the filtered store, or the default store. */

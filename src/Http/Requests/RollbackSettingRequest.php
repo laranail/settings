@@ -22,7 +22,7 @@ final class RollbackSettingRequest extends FormRequest
     public function rules(): array
     {
         return $this->addressRules() + [
-            'reason'  => ['nullable', 'string', 'max:255'],
+            'reason' => ['nullable', 'string', 'max:255'],
             'version' => ['required', 'integer', 'min:1'],
         ];
     }

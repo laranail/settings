@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
 
 it('lower-cases keys and derives the group and a one-to-one slug', function (): void {
     $key = new Key('Mail.From_Address');
@@ -24,11 +24,11 @@ it('rejects malformed keys', function (string $key): void {
 })->with(['', 'a..b', '.a', 'a.', 'a-b', 'a b', '../etc', str_repeat('a', 192)]);
 
 it('accepts a key of exactly 191 characters', function (): void {
-    expect((new Key(str_repeat('a', 191)))->value)->toHaveLength(191);
+    expect(new Key(str_repeat('a', 191))->value)->toHaveLength(191);
 });
 
 it('validates store names', function (): void {
-    expect((new StoreName('user_settings'))->value)->toBe('user_settings')
+    expect(new StoreName('user_settings')->value)->toBe('user_settings')
         ->and(new StoreName('a')->equals(new StoreName('a')))->toBeTrue()
         ->and((string) new StoreName('a'))->toBe('a')
         ->and(new StoreName(str_repeat('a', 64)))->toBeInstanceOf(StoreName::class);
@@ -39,7 +39,7 @@ it('validates store names', function (): void {
 });
 
 it('normalises locales so spellings cannot collide', function (string $input, string $expected): void {
-    expect((new Locale($input))->value)->toBe($expected);
+    expect(new Locale($input)->value)->toBe($expected);
 })->with([['pt-br', 'pt_BR'], ['PT_BR', 'pt_BR'], ['EN', 'en'], ['fil', 'fil'], ['', '']]);
 
 it('rejects malformed locales and reports whether a locale is set', function (): void {
@@ -61,7 +61,7 @@ it('builds scopes from owner references, never from free text', function (): voi
         ->and(Scope::global()->isGlobal())->toBeTrue()
         ->and(Scope::global()->equals(Scope::global()))->toBeTrue()
         ->and((string) Scope::global())->toBe('global')
-        ->and((new OwnerRef('user', '01J9ZK3Y5B8T6W'))->id)->toBe('01J9ZK3Y5B8T6W');
+        ->and(new OwnerRef('user', '01J9ZK3Y5B8T6W')->id)->toBe('01J9ZK3Y5B8T6W');
 });
 
 it('rejects reserved or malformed owner aliases and ids', function (string $alias, string $id): void {

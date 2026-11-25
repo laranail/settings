@@ -3,16 +3,16 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
-use Simtabi\Laranail\Settings\Diagnostics\Finding;
-use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
-use Simtabi\Laranail\Settings\Configurator\StoreSetup;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Actions\DiagnoseSettings;
 use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
+use Simtabi\Laranail\Settings\Configurator\StoreSetup;
+use Simtabi\Laranail\Settings\Diagnostics\Finding;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
 use Simtabi\Laranail\Settings\Support\LeftoverEnvironment;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\PrefixConfigurator;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ConfiguratorProvider;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ContributorsProvider;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\PrefixConfigurator;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedConfigurator;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedPackageContributor;
 
@@ -135,7 +135,7 @@ it('warns about a leftover variable read straight from the environment, never th
 });
 
 it('reads no LARANAIL_SETTINGS_ variable in the shipped config, and still knows all 20 removed ones', function (): void {
-    $config = (string) file_get_contents(dirname(__DIR__, 2) . '/config/settings.php');
+    $config = (string) file_get_contents(dirname(__DIR__, 2).'/config/settings.php');
     preg_match_all("/env\\('([A-Z_]+)'/", $config, $read);
 
     // The positive control: the scan finds the one env() read the file keeps, in a comment's example.

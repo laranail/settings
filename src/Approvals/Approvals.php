@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Approvals;
 
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\ChangeFilter;
-use Simtabi\Laranail\Settings\Contracts\Settable;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Enums\ChangeStatus;
-use Simtabi\Laranail\Settings\Data\ChangeDecision;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Actions\Approvals\ApproveChange;
 use Simtabi\Laranail\Settings\Actions\Approvals\CancelChange;
 use Simtabi\Laranail\Settings\Actions\Approvals\QueryChanges;
 use Simtabi\Laranail\Settings\Actions\Approvals\RejectChange;
+use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\ChangeDecision;
+use Simtabi\Laranail\Settings\Data\ChangeFilter;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Enums\ChangeStatus;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\ChangeRequestClosed;
-use Simtabi\Laranail\Settings\Actions\Approvals\ApproveChange;
 use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Stores\Store;
 
 /**
  * The change requests of one store, seen as the handle's actor. Narrow with `pending()`,

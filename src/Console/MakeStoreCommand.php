@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Actions\MakeStore;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Settings\Actions\MakeStore;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
  * Write the migration for a new database store and print the configuration entry to add.

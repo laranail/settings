@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Contracts;
 
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 
 /**
  * An importer whose source is a file it can also read from a Laravel filesystem disk (`s3`, `sftp`,

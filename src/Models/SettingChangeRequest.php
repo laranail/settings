@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Models;
 
-use Override;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Override;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Data\ChangeFilter;
 use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Enums\ChangeStatus;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
-use Simtabi\Laranail\Settings\Support\DatabaseValues;
+use Simtabi\Laranail\Settings\Enums\ChangeStatus;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
 use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
+use Simtabi\Laranail\Settings\Support\DatabaseValues;
 
 /**
  * A row of the change requests table: a write waiting for approval. `payload` is stored as the
@@ -32,28 +32,28 @@ final class SettingChangeRequest extends SettingsModel
     /**
      * Open a request and return it.
      *
-     * @param array{store: string, scope: string, key: string, locale: string, operation: ChangeOperation, payload: ?string, type: ?string, encrypted: bool, base_version: int, reason: ?string, expires_at: ?CarbonImmutable} $request
+     * @param  array{store: string, scope: string, key: string, locale: string, operation: ChangeOperation, payload: ?string, type: ?string, encrypted: bool, base_version: int, reason: ?string, expires_at: ?CarbonImmutable}  $request
      */
     public static function open(?string $connection, array $request, Actor $requester, CarbonImmutable $now): ChangeRequest
     {
         return self::on($connection)->create([
-            'store'              => $request['store'],
-            'scope'              => $request['scope'],
-            'key'                => $request['key'],
-            'locale'             => $request['locale'],
-            'operation'          => $request['operation']->value,
-            'payload'            => $request['payload'],
-            'type'               => $request['type'],
-            'is_encrypted'       => $request['encrypted'],
-            'base_version'       => $request['base_version'],
-            'status'             => ChangeStatus::Pending->value,
-            'requested_by_type'  => $requester->type->value,
+            'store' => $request['store'],
+            'scope' => $request['scope'],
+            'key' => $request['key'],
+            'locale' => $request['locale'],
+            'operation' => $request['operation']->value,
+            'payload' => $request['payload'],
+            'type' => $request['type'],
+            'is_encrypted' => $request['encrypted'],
+            'base_version' => $request['base_version'],
+            'status' => ChangeStatus::Pending->value,
+            'requested_by_type' => $requester->type->value,
             'requested_by_alias' => $requester->alias,
-            'requested_by_id'    => $requester->id,
-            'reason'             => $request['reason'],
-            'expires_at'         => $request['expires_at'],
-            'created_at'         => $now,
-            'updated_at'         => $now,
+            'requested_by_id' => $requester->id,
+            'reason' => $request['reason'],
+            'expires_at' => $request['expires_at'],
+            'created_at' => $now,
+            'updated_at' => $now,
         ])->refresh()->toRequest();
     }
 
@@ -84,8 +84,8 @@ final class SettingChangeRequest extends SettingsModel
     /**
      * Move a request from one of `$from` to a new status; false when someone else decided it first.
      *
-     * @param list<ChangeStatus> $from
-     * @param list<string>|null $approvals the approvals so far, when they change
+     * @param  list<ChangeStatus>  $from
+     * @param  list<string>|null  $approvals  the approvals so far, when they change
      */
     public static function transition(?string $connection, ChangeRequest $request, array $from, ChangeStatus $to, ?Actor $decidedBy, ?string $reason, CarbonImmutable $now, ?array $approvals = null): bool
     {
@@ -97,11 +97,11 @@ final class SettingChangeRequest extends SettingsModel
 
         if ($decidedBy instanceof Actor) {
             $columns += [
-                'decided_by_type'  => $decidedBy->type->value,
+                'decided_by_type' => $decidedBy->type->value,
                 'decided_by_alias' => $decidedBy->alias,
-                'decided_by_id'    => $decidedBy->id,
-                'decided_at'       => $now,
-                'decision_reason'  => $reason,
+                'decided_by_id' => $decidedBy->id,
+                'decided_at' => $now,
+                'decision_reason' => $reason,
             ];
         }
 
@@ -124,8 +124,7 @@ final class SettingChangeRequest extends SettingsModel
     /**
      * Limit a query to one actor's requests; a token's are its user's, as {@see ChangeRequest::actorKey()} counts them.
      *
-     * @param Builder<self> $query
-     *
+     * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public static function requestedBy(Builder $query, Actor $actor): Builder
@@ -198,8 +197,7 @@ final class SettingChangeRequest extends SettingsModel
     /**
      * The requests of a filter, newest first.
      *
-     * @param Builder<self> $query
-     *
+     * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeMatching(Builder $query, ChangeFilter $filter): Builder
@@ -218,8 +216,7 @@ final class SettingChangeRequest extends SettingsModel
     /**
      * Pending and approved requests: those still waiting to be applied.
      *
-     * @param Builder<self> $query
-     *
+     * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeOpen(Builder $query): Builder
@@ -230,8 +227,7 @@ final class SettingChangeRequest extends SettingsModel
     /**
      * Open requests past their expiry.
      *
-     * @param Builder<self> $query
-     *
+     * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeOverdue(Builder $query, CarbonImmutable $now): Builder
@@ -244,11 +240,11 @@ final class SettingChangeRequest extends SettingsModel
     protected function casts(): array
     {
         return [
-            'approvals'    => 'array',
+            'approvals' => 'array',
             'is_encrypted' => 'boolean',
             'base_version' => 'integer',
-            'decided_at'   => 'immutable_datetime',
-            'expires_at'   => 'immutable_datetime',
+            'decided_at' => 'immutable_datetime',
+            'expires_at' => 'immutable_datetime',
         ];
     }
 }

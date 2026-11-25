@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\SettingsMigrationStep;
 use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Data\SettingsMigrationStep;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
-use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
+use Simtabi\Laranail\Settings\Stores\Store;
 
 /**
  * Run one settings migration step: rename, move or delete a key across every owner and locale,
@@ -44,7 +44,7 @@ final readonly class MigrateSettings
         $subject = new Subject($from->name, $step->fromKey);
         $this->access->authorize($actor, Ability::ManageDefinitions, $subject);
 
-        $writer = $this->writer->causedBy($actor ?? Actor::system('settings migration'), 'settings migration: ' . $step->operation . ' ' . $step->fromKey);
+        $writer = $this->writer->causedBy($actor ?? Actor::system('settings migration'), 'settings migration: '.$step->operation.' '.$step->fromKey);
         $records = $this->records($from, $step->fromKey);
 
         $touched = $from->transaction(function () use ($step, $from, $records, $writer): int {
@@ -82,9 +82,9 @@ final readonly class MigrateSettings
 
         $this->access->auditor()->record(AuditAction::Migrate, AuditOutcome::Allowed, $subject, $actor, meta: [
             'operation' => $step->operation,
-            'to_store'  => $step->toStore?->value,
-            'to_key'    => $step->toKey?->value,
-            'touched'   => $touched,
+            'to_store' => $step->toStore?->value,
+            'to_key' => $step->toKey?->value,
+            'touched' => $touched,
         ]);
 
         return $touched;

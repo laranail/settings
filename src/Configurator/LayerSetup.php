@@ -12,7 +12,7 @@ final readonly class LayerSetup
     /** `driver`: database, json, php, config, array, or one registered with the driver factory. */
     public function driver(string $driver): self
     {
-        $this->values->set($this->path . '.driver', SetupValues::filled('layer()->driver()', $this->path . '.driver', $driver));
+        $this->values->set($this->path.'.driver', SetupValues::filled('layer()->driver()', $this->path.'.driver', $driver));
 
         return $this;
     }
@@ -20,7 +20,7 @@ final readonly class LayerSetup
     /** `connection`: the database connection (null for the default). */
     public function connection(?string $connection): self
     {
-        $this->values->set($this->path . '.connection', $connection === null ? null : SetupValues::filled('layer()->connection()', $this->path . '.connection', $connection));
+        $this->values->set($this->path.'.connection', $connection === null ? null : SetupValues::filled('layer()->connection()', $this->path.'.connection', $connection));
 
         return $this;
     }
@@ -28,7 +28,7 @@ final readonly class LayerSetup
     /** `disk`: the filesystem disk a file layer reads and writes. */
     public function disk(string $disk): self
     {
-        $this->values->set($this->path . '.disk', SetupValues::filled('layer()->disk()', $this->path . '.disk', $disk));
+        $this->values->set($this->path.'.disk', SetupValues::filled('layer()->disk()', $this->path.'.disk', $disk));
 
         return $this;
     }
@@ -36,7 +36,7 @@ final readonly class LayerSetup
     /** `path`: the file a file layer reads (a JSON path contains `{store}`). */
     public function path(string $path): self
     {
-        $this->values->set($this->path . '.path', SetupValues::filled('layer()->path()', $this->path . '.path', $path));
+        $this->values->set($this->path.'.path', SetupValues::filled('layer()->path()', $this->path.'.path', $path));
 
         return $this;
     }
@@ -44,7 +44,7 @@ final readonly class LayerSetup
     /** `writable`: false to make the layer read-only. */
     public function writable(bool $writable = true): self
     {
-        $this->values->set($this->path . '.writable', $writable);
+        $this->values->set($this->path.'.writable', $writable);
 
         return $this;
     }

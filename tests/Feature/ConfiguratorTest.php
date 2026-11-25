@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Exceptions;
-use Simtabi\Laranail\Settings\Facades\Settings;
+use Illuminate\Support\Facades\Schema;
+use Simtabi\Laranail\Package\Tools\Exceptions\PackageBootException;
 use Simtabi\Laranail\Settings\Configurator\AppliedSetup;
-use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
+use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
 use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Package\Tools\Exceptions\PackageBootException;
-use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
+use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\GreetingProvider;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\PrefixConfigurator;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\FailingConfigurator;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\KeepingConfigurator;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ConfiguratorProvider;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\GreetingConfigurator;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\SecondConfiguratorProvider;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\BootTimeConfiguratorProvider;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ConfiguratorProvider;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\DeferredConfiguratorProvider;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\FailingConfigurator;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\GreetingConfigurator;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\GreetingProvider;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\KeepingConfigurator;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\PrefixConfigurator;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\SecondConfiguratorProvider;
 
 afterEach(function (): void {
     ConfiguratorProvider::$configurator = PrefixConfigurator::class;
@@ -88,8 +88,8 @@ it('refuses a second configurator, naming both registration sites', function ():
         $registry->register(GreetingConfigurator::class, '/app/Providers/OtherProvider.php', 9, $report);
         $this->fail('The second registration was accepted.');
     } catch (SettingsMisuse $exception) {
-        expect($exception->getMessage())->toContain(PrefixConfigurator::class . ' (registered at /app/Providers/AppServiceProvider.php:21)')
-            ->and($exception->getMessage())->toContain(GreetingConfigurator::class . ' (registered at /app/Providers/OtherProvider.php:9)')
+        expect($exception->getMessage())->toContain(PrefixConfigurator::class.' (registered at /app/Providers/AppServiceProvider.php:21)')
+            ->and($exception->getMessage())->toContain(GreetingConfigurator::class.' (registered at /app/Providers/OtherProvider.php:9)')
             ->and($reported)->toBe([$exception])
             ->and($registry->registration()?->class)->toBe(PrefixConfigurator::class);
     }
@@ -178,15 +178,15 @@ it('validates each value where the configurator sets it', function (Closure $set
 
     expect(fn () => $set(KeepingConfigurator::$setup))->toThrow(InvalidConfiguration::class, $message);
 })->with([
-    'store name'   => [static fn (SettingsSetup $setup): SettingsSetup => $setup->defaultStore('Main'), 'defaultStore() (laranail.settings.default)'],
-    'promote'      => [static fn (SettingsSetup $setup): SettingsSetup => $setup->promote('sometimes'), 'one of manual, auto'],
-    'table name'   => [static fn (SettingsSetup $setup): SettingsSetup => $setup->tables(audit: '1audit'), 'tables() (laranail.settings.tables.audit)'],
-    'store layer'  => [static fn (SettingsSetup $setup): SettingsSetup => $setup->store('teams', static fn ($store) => $store->layers('Bad')), 'store()->layers()'],
-    'cache ttl'    => [static fn (SettingsSetup $setup): SettingsSetup => $setup->cache(static fn ($cache) => $cache->ttl(0)), 'cache()->ttl() (laranail.settings.cache.ttl)'],
-    'log level'    => [static fn (SettingsSetup $setup): SettingsSetup => $setup->logging(static fn ($logging) => $logging->level('loud')), 'logging()->level()'],
-    'layer disk'   => [static fn (SettingsSetup $setup): SettingsSetup => $setup->layer('runtime', static fn ($layer) => $layer->disk(' ')), 'layer()->disk()'],
-    'http prefix'  => [static fn (SettingsSetup $setup): SettingsSetup => $setup->http(static fn ($http) => $http->prefix('/')), 'http()->prefix()'],
-    'approvals'    => [static fn (SettingsSetup $setup): SettingsSetup => $setup->approvals(static fn ($approvals) => $approvals->minApprovals(0)), 'approvals()->minApprovals()'],
-    'value size'   => [static fn (SettingsSetup $setup): SettingsSetup => $setup->values(static fn ($values) => $values->maxBytes(0)), 'values()->maxBytes()'],
+    'store name' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->defaultStore('Main'), 'defaultStore() (laranail.settings.default)'],
+    'promote' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->promote('sometimes'), 'one of manual, auto'],
+    'table name' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->tables(audit: '1audit'), 'tables() (laranail.settings.tables.audit)'],
+    'store layer' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->store('teams', static fn ($store) => $store->layers('Bad')), 'store()->layers()'],
+    'cache ttl' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->cache(static fn ($cache) => $cache->ttl(0)), 'cache()->ttl() (laranail.settings.cache.ttl)'],
+    'log level' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->logging(static fn ($logging) => $logging->level('loud')), 'logging()->level()'],
+    'layer disk' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->layer('runtime', static fn ($layer) => $layer->disk(' ')), 'layer()->disk()'],
+    'http prefix' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->http(static fn ($http) => $http->prefix('/')), 'http()->prefix()'],
+    'approvals' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->approvals(static fn ($approvals) => $approvals->minApprovals(0)), 'approvals()->minApprovals()'],
+    'value size' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->values(static fn ($values) => $values->maxBytes(0)), 'values()->maxBytes()'],
     'history days' => [static fn (SettingsSetup $setup): SettingsSetup => $setup->audit(static fn ($audit) => $audit->history(0)), 'audit()->history()'],
 ]);

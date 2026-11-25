@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Database;
 
-use Throwable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Throwable;
 
 /**
  * Inspects the live database on one connection; a failed inspection returns null instead of throwing.
@@ -85,10 +85,10 @@ final readonly class SchemaInspector
 
         $rows = $database->attempt($store, static fn (): array => $database->connection()->table($values)
             ->join($categories, static fn (JoinClause $join): JoinClause => $join
-                ->on($categories . '.id', '=', $values . '.category_id')
-                ->on($categories . '.store', '=', $values . '.category_store'))
-            ->orderBy($values . '.key')
-            ->get([$values . '.key as key', $categories . '.slug as slug'])
+                ->on($categories.'.id', '=', $values.'.category_id')
+                ->on($categories.'.store', '=', $values.'.category_store'))
+            ->orderBy($values.'.key')
+            ->get([$values.'.key as key', $categories.'.slug as slug'])
             ->all());
 
         $mismatched = [];

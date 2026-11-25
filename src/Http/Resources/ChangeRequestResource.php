@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Resources;
 
-use Override;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Illuminate\Http\Resources\Attributes\PreserveKeys;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Override;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
 
 /**
  * A change request without its proposed payload, which may be a secret.

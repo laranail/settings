@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Events\Dispatcher;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Events\HistoryPruned;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Models\SettingHistory;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
  * Delete history entries older than `history.keep_days` or more than `history.keep_versions`

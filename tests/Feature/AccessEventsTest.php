@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
+use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Support\Facades\Event;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 use Simtabi\Laranail\Settings\Events\AuditPruned;
 use Simtabi\Laranail\Settings\Events\CategoryMoved;
+use Simtabi\Laranail\Settings\Events\CategoryRenamed;
+use Simtabi\Laranail\Settings\Events\DefinitionsSynced;
 use Simtabi\Laranail\Settings\Events\HistoryPruned;
 use Simtabi\Laranail\Settings\Events\OrphansPruned;
 use Simtabi\Laranail\Settings\Events\SettingLocked;
-use Simtabi\Laranail\Settings\Events\AccessWasDenied;
-use Simtabi\Laranail\Settings\Events\CategoryRenamed;
-use Simtabi\Laranail\Settings\Events\SettingUnlocked;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Events\DefinitionsSynced;
 use Simtabi\Laranail\Settings\Events\SettingRolledBack;
-use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
-use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
+use Simtabi\Laranail\Settings\Events\SettingUnlocked;
 use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
 
 /*

@@ -3,17 +3,17 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
-use Simtabi\Laranail\Settings\Contracts\Caster;
-use Simtabi\Laranail\Settings\Support\ValueEncoder;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
+use Simtabi\Laranail\Settings\Support\ValueEncoder;
 
 it('keeps a stored null distinct from no value', function (): void {
     $encoder = new ValueEncoder;
@@ -64,7 +64,7 @@ it('casts each built-in type to storage and back', function (string $type, mixed
         ->and($caster->fromStorage($stored))->toEqual($read)
         ->and($caster->toStorage($key, null))->toBeNull();
 })->with([
-    'string'     => ['string', 'x', 'x', 'x'],
+    'string' => ['string', 'x', 'x', 'x'],
     'stringable' => ['string', new class implements Stringable
     {
         public function __toString(): string
@@ -72,18 +72,18 @@ it('casts each built-in type to storage and back', function (string $type, mixed
             return 'y';
         }
     }, 'y', 'y'],
-    'int'             => ['int', 5, 5, 5],
-    'int string'      => ['int', '-12', -12, -12],
-    'float'           => ['float', 1.5, 1.5, 1.5],
-    'float from int'  => ['float', 2, 2.0, 2.0],
-    'float string'    => ['float', '2.5', 2.5, 2.5],
-    'bool'            => ['bool', false, false, false],
-    'bool one'        => ['bool', 1, true, true],
-    'bool zero'       => ['bool', '0', false, false],
-    'bool true word'  => ['bool', 'true', true, true],
+    'int' => ['int', 5, 5, 5],
+    'int string' => ['int', '-12', -12, -12],
+    'float' => ['float', 1.5, 1.5, 1.5],
+    'float from int' => ['float', 2, 2.0, 2.0],
+    'float string' => ['float', '2.5', 2.5, 2.5],
+    'bool' => ['bool', false, false, false],
+    'bool one' => ['bool', 1, true, true],
+    'bool zero' => ['bool', '0', false, false],
+    'bool true word' => ['bool', 'true', true, true],
     'bool false word' => ['bool', 'false', false, false],
-    'array'           => ['array', ['a' => 1], ['a' => 1], ['a' => 1]],
-    'datetime'        => ['datetime', '2026-01-02T03:04:05+00:00', '2026-01-02T03:04:05+00:00', CarbonImmutable::parse('2026-01-02T03:04:05+00:00')],
+    'array' => ['array', ['a' => 1], ['a' => 1], ['a' => 1]],
+    'datetime' => ['datetime', '2026-01-02T03:04:05+00:00', '2026-01-02T03:04:05+00:00', CarbonImmutable::parse('2026-01-02T03:04:05+00:00')],
 ]);
 
 it('widens a stored integer to float when reading a float setting', function (): void {

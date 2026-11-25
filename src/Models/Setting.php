@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Models;
 
-use Override;
 use Illuminate\Database\Eloquent\Builder;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Override;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Database\Factories\SettingFactory;
 
 /**
@@ -83,7 +83,7 @@ final class Setting extends SettingsModel
     /**
      * Copies keep the store.
      *
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      */
     #[Override]
     public function newInstance($attributes = [], $exists = false): static
@@ -129,15 +129,15 @@ final class Setting extends SettingsModel
     protected function casts(): array
     {
         return [
-            'label'        => 'array',
-            'description'  => 'array',
+            'label' => 'array',
+            'description' => 'array',
             'is_encrypted' => 'boolean',
-            'is_locked'    => 'boolean',
-            'is_public'    => 'boolean',
-            'autoload'     => 'boolean',
-            'sort_order'   => 'integer',
-            'version'      => 'integer',
-            'meta'         => 'array',
+            'is_locked' => 'boolean',
+            'is_public' => 'boolean',
+            'autoload' => 'boolean',
+            'sort_order' => 'integer',
+            'version' => 'integer',
+            'meta' => 'array',
         ];
     }
 }

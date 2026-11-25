@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Event;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
+use Simtabi\Laranail\Settings\Events\SettingForgetting;
+use Simtabi\Laranail\Settings\Events\SettingForgotten;
 use Simtabi\Laranail\Settings\Events\SettingSaved;
 use Simtabi\Laranail\Settings\Events\SettingSaving;
-use Simtabi\Laranail\Settings\Events\SettingForgotten;
-use Simtabi\Laranail\Settings\Events\SettingForgetting;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 
 it('announces writes with identifiers only, never the value', function (): void {
     Event::fake();

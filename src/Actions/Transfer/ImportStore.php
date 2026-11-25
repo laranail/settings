@@ -4,34 +4,34 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions\Transfer;
 
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\ExportMode;
-use Simtabi\Laranail\Settings\Data\CategorySlug;
-use Simtabi\Laranail\Settings\Data\SettingWrite;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Actions\SetSetting;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Data\SettingTarget;
-use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
 use Simtabi\Laranail\Settings\Actions\LockSetting;
-use Simtabi\Laranail\Settings\Support\ValueEncoder;
-use Simtabi\Laranail\Settings\Models\SettingCategory;
+use Simtabi\Laranail\Settings\Actions\SetSetting;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Category;
+use Simtabi\Laranail\Settings\Data\CategorySlug;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\SettingTarget;
+use Simtabi\Laranail\Settings\Data\SettingWrite;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportRequest;
-use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportedSetting;
-use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportedCategory;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Services\Transfer\StoreSnapshots;
-use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Support\ValueEncoder;
 
 /**
  * Import an export or importer document in one transaction, as a dry run unless the request
@@ -93,12 +93,12 @@ final readonly class ImportStore
             }
 
             $this->access->auditor()->record(AuditAction::Import, AuditOutcome::Allowed, $subject, $actor, $request->reason, meta: [
-                'created'    => count($plan['created']),
-                'updated'    => count($plan['updated']),
-                'skipped'    => count($plan['skipped']),
+                'created' => count($plan['created']),
+                'updated' => count($plan['updated']),
+                'skipped' => count($plan['skipped']),
                 'categories' => count($categories),
-                'trusted'    => $request->trusted,
-                'source'     => $request->document->source,
+                'trusted' => $request->trusted,
+                'source' => $request->document->source,
             ]);
 
             return new ImportReport(true, $plan['created'], $plan['updated'], $plan['unchanged'], $plan['skipped'], array_map(static fn (ExportedCategory $category): string => $category->slug->value, $categories), $proposed);
@@ -108,8 +108,7 @@ final readonly class ImportStore
     /**
      * What each setting of the document would do.
      *
-     * @param array<string, ExportedSetting> $current
-     *
+     * @param  array<string, ExportedSetting>  $current
      * @return array{created: list<string>, updated: list<string>, unchanged: list<string>, skipped: array<string, string>, write: list<ExportedSetting>}
      */
     private function plan(ImportRequest $request, array $current): array
@@ -122,11 +121,11 @@ final readonly class ImportStore
             $owner = $setting->scope->owner();
 
             $skip = match (true) {
-                $setting->redacted                                             => 'the export left its value out (encrypted); export it with --with-secrets or --decrypt',
-                ! $setting->hasValue                                           => 'it has no value (a lock without a value)',
+                $setting->redacted => 'the export left its value out (encrypted); export it with --with-secrets or --decrypt',
+                ! $setting->hasValue => 'it has no value (a lock without a value)',
                 $owner instanceof OwnerRef && ! $store->accepts($owner->alias) => sprintf('store [%s] does not accept owner alias [%s]', $store->name, $owner->alias),
-                ! $owner instanceof OwnerRef && $store->isDedicated()          => sprintf('store [%s] is dedicated and holds no global values', $store->name),
-                default                                                        => null,
+                ! $owner instanceof OwnerRef && $store->isDedicated() => sprintf('store [%s] is dedicated and holds no global values', $store->name),
+                default => null,
             };
 
             if ($skip !== null) {
@@ -153,9 +152,8 @@ final readonly class ImportStore
     /**
      * The categories the store lacks, parents before children.
      *
-     * @param list<ExportedCategory> $incoming
-     * @param list<string> $existing slugs
-     *
+     * @param  list<ExportedCategory>  $incoming
+     * @param  list<string>  $existing  slugs
      * @return list<ExportedCategory>
      */
     private function categoriesToCreate(array $incoming, array $existing): array

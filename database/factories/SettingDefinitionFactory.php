@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Database\Factories;
 
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 use Simtabi\Laranail\Settings\Models\ModelContext;
-use Illuminate\Database\Eloquent\Factories\Factory;
 use Simtabi\Laranail\Settings\Models\SettingDefinition;
 
 /**
@@ -22,15 +22,15 @@ final class SettingDefinitionFactory extends Factory
     /** @return array<string, mixed> */
     public function definition(): array
     {
-        $key = 'test.' . Str::lower(Str::random(12));
+        $key = 'test.'.Str::lower(Str::random(12));
 
         return [
-            'store'     => ModelContext::defaultStore()->value,
-            'key'       => $key,
-            'slug'      => str_replace('.', '-', $key),
-            'group'     => 'test',
-            'type'      => 'string',
-            'default'   => null,
+            'store' => ModelContext::defaultStore()->value,
+            'key' => $key,
+            'slug' => str_replace('.', '-', $key),
+            'group' => 'test',
+            'type' => 'string',
+            'default' => null,
             'is_system' => false,
         ];
     }

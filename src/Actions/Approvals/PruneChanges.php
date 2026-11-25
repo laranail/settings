@@ -6,13 +6,13 @@ namespace Simtabi\Laranail\Settings\Actions\Approvals;
 
 use Carbon\CarbonImmutable;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
 use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Enums\ChangeStatus;
-use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;

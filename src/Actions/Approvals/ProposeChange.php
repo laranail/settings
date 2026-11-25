@@ -5,24 +5,24 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions\Approvals;
 
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Events\Dispatcher;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\Definition;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\ApprovalPolicy;
 use Simtabi\Laranail\Settings\Data\ChangeProposal;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Events\ChangeRequested;
-use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
+use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
-use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
 
 /**
  * Open a change request; needs the ability of the write it proposes. The value is validated and
@@ -66,22 +66,22 @@ final readonly class ProposeChange
 
         $request = $store->transaction(function () use ($database, $store, $scope, $target, $proposal, $payload, $base, $now, $requester, $subject, $actor): ChangeRequest {
             $request = $database->attempt($store->name, fn (): ChangeRequest => SettingChangeRequest::open($database->connectionName(), [
-                'store'        => $store->name->value,
-                'scope'        => $scope->value,
-                'key'          => $target->key->value,
-                'locale'       => $target->locale->value,
-                'operation'    => $proposal->operation,
-                'payload'      => $payload,
-                'type'         => $target->definition?->type,
-                'encrypted'    => $payload !== null && $target->definition instanceof Definition && $target->definition->encrypted,
+                'store' => $store->name->value,
+                'scope' => $scope->value,
+                'key' => $target->key->value,
+                'locale' => $target->locale->value,
+                'operation' => $proposal->operation,
+                'payload' => $payload,
+                'type' => $target->definition?->type,
+                'encrypted' => $payload !== null && $target->definition instanceof Definition && $target->definition->encrypted,
                 'base_version' => $base,
-                'reason'       => $target->reason,
-                'expires_at'   => $this->policy->expireAfterDays === null ? null : $now->addDays($this->policy->expireAfterDays),
+                'reason' => $target->reason,
+                'expires_at' => $this->policy->expireAfterDays === null ? null : $now->addDays($this->policy->expireAfterDays),
             ], $requester, $now));
 
             $this->access->auditor()->record(AuditAction::Propose, AuditOutcome::Pending, $subject, $actor, $target->reason, versionFrom: $base > 0 ? $base : null, meta: [
                 'change_request' => $request->id,
-                'operation'      => $proposal->operation->value,
+                'operation' => $proposal->operation->value,
             ]);
 
             return $request;

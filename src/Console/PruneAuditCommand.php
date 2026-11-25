@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Config\Repository;
-use Simtabi\Laranail\Settings\Actions\PruneAudit;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Settings\Actions\PruneAudit;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
  * Delete audit rows older than `audit.keep_days` (or `--days`).

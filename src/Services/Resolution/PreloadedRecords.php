@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Services\Resolution;
 
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Record;
 use Simtabi\Laranail\Settings\Data\RecordSet;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
 
 /**
@@ -18,8 +18,8 @@ final class PreloadedRecords
     private array $records = [];
 
     /**
-     * @param list<Scope> $scopes
-     * @param array<string, RecordSet> $loaded layer => records
+     * @param  list<Scope>  $scopes
+     * @param  array<string, RecordSet>  $loaded  layer => records
      */
     public function remember(StoreName $store, array $scopes, array $loaded, string $tenant = ''): void
     {
@@ -52,6 +52,6 @@ final class PreloadedRecords
     /** One slot per tenant and store; `|` cannot occur in a store name. */
     private function slot(StoreName $store, string $tenant): string
     {
-        return $tenant . '|' . $store->value;
+        return $tenant.'|'.$store->value;
     }
 }

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
-use Simtabi\Laranail\Settings\Http\Support\ApiActor;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
 use Simtabi\Laranail\Settings\Actions\Reads\ListStores;
 use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
-use Simtabi\Laranail\Settings\Http\Resources\StoreResource;
-use Simtabi\Laranail\Settings\Actions\Reads\ListDefinitions;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Simtabi\Laranail\Settings\Http\Resources\DefinitionResource;
+use Simtabi\Laranail\Settings\Http\Resources\StoreResource;
+use Simtabi\Laranail\Settings\Http\Support\ApiActor;
 use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 
 /** `/stores` and `/stores/{store}/definitions`. */

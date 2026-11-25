@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Http\Middleware;
 
 use Closure;
-use JsonException;
-use Illuminate\Http\Request;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Cache\LockProvider;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Contracts\Cache\Repository;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response as IlluminateResponse;
-use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use JsonException;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
@@ -48,11 +48,11 @@ final readonly class IdempotentWrites
             return $next($request);
         }
 
-        $cacheKey = $this->prefix . ':idempotency:' . hash('sha256', implode('|', [
+        $cacheKey = $this->prefix.':idempotency:'.hash('sha256', implode('|', [
             // The tenant too: `user:1` in two tenants on one host is two people.
             $this->tenant?->current() ?? '', $actor->type->value, $actor->alias ?? '', $actor->id ?? '', $request->getHost(), $request->method(), $request->path(), $key,
         ]));
-        $fingerprint = hash('sha256', $request->getQueryString() . '|' . $request->getContent());
+        $fingerprint = hash('sha256', $request->getQueryString().'|'.$request->getContent());
         $replay = $this->replay($cacheKey, $fingerprint);
 
         if ($replay instanceof Response) {
@@ -61,7 +61,7 @@ final readonly class IdempotentWrites
 
         // One request per key at a time: a retry sent while the first runs would write twice.
         $store = $this->cache->getStore();
-        $lock = $store instanceof LockProvider ? $store->lock($cacheKey . ':lock', 60) : null;
+        $lock = $store instanceof LockProvider ? $store->lock($cacheKey.':lock', 60) : null;
 
         if ($lock !== null && ! $lock->get()) {
             throw new ConflictHttpException('A request with this Idempotency-Key is still being processed; retry once it has answered.');
@@ -115,11 +115,11 @@ final readonly class IdempotentWrites
 
         $entry = json_encode([
             'fingerprint' => $fingerprint,
-            'status'      => $response->getStatusCode(),
-            'body'        => $body,
-            'headers'     => array_filter([
+            'status' => $response->getStatusCode(),
+            'body' => $body,
+            'headers' => array_filter([
                 'Content-Type' => $response->headers->get('Content-Type'),
-                'ETag'         => $response->headers->get('ETag'),
+                'ETag' => $response->headers->get('ETag'),
             ], static fn (?string $value): bool => $value !== null),
         ], JSON_THROW_ON_ERROR);
 

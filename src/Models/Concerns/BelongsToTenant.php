@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Models\Concerns;
 
 use Simtabi\Laranail\Settings\Models\ModelContext;
-use Simtabi\Laranail\Settings\Models\SettingsModel;
 use Simtabi\Laranail\Settings\Models\Scopes\TenantScope;
+use Simtabi\Laranail\Settings\Models\SettingsModel;
 
 /**
  * In column-mode tenancy, limits queries to the current tenant and fills `tenant` on new rows.

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Events\Dispatcher;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;

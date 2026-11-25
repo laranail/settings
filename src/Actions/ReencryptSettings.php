@@ -6,17 +6,17 @@ namespace Simtabi\Laranail\Settings\Actions;
 
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Illuminate\Database\Eloquent\Collection;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Models\SettingHistory;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
-use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
+use Simtabi\Laranail\Settings\Models\SettingHistory;
+use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
 
@@ -85,8 +85,7 @@ final readonly class ReencryptSettings
     /**
      * Rewrite every tenant's encrypted old and new history payloads.
      *
-     * @param Closure(string): ?string $rewrite returns null when it cannot read a payload
-     *
+     * @param  Closure(string): ?string  $rewrite  returns null when it cannot read a payload
      * @return array{int, int} rewritten and failed counts
      */
     private function rewriteHistory(string $connection, Closure $rewrite): array
@@ -102,14 +101,14 @@ final readonly class ReencryptSettings
                     $columns = [];
 
                     foreach (['old', 'new'] as $side) {
-                        $payload = $entry->getAttribute($side . '_value');
+                        $payload = $entry->getAttribute($side.'_value');
 
-                        if ($entry->getAttribute($side . '_encrypted') !== true || ! is_string($payload)) {
+                        if ($entry->getAttribute($side.'_encrypted') !== true || ! is_string($payload)) {
                             continue;
                         }
 
                         $new = $rewrite($payload);
-                        $new === null ? $failed++ : $columns[$side . '_value'] = $new;
+                        $new === null ? $failed++ : $columns[$side.'_value'] = $new;
                     }
 
                     if ($columns !== []) {
@@ -126,8 +125,7 @@ final readonly class ReencryptSettings
      * Rewrite every tenant's encrypted proposed payloads. A request's `updated_at` stays, since
      * pruning reads it.
      *
-     * @param Closure(string): ?string $rewrite returns null when it cannot read a payload
-     *
+     * @param  Closure(string): ?string  $rewrite  returns null when it cannot read a payload
      * @return array{int, int} rewritten and failed counts
      */
     private function rewriteChangeRequests(string $connection, Closure $rewrite): array

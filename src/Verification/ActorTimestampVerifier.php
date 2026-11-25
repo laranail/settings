@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Verification;
 
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Container\Attributes\Config;
+use Simtabi\Laranail\Settings\Contracts\Verifier;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Support\Clock;
-use Simtabi\Laranail\Settings\Contracts\Verifier;
 
 /**
  * Trusts {@see Actor::$verifiedAt} when it is no older than `verification.ttl` seconds.

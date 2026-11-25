@@ -16,9 +16,9 @@ use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
 final readonly class AppliedSetup
 {
     /**
-     * @param array<string, mixed> $values dot paths under `laranail.settings`
-     * @param array<string, ConfiguratorRegistration> $owners each applied path's owner
-     * @param list<Contribution> $contributions every registration, in the order it was applied
+     * @param  array<string, mixed>  $values  dot paths under `laranail.settings`
+     * @param  array<string, ConfiguratorRegistration>  $owners  each applied path's owner
+     * @param  list<Contribution>  $contributions  every registration, in the order it was applied
      */
     public function __construct(
         public ?ConfiguratorRegistration $registration,

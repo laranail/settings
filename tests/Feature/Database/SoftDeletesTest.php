@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
 use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Data\NewCategory;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;

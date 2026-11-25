@@ -4,41 +4,41 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Contracts;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
+use Simtabi\Laranail\Settings\Approvals\Approvals;
+use Simtabi\Laranail\Settings\Audit\AuditQuery;
+use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
+use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
 use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\ChangeRequest;
+use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Data\Lookup;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Illuminate\Contracts\Auth\Authenticatable;
-use Simtabi\Laranail\Settings\Data\Definition;
-use Simtabi\Laranail\Settings\Audit\AuditQuery;
-use Simtabi\Laranail\Settings\Data\HistoryDiff;
-use Simtabi\Laranail\Settings\Enums\ExportMode;
-use Simtabi\Laranail\Settings\Data\ChangeRequest;
-use Simtabi\Laranail\Settings\Approvals\Approvals;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\History\HistoryQuery;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
-use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
-use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Data\PromotionSelection;
-use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
-use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
-use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
-use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
-use Simtabi\Laranail\Settings\Categories\CategoryManager;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
+use Simtabi\Laranail\Settings\Data\Transfer\StoreDiff;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
+use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
+use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
+use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
 use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
 use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
-use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
-use Simtabi\Laranail\Settings\Configuration\PromotionSettings;
+use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
+use Simtabi\Laranail\Settings\Exceptions\UnknownSetting;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
-use Simtabi\Laranail\Settings\Configuration\PersistedConfigurationEditor;
+use Simtabi\Laranail\Settings\History\HistoryQuery;
+use Simtabi\Laranail\Settings\Resolution\Explanation;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
 
 /**
@@ -86,9 +86,8 @@ interface Settings
      *
      * @template TResult
      *
-     * @param callable(RuntimeConfiguration): mixed $change
-     * @param callable(): TResult $run
-     *
+     * @param  callable(RuntimeConfiguration): mixed  $change
+     * @param  callable(): TResult  $run
      * @return TResult
      */
     public function withConfiguration(callable $change, callable $run): mixed;
@@ -99,7 +98,7 @@ interface Settings
      * override see it too unless they hold their own. Nothing is written, cached, audited or
      * versioned, and no ability is checked. The value is validated and cast as a write is.
      *
-     * @param string|array<string, mixed> $key one key, or `key => value` pairs
+     * @param  string|array<string, mixed>  $key  one key, or `key => value` pairs
      *
      * @throws InvalidKey when a key is not a valid setting key
      * @throws InvalidSettingValue when a value fails the definition's rules or `values.max_bytes`
@@ -123,9 +122,8 @@ interface Settings
      *
      * @template TResult
      *
-     * @param array<string, mixed> $values `key => value` pairs, as {@see override()} takes
-     * @param callable(): TResult $run
-     *
+     * @param  array<string, mixed>  $values  `key => value` pairs, as {@see override()} takes
+     * @param  callable(): TResult  $run
      * @return TResult
      */
     public function withOverrides(array $values, callable $run): mixed;
@@ -150,8 +148,7 @@ interface Settings
      * Several values, keyed as asked: a list of keys, `key => default` pairs, or both. Each key is
      * read as {@see get()} reads it.
      *
-     * @param array<array-key, mixed> $keys
-     *
+     * @param  array<array-key, mixed>  $keys
      * @return array<string, mixed>
      *
      * @throws InvalidKey when a list entry is not a string
@@ -218,14 +215,14 @@ interface Settings
      * Write several values with {@see set()}, in order. Not atomic: the first refusal stops the
      * rest, and earlier writes stay.
      *
-     * @param array<string, mixed> $values
+     * @param  array<string, mixed>  $values
      */
     public function setMany(array $values): void;
 
     /**
      * Remove several of this handle's own values with {@see forget()}, in order.
      *
-     * @param iterable<string> $keys
+     * @param  iterable<string>  $keys
      */
     public function forgetMany(iterable $keys): void;
 
@@ -233,7 +230,7 @@ interface Settings
      * The stored value, or `$value()` written with {@see set()} and read back when nothing is
      * stored. When the write opens a change request instead, the computed value is returned.
      *
-     * @param callable(): mixed $value
+     * @param  callable(): mixed  $value
      */
     public function remember(string $key, callable $value): mixed;
 
@@ -269,7 +266,7 @@ interface Settings
      * Eager-load the settings of many owners, their parents and the global scope, one read per
      * store.
      *
-     * @param iterable<Settable|OwnerRef> $owners
+     * @param  iterable<Settable|OwnerRef>  $owners
      */
     public function preload(iterable $owners): void;
 

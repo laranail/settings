@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Authentication;
 
 use Closure;
-use Illuminate\Http\Request;
-use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Simtabi\Laranail\Settings\Data\ActorContext;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Illuminate\Http\Request;
 use Simtabi\Laranail\Settings\Contracts\ActorResolver;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\ActorContext;
 
 /**
  * Resolves the user of the first guard in `authentication.guards` that has one, or of the
@@ -19,8 +19,8 @@ use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 final readonly class GuardActorResolver implements ActorResolver
 {
     /**
-     * @param list<string> $guards
-     * @param Closure(): ?Request $request the current request, or null outside HTTP
+     * @param  list<string>  $guards
+     * @param  Closure(): ?Request  $request  the current request, or null outside HTTP
      */
     public function __construct(
         private AuthFactory $auth,

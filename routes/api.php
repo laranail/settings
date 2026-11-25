@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Simtabi\Laranail\Settings\Http\Controllers\AuditController;
-use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
-use Simtabi\Laranail\Settings\Http\Controllers\StoresController;
+use Simtabi\Laranail\Settings\Http\Controllers\CategoriesController;
 use Simtabi\Laranail\Settings\Http\Controllers\ChangesController;
+use Simtabi\Laranail\Settings\Http\Controllers\ConfigurationController;
 use Simtabi\Laranail\Settings\Http\Controllers\HistoryController;
 use Simtabi\Laranail\Settings\Http\Controllers\SettingsController;
+use Simtabi\Laranail\Settings\Http\Controllers\StoresController;
 use Simtabi\Laranail\Settings\Http\Controllers\TransferController;
-use Simtabi\Laranail\Settings\Http\Controllers\CategoriesController;
-use Simtabi\Laranail\Settings\Http\Controllers\ConfigurationController;
+use Simtabi\Laranail\Settings\Http\Middleware\IdempotentWrites;
 
 /*
  * The REST API, loaded only when `laranail.settings.http.enabled` is on. The provider wraps it in
@@ -19,7 +19,7 @@ use Simtabi\Laranail\Settings\Http\Controllers\ConfigurationController;
  * and rate limiter. Each `http.routes.<group>` switch can turn a group off.
  */
 
-$enabled = static fn (string $group): bool => config('laranail.settings.http.routes.' . $group, true) !== false;
+$enabled = static fn (string $group): bool => config('laranail.settings.http.routes.'.$group, true) !== false;
 
 // The same setting routes, globally and for an owner.
 $settings = static function () use ($enabled): void {

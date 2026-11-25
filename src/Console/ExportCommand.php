@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
+use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Settings\Actions\Transfer\StreamExport;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Enums\ExportMode;
-use Simtabi\Laranail\Console\Tools\Commands\Command;
 use Simtabi\Laranail\Settings\Data\Transfer\ExportRequest;
+use Simtabi\Laranail\Settings\Enums\ExportMode;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Actions\Transfer\StreamExport;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
  * Write a store's settings and categories as JSON, to a file or standard output. Secrets are left
@@ -36,9 +36,9 @@ final class ExportCommand extends Command
         $store = $this->option('store');
         $name = is_string($store) && $store !== '' ? $store : null;
         $mode = match (true) {
-            $this->option('decrypt') === true      => ExportMode::Plaintext,
+            $this->option('decrypt') === true => ExportMode::Plaintext,
             $this->option('with-secrets') === true => ExportMode::Ciphertext,
-            default                                => ExportMode::Redacted,
+            default => ExportMode::Redacted,
         };
 
         try {

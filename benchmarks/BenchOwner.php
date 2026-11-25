@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Benchmarks;
 
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 
 /**
  * A settings owner with one parent, without a model or a table: the benchmark measures the

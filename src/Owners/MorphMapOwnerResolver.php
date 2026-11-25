@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Owners;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Contracts\Settable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Simtabi\Laranail\Settings\Exceptions\UnknownOwner;
+use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Exceptions\UnknownOwner;
 
 /**
  * Resolves the owner a REST URL names from `http.owners` or the morph map. A {@see Settable}

@@ -6,15 +6,15 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\AssertionFailedError;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
-use Simtabi\Laranail\Settings\Facades\Settings;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
-use Simtabi\Laranail\Settings\Contracts\Settings as SettingsContract;
+use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 
 it('records writes in memory and asserts on them', function (): void {
     $fake = Settings::fake();

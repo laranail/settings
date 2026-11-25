@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
 use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
  * Copy values written to a store's runtime file before install into its database layer, then

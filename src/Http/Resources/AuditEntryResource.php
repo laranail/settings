@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Resources;
 
-use Override;
 use Illuminate\Http\Request;
-use Simtabi\Laranail\Settings\Data\AuditEntry;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Attributes\PreserveKeys;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Override;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
 
 /**
  * An audit entry: identifiers, the outcome and the channel, never a value.

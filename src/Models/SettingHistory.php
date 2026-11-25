@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Models;
 
-use Override;
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Key;
 use Illuminate\Database\Eloquent\Builder;
+use Override;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Data\HistoryEntry;
 use Simtabi\Laranail\Settings\Data\HistoryFilter;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Enums\HistoryOperation;
-use Simtabi\Laranail\Settings\Support\DatabaseValues;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
+use Simtabi\Laranail\Settings\Support\DatabaseValues;
 
 /**
  * A row of the value history: one version of a setting, with the payload before and after exactly
@@ -56,24 +56,24 @@ final class SettingHistory extends SettingsModel
         $causer ??= Actor::system();
 
         return self::on($connection)->create([
-            'store'         => $store->value,
-            'setting_ref'   => $reference,
-            'scope'         => $subject->scope->value,
-            'key'           => $subject->key->value,
-            'locale'        => $subject->locale->value,
-            'operation'     => $operation->value,
-            'old_value'     => $before?->payload,
-            'new_value'     => $after?->payload,
-            'old_type'      => $before?->type,
-            'new_type'      => $after?->type,
+            'store' => $store->value,
+            'setting_ref' => $reference,
+            'scope' => $subject->scope->value,
+            'key' => $subject->key->value,
+            'locale' => $subject->locale->value,
+            'operation' => $operation->value,
+            'old_value' => $before?->payload,
+            'new_value' => $after?->payload,
+            'old_type' => $before?->type,
+            'new_type' => $after?->type,
             'old_encrypted' => $before instanceof Record && $before->encrypted,
             'new_encrypted' => $after instanceof Record && $after->encrypted,
-            'version'       => ($after ?? $before)->version,
-            'causer_type'   => $causer->type->value,
-            'causer_alias'  => $causer->alias,
-            'causer_id'     => $causer->id,
-            'reason'        => $reason ?? $causer->context->reason,
-            'created_at'    => $at,
+            'version' => ($after ?? $before)->version,
+            'causer_type' => $causer->type->value,
+            'causer_alias' => $causer->alias,
+            'causer_id' => $causer->id,
+            'reason' => $reason ?? $causer->context->reason,
+            'created_at' => $at,
         ]);
     }
 
@@ -151,8 +151,7 @@ final class SettingHistory extends SettingsModel
     /**
      * One setting's trail.
      *
-     * @param Builder<self> $query
-     *
+     * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeForSetting(Builder $query, StoreName $store, Scope $scope, Key $key, Locale $locale): Builder
@@ -166,8 +165,7 @@ final class SettingHistory extends SettingsModel
     /**
      * The entries matching a filter, newest version first.
      *
-     * @param Builder<self> $query
-     *
+     * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeMatching(Builder $query, HistoryFilter $filter): Builder

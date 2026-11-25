@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Data;
 
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Enums\Channel;
 
 /**
  * One audited action: who did what to which key, and how it ended. It has no value field, so the
@@ -43,25 +43,25 @@ final readonly class AuditEntry
     public function toArray(): array
     {
         return [
-            'id'           => $this->id,
-            'occurred_at'  => $this->occurredAt->toIso8601String(),
-            'action'       => $this->action->value,
-            'outcome'      => $this->outcome->value,
-            'store'        => $this->store,
-            'scope'        => $this->scope,
-            'key'          => $this->key,
-            'locale'       => $this->locale,
+            'id' => $this->id,
+            'occurred_at' => $this->occurredAt->toIso8601String(),
+            'action' => $this->action->value,
+            'outcome' => $this->outcome->value,
+            'store' => $this->store,
+            'scope' => $this->scope,
+            'key' => $this->key,
+            'locale' => $this->locale,
             'version_from' => $this->versionFrom,
-            'version_to'   => $this->versionTo,
-            'actor_type'   => $this->actorType->value,
-            'actor_alias'  => $this->actorAlias,
-            'actor_id'     => $this->actorId,
-            'channel'      => $this->channel->value,
-            'ip'           => $this->ip,
-            'user_agent'   => $this->userAgent,
-            'request_id'   => $this->requestId,
-            'reason'       => $this->reason,
-            'meta'         => $this->meta,
+            'version_to' => $this->versionTo,
+            'actor_type' => $this->actorType->value,
+            'actor_alias' => $this->actorAlias,
+            'actor_id' => $this->actorId,
+            'channel' => $this->channel->value,
+            'ip' => $this->ip,
+            'user_agent' => $this->userAgent,
+            'request_id' => $this->requestId,
+            'reason' => $this->reason,
+            'meta' => $this->meta,
         ];
     }
 }

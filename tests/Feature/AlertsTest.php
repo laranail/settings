@@ -2,32 +2,32 @@
 
 declare(strict_types=1);
 
-use Psr\Log\AbstractLogger;
-use Illuminate\Support\Stringable;
 use Illuminate\Contracts\Cache\Repository;
-use Simtabi\Laranail\Settings\Data\Subject;
+use Illuminate\Contracts\Notifications\Dispatcher;
+use Illuminate\Contracts\Translation\Translator;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Support\Clock;
+use Illuminate\Support\Stringable;
+use Psr\Log\AbstractLogger;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
+use Simtabi\Laranail\Settings\Data\AlertContext;
 use Simtabi\Laranail\Settings\Data\AlertRule;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Illuminate\Contracts\Translation\Translator;
-use Simtabi\Laranail\Settings\Data\AlertContext;
-use Illuminate\Notifications\AnonymousNotifiable;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 use Simtabi\Laranail\Settings\Events\AuditPruned;
-use Illuminate\Contracts\Notifications\Dispatcher;
 use Simtabi\Laranail\Settings\Events\SettingSaved;
 use Simtabi\Laranail\Settings\Events\StorePromoted;
-use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Listeners\LogSettingsEvent;
 use Simtabi\Laranail\Settings\Listeners\SendSettingsAlert;
 use Simtabi\Laranail\Settings\Notifications\SettingsAlert;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
 use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
+use Simtabi\Laranail\Settings\Support\Clock;
 
 /*
  * Alerts: Laravel notifications on settings events, off by default, matched by rules, throttled,
@@ -41,7 +41,7 @@ function alertOn(array $rules, array $extra = []): void
     config()->set('laranail.settings.alerts.rules', $rules);
 
     foreach ($extra as $key => $value) {
-        config()->set('laranail.settings.' . $key, $value);
+        config()->set('laranail.settings.'.$key, $value);
     }
 
     app()->getProvider(SettingsServiceProvider::class)?->packageBooted();
@@ -128,7 +128,7 @@ it('narrows by store, sensitive keys and outcome', function (): void {
 
     expect(fn () => settings()->as(user(4))->set('site.name', 'x'))->toThrow(AccessDenied::class);
 
-    $routes = array_map(static fn (SettingsAlert $alert): string => $alert->context->event . ':' . ($alert->context->key ?? '-') . ':' . $alert->context->outcome, sentAlerts());
+    $routes = array_map(static fn (SettingsAlert $alert): string => $alert->context->event.':'.($alert->context->key ?? '-').':'.$alert->context->outcome, sentAlerts());
 
     expect($routes)->toBe(['SettingSaved:mail.password:allowed', 'AccessWasDenied:site.name:denied']);
 
@@ -163,7 +163,7 @@ it('routes to Slack only when the Slack channel package is installed', function 
 
     expect(sentAlerts()[0]->channels)->toBe($installed ? ['mail', 'slack'] : ['mail']);
 
-    require_once __DIR__ . '/../Fixtures/Stubs/legacy-slack-message.php';
+    require_once __DIR__.'/../Fixtures/Stubs/legacy-slack-message.php';
     settings()->set('site.url', 'https://example.test');
 
     $slack = sentAlerts()[1];
@@ -176,7 +176,7 @@ it('routes to Slack only when the Slack channel package is installed', function 
 
 it('never puts a setting\'s value into any channel of an alert', function (): void {
     Notification::fake();
-    require_once __DIR__ . '/../Fixtures/Stubs/legacy-slack-message.php';
+    require_once __DIR__.'/../Fixtures/Stubs/legacy-slack-message.php';
     app(DefinitionRegistry::class)->define('mail.password')->encrypted()->register();
     alertOn([['events' => SendSettingsAlert::EVENTS, 'notify' => ['mail' => ['ops@example.test'], 'slack' => 'https://hooks.slack.test/T/B/C']]], ['alerts.throttle' => 0]);
     $secret = TestCredentials::secret('alert');
@@ -191,9 +191,9 @@ it('never puts a setting\'s value into any channel of an alert', function (): vo
 
     foreach ($alerts as $alert) {
         $mail = $alert->toMail($notifiable);
-        $rendered .= $mail->subject . json_encode($mail->toArray()) . $mail->render()
-            . json_encode($alert->toArray($notifiable)) . json_encode($alert->toDatabase($notifiable))
-            . json_encode($alert->toSlack($notifiable)) . serialize($alert);
+        $rendered .= $mail->subject.json_encode($mail->toArray()).$mail->render()
+            .json_encode($alert->toArray($notifiable)).json_encode($alert->toDatabase($notifiable))
+            .json_encode($alert->toSlack($notifiable)).serialize($alert);
     }
 
     // Three alerts (saved, locked, denied), each rendered on every channel; none holds the secret.
@@ -208,13 +208,13 @@ it('rejects a malformed rule with its config path', function (array $rule, strin
 
     expect(fn () => app(SendSettingsAlert::class))->toThrow(InvalidConfiguration::class, $message);
 })->with([
-    'no events'          => [['events' => []], 'rules.0.events: name at least one event'],
-    'events not a list'  => [['events' => 'SettingSaved'], 'rules.0.events: a list of strings.'],
-    'bad keys'           => [['events' => ['SettingSaved'], 'keys' => [1]], 'rules.0.keys: a list of strings, or null'],
-    'bad sensitive'      => [['events' => ['SettingSaved'], 'sensitive_only' => 'yes'], 'rules.0.sensitive_only'],
-    'bad notify'         => [['events' => ['SettingSaved'], 'notify' => 'ops@example.test'], 'rules.0.notify'],
-    'bad slack'          => [['events' => ['SettingSaved'], 'notify' => ['slack' => '']], 'rules.0.notify.slack'],
-    'bad queue'          => [['events' => ['SettingSaved'], 'queue' => 5], 'rules.0.queue'],
+    'no events' => [['events' => []], 'rules.0.events: name at least one event'],
+    'events not a list' => [['events' => 'SettingSaved'], 'rules.0.events: a list of strings.'],
+    'bad keys' => [['events' => ['SettingSaved'], 'keys' => [1]], 'rules.0.keys: a list of strings, or null'],
+    'bad sensitive' => [['events' => ['SettingSaved'], 'sensitive_only' => 'yes'], 'rules.0.sensitive_only'],
+    'bad notify' => [['events' => ['SettingSaved'], 'notify' => 'ops@example.test'], 'rules.0.notify'],
+    'bad slack' => [['events' => ['SettingSaved'], 'notify' => ['slack' => '']], 'rules.0.notify.slack'],
+    'bad queue' => [['events' => ['SettingSaved'], 'queue' => 5], 'rules.0.queue'],
     'bad database model' => [['events' => ['SettingSaved'], 'notify' => ['database' => ['type' => stdClass::class, 'id' => 1]]], 'rules.0.notify.database'],
 ]);
 

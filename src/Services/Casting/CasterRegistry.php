@@ -6,14 +6,14 @@ namespace Simtabi\Laranail\Settings\Services\Casting;
 
 use BackedEnum;
 use Illuminate\Container\Attributes\Singleton;
-use Simtabi\Laranail\Settings\Contracts\Caster;
-use Simtabi\Laranail\Settings\Casting\EnumCaster;
 use Simtabi\Laranail\Settings\Casting\ArrayCaster;
-use Simtabi\Laranail\Settings\Casting\FloatCaster;
-use Simtabi\Laranail\Settings\Casting\StringCaster;
 use Simtabi\Laranail\Settings\Casting\BooleanCaster;
-use Simtabi\Laranail\Settings\Casting\IntegerCaster;
 use Simtabi\Laranail\Settings\Casting\DateTimeCaster;
+use Simtabi\Laranail\Settings\Casting\EnumCaster;
+use Simtabi\Laranail\Settings\Casting\FloatCaster;
+use Simtabi\Laranail\Settings\Casting\IntegerCaster;
+use Simtabi\Laranail\Settings\Casting\StringCaster;
+use Simtabi\Laranail\Settings\Contracts\Caster;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 
 /**
@@ -28,11 +28,11 @@ final class CasterRegistry
     public function __construct()
     {
         $this->casters = [
-            'string'   => new StringCaster,
-            'int'      => new IntegerCaster,
-            'float'    => new FloatCaster,
-            'bool'     => new BooleanCaster,
-            'array'    => new ArrayCaster,
+            'string' => new StringCaster,
+            'int' => new IntegerCaster,
+            'float' => new FloatCaster,
+            'bool' => new BooleanCaster,
+            'array' => new ArrayCaster,
             'datetime' => new DateTimeCaster,
         ];
     }
@@ -49,7 +49,7 @@ final class CasterRegistry
     /** @param class-string<BackedEnum> $enum */
     public function registerEnum(string $alias, string $enum): void
     {
-        $this->register('enum:' . $alias, new EnumCaster($enum));
+        $this->register('enum:'.$alias, new EnumCaster($enum));
     }
 
     public function has(string $type): bool

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Settings\Support\Json;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
-use Simtabi\Laranail\Settings\Data\ConfigurationValue;
-use Simtabi\Laranail\Settings\Configurator\Contribution;
+use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 use Simtabi\Laranail\Settings\Actions\DescribeConfiguration;
 use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
-use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Settings\Configurator\Contribution;
+use Simtabi\Laranail\Settings\Data\ConfigurationValue;
+use Simtabi\Laranail\Settings\Support\Json;
 
 /**
  * Show who set the package up and where each configuration key's value came from: the
@@ -37,7 +37,7 @@ final class ConfiguratorCommand extends Command
         $scope = $this->string('scope');
 
         $registrations = array_values(array_filter($report->registrations, static fn (ConfiguratorRegistration $registration): bool => $scope === null || $registration->scope->value === $scope));
-        $entries = array_values(array_filter($report->entries, static fn (ConfigurationValue $entry): bool => ($key === null || $entry->key === $key || str_starts_with($entry->key, $key . '.'))
+        $entries = array_values(array_filter($report->entries, static fn (ConfigurationValue $entry): bool => ($key === null || $entry->key === $key || str_starts_with($entry->key, $key.'.'))
             && ($owner === null || $entry->owner === $owner)));
         $statuses = [];
 
@@ -47,18 +47,18 @@ final class ConfiguratorCommand extends Command
 
         if ($this->option('json') === true) {
             $this->line(Json::encode([
-                'mode'          => $report->mode->value,
+                'mode' => $report->mode->value,
                 'config_cached' => $report->configCached,
                 'registrations' => array_map(static fn (ConfiguratorRegistration $registration): array => [
-                    'scope'       => $registration->scope->value,
-                    'identity'    => $registration->identity,
-                    'class'       => $registration->class,
-                    'class_file'  => $registration->classFile,
-                    'site'        => $registration->site(),
-                    'status'      => ($statuses[$registration->class] ?? null)?->status->value,
+                    'scope' => $registration->scope->value,
+                    'identity' => $registration->identity,
+                    'class' => $registration->class,
+                    'class_file' => $registration->classFile,
+                    'site' => $registration->site(),
+                    'status' => ($statuses[$registration->class] ?? null)?->status->value,
                     'excluded_at' => ($statuses[$registration->class] ?? null)?->excludedAt,
                 ], $registrations),
-                'entries'  => array_map(static fn (ConfigurationValue $entry): array => $entry->toArray(), $entries),
+                'entries' => array_map(static fn (ConfigurationValue $entry): array => $entry->toArray(), $entries),
                 'leftover' => $report->leftover,
             ], 'the configurator report'));
 
@@ -83,7 +83,7 @@ final class ConfiguratorCommand extends Command
         $this->table(['Key', 'Value', 'Source'], array_map(static fn (ConfigurationValue $entry): array => [
             $entry->key,
             self::show($entry->value),
-            $entry->owner === null ? $entry->source : $entry->source . ' (' . $entry->owner . ')',
+            $entry->owner === null ? $entry->source : $entry->source.' ('.$entry->owner.')',
         ], $entries));
 
         foreach ($report->leftover as $variable => $method) {
@@ -97,19 +97,19 @@ final class ConfiguratorCommand extends Command
     {
         return match (true) {
             ! $contribution instanceof Contribution => 'not run yet',
-            $contribution->excludedAt !== null      => 'excluded by app (' . $contribution->excludedAt . ')',
-            default                                 => $contribution->status->label(),
+            $contribution->excludedAt !== null => 'excluded by app ('.$contribution->excludedAt.')',
+            default => $contribution->status->label(),
         };
     }
 
     private static function show(mixed $value): string
     {
         return match (true) {
-            $value === null   => 'null',
-            is_bool($value)   => $value ? 'true' : 'false',
+            $value === null => 'null',
+            is_bool($value) => $value ? 'true' : 'false',
             is_scalar($value) => (string) $value,
-            is_array($value)  => Json::encode($value, 'a configuration value'),
-            default           => get_debug_type($value),
+            is_array($value) => Json::encode($value, 'a configuration value'),
+            default => get_debug_type($value),
         };
     }
 

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 use Simtabi\Laranail\Settings\Data\Http\AddressInput;
+use Simtabi\Laranail\Settings\Enums\ChangeOperation;
 
 /**
  * `POST /stores/{store}/changes`: propose a `set`, `forget`, `lock` or `unlock` of one setting.
@@ -22,15 +22,15 @@ final class ProposeChangeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'store'       => ['nullable', 'string', 'max:64'],
-            'key'         => ['required', 'string', 'max:191'],
-            'value'       => ['nullable'],
-            'owner'       => ['nullable', 'array'],
+            'store' => ['nullable', 'string', 'max:64'],
+            'key' => ['required', 'string', 'max:191'],
+            'value' => ['nullable'],
+            'owner' => ['nullable', 'array'],
             'owner.alias' => ['required_with:owner', 'string', 'max:64'],
-            'owner.id'    => ['required_with:owner', 'string', 'max:36'],
-            'locale'      => ['nullable', 'string', 'max:16'],
-            'operation'   => ['nullable', 'string', 'in:set,forget,lock,unlock'],
-            'reason'      => ['nullable', 'string', 'max:255'],
+            'owner.id' => ['required_with:owner', 'string', 'max:36'],
+            'locale' => ['nullable', 'string', 'max:16'],
+            'operation' => ['nullable', 'string', 'in:set,forget,lock,unlock'],
+            'reason' => ['nullable', 'string', 'max:255'],
         ];
     }
 

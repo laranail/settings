@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Data;
 
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\Channel;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\ActorType;
+use Simtabi\Laranail\Settings\Enums\Channel;
 
 /**
  * Who is acting and through which channel. The authenticatable is kept for authorizers but never
@@ -17,7 +17,7 @@ use Simtabi\Laranail\Settings\Enums\ActorType;
 final readonly class Actor
 {
     /**
-     * @param list<string>|null $abilities token abilities; null means the actor is not limited by a token
+     * @param  list<string>|null  $abilities  token abilities; null means the actor is not limited by a token
      */
     public function __construct(
         public ActorType $type,
@@ -34,13 +34,13 @@ final readonly class Actor
     public function __serialize(): array
     {
         return [
-            'type'       => $this->type->value,
-            'id'         => $this->id,
-            'alias'      => $this->alias,
-            'channel'    => $this->channel->value,
-            'abilities'  => $this->abilities,
+            'type' => $this->type->value,
+            'id' => $this->id,
+            'alias' => $this->alias,
+            'channel' => $this->channel->value,
+            'abilities' => $this->abilities,
             'verifiedAt' => $this->verifiedAt?->toIso8601String(),
-            'context'    => [$this->context->ip, $this->context->userAgent, $this->context->requestId, $this->context->reason],
+            'context' => [$this->context->ip, $this->context->userAgent, $this->context->requestId, $this->context->reason],
         ];
     }
 
@@ -70,7 +70,7 @@ final readonly class Actor
     /**
      * An actor for a user; passing token abilities makes it a token actor.
      *
-     * @param list<string>|null $abilities
+     * @param  list<string>|null  $abilities
      */
     public static function user(
         Authenticatable $user,

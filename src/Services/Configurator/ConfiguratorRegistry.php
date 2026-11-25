@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Services\Configurator;
 
 use Closure;
-use Throwable;
 use Illuminate\Contracts\Container\Container;
-use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
-use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
-use Simtabi\Laranail\Settings\Configurator\SetupValues;
-use Simtabi\Laranail\Settings\Enums\ContributionStatus;
+use Simtabi\Laranail\Package\Tools\Support\Resilience\FailurePolicy;
 use Simtabi\Laranail\Settings\Configurator\AppliedSetup;
-use Simtabi\Laranail\Settings\Configurator\Contribution;
-use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
-use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
-use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
 use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
+use Simtabi\Laranail\Settings\Configurator\Contribution;
+use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
+use Simtabi\Laranail\Settings\Configurator\SetupValues;
 use Simtabi\Laranail\Settings\Contracts\ModuleSettingsContributor;
 use Simtabi\Laranail\Settings\Contracts\PackageSettingsContributor;
-use Simtabi\Laranail\Package\Tools\Support\Resilience\FailurePolicy;
-use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
+use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
+use Simtabi\Laranail\Settings\Enums\ContributionStatus;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
+use Throwable;
 
 /**
  * Every registered piece of the settings setup, what it came to, and whether it is sealed: the
@@ -69,8 +69,8 @@ final class ConfiguratorRegistry
     /**
      * Records a configurator or contributor.
      *
-     * @param ConfiguratorScope|null $expected the only scope the call accepts, or null for any
-     * @param Closure(Throwable): void $report sends a refused registration to the exception handler
+     * @param  ConfiguratorScope|null  $expected  the only scope the call accepts, or null for any
+     * @param  Closure(Throwable): void  $report  sends a refused registration to the exception handler
      */
     public function register(string $class, string $file, int $line, Closure $report, ?ConfiguratorScope $expected = null): ConfiguratorRegistration
     {
@@ -140,8 +140,8 @@ final class ConfiguratorRegistry
      * Runs every registration once, decides what applies, and writes it into config, unless the
      * configuration is cached: the cached values were captured from these same registrations.
      *
-     * @param Closure(string, mixed): void $write sets one `laranail.settings` path
-     * @param Closure(Throwable): void $report sends a refused late change to the exception handler
+     * @param  Closure(string, mixed): void  $write  sets one `laranail.settings` path
+     * @param  Closure(Throwable): void  $report  sends a refused late change to the exception handler
      */
     public function apply(Container $app, bool $configCached, Closure $write, Closure $report): ?AppliedSetup
     {
@@ -219,7 +219,7 @@ final class ConfiguratorRegistry
             }
 
             $instance->configure(new SettingsSetup($values));
-        }, 'laranail/settings ' . $registration->describe());
+        }, 'laranail/settings '.$registration->describe());
 
         return $values;
     }
@@ -244,9 +244,9 @@ final class ConfiguratorRegistry
             $excludedAt = $application?->excludedAt($registration);
             $status = match (true) {
                 $registration->scope === ConfiguratorScope::Application => ContributionStatus::Applied,
-                $excludedAt !== null                                    => ContributionStatus::Excluded,
-                $mode === ConfiguratorMode::Strict                      => ContributionStatus::Refused,
-                default                                                 => ContributionStatus::Applied,
+                $excludedAt !== null => ContributionStatus::Excluded,
+                $mode === ConfiguratorMode::Strict => ContributionStatus::Refused,
+                default => ContributionStatus::Applied,
             };
             $contributions[] = new Contribution($registration, $status, $run->all(), $excludedAt);
 
@@ -292,6 +292,6 @@ final class ConfiguratorRegistry
     {
         $segments = explode('.', $path);
 
-        return in_array($segments[0], ['stores', 'layers'], true) && isset($segments[1]) ? $segments[0] . '.' . $segments[1] : $path;
+        return in_array($segments[0], ['stores', 'layers'], true) && isset($segments[1]) ? $segments[0].'.'.$segments[1] : $path;
     }
 }

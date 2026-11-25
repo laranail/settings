@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions\Categories;
 
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
-use Simtabi\Laranail\Settings\Events\CategorySaved;
-use Simtabi\Laranail\Settings\Support\Translations;
-use Simtabi\Laranail\Settings\Events\CategorySaving;
+use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Events\CategorySaved;
+use Simtabi\Laranail\Settings\Events\CategorySaving;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Support\Translations;
 
 /** Create a category, optionally under a parent in the same store. */
 final readonly class CreateCategory
@@ -31,14 +31,14 @@ final readonly class CreateCategory
             $parent = $category->parent instanceof CategorySlug ? SettingCategory::idOf($connection, $store->name, $category->parent) : null;
 
             return SettingCategory::on($connection)->create([
-                'store'       => $store->name->value,
-                'slug'        => $category->slug->value,
-                'parent_id'   => $parent,
-                'title'       => Translations::of($category->title, $category->translations),
+                'store' => $store->name->value,
+                'slug' => $category->slug->value,
+                'parent_id' => $parent,
+                'title' => Translations::of($category->title, $category->translations),
                 'description' => Translations::ofNullable($category->description),
-                'icon'        => $category->icon,
-                'sort_order'  => $category->sortOrder,
-                'is_system'   => $category->system,
+                'icon' => $category->icon,
+                'sort_order' => $category->sortOrder,
+                'is_system' => $category->system,
             ])->toCategory($category->parent);
         });
     }

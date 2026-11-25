@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Tests;
 
-use Override;
 use Illuminate\Support\Facades\Storage;
-use Simtabi\Laranail\Settings\SettingsManager;
-use Simtabi\Laranail\Package\Tools\Testing\IsolatedTestCase;
+use Override;
 use Simtabi\Laranail\DbTools\Providers\DbToolsServiceProvider;
-use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
 use Simtabi\Laranail\Package\Tools\Providers\PackageToolsServiceProvider;
+use Simtabi\Laranail\Package\Tools\Testing\IsolatedTestCase;
+use Simtabi\Laranail\Settings\Providers\SettingsServiceProvider;
+use Simtabi\Laranail\Settings\SettingsManager;
 
 abstract class TestCase extends IsolatedTestCase
 {
@@ -44,7 +44,7 @@ abstract class TestCase extends IsolatedTestCase
      * Boot the application again with this configuration in place before the providers boot (the
      * REST API registers its routes at boot, only when http.enabled is on).
      *
-     * @param array<string, mixed> $config full config keys
+     * @param  array<string, mixed>  $config  full config keys
      */
     public function rebootWith(array $config): void
     {
@@ -64,8 +64,8 @@ abstract class TestCase extends IsolatedTestCase
      * registered (a configurator's, say). The suite's test configuration still applies, except the
      * table prefix, which stays what the boot left it, so a configurator's prefix can be read.
      *
-     * @param list<class-string> $after registered after the package's provider
-     * @param list<class-string> $before registered before it
+     * @param  list<class-string>  $after  registered after the package's provider
+     * @param  list<class-string>  $before  registered before it
      */
     public function bootWith(array $after, array $before = []): void
     {
@@ -105,17 +105,17 @@ abstract class TestCase extends IsolatedTestCase
         }
 
         $app['config']->set('database.default', $connection);
-        $app['config']->set('database.connections.' . $connection, [
-            'driver'    => $connection,
-            'host'      => getenv('DB_HOST') ?: '127.0.0.1',
-            'port'      => getenv('DB_PORT') ?: ($connection === 'pgsql' ? '5432' : '3306'),
-            'database'  => getenv('DB_DATABASE') ?: 'settings',
-            'username'  => getenv('DB_USERNAME') ?: 'root',
-            'password'  => getenv('DB_PASSWORD') ?: '',
-            'charset'   => $connection === 'pgsql' ? 'utf8' : 'utf8mb4',
+        $app['config']->set('database.connections.'.$connection, [
+            'driver' => $connection,
+            'host' => getenv('DB_HOST') ?: '127.0.0.1',
+            'port' => getenv('DB_PORT') ?: ($connection === 'pgsql' ? '5432' : '3306'),
+            'database' => getenv('DB_DATABASE') ?: 'settings',
+            'username' => getenv('DB_USERNAME') ?: 'root',
+            'password' => getenv('DB_PASSWORD') ?: '',
+            'charset' => $connection === 'pgsql' ? 'utf8' : 'utf8mb4',
             'collation' => $connection === 'pgsql' ? null : 'utf8mb4_unicode_ci',
-            'prefix'    => '',
-            'schema'    => 'public',
+            'prefix' => '',
+            'schema' => 'public',
         ]);
     }
 

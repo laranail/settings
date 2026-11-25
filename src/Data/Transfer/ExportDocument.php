@@ -21,8 +21,8 @@ final readonly class ExportDocument
     public const int JSON_FLAGS = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR;
 
     /**
-     * @param list<ExportedCategory> $categories
-     * @param list<ExportedSetting> $settings
+     * @param  list<ExportedCategory>  $categories
+     * @param  list<ExportedSetting>  $settings
      */
     public function __construct(
         public string $store,
@@ -50,7 +50,7 @@ final readonly class ExportDocument
     }
 
     /**
-     * @param array<array-key, mixed> $data
+     * @param  array<array-key, mixed>  $data
      *
      * @throws InvalidImport
      */
@@ -89,20 +89,20 @@ final readonly class ExportDocument
     public function toArray(): array
     {
         return array_filter([
-            'format'      => self::FORMAT,
-            'version'     => self::VERSION,
-            'store'       => $this->store,
-            'mode'        => $this->mode->value,
+            'format' => self::FORMAT,
+            'version' => self::VERSION,
+            'store' => $this->store,
+            'mode' => $this->mode->value,
             'exported_at' => $this->exportedAt,
-            'source'      => $this->source,
-            'categories'  => array_map(static fn (ExportedCategory $category): array => $category->toArray(), $this->categories),
-            'settings'    => array_map(static fn (ExportedSetting $setting): array => $setting->toArray(), $this->settings),
+            'source' => $this->source,
+            'categories' => array_map(static fn (ExportedCategory $category): array => $category->toArray(), $this->categories),
+            'settings' => array_map(static fn (ExportedSetting $setting): array => $setting->toArray(), $this->settings),
         ], static fn (mixed $value): bool => $value !== null);
     }
 
     public function toJson(): string
     {
-        return json_encode($this->toArray(), self::JSON_FLAGS) . "\n";
+        return json_encode($this->toArray(), self::JSON_FLAGS)."\n";
     }
 
     /** @return array<string, ExportedSetting> by identity */

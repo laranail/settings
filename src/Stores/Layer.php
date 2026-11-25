@@ -23,8 +23,8 @@ final readonly class Layer
     public function answersFor(Precedence $precedence): bool
     {
         return match ($precedence) {
-            Precedence::Store  => true,
-            Precedence::File   => ! $this->driver->isWritable() && in_array($this->type, [DriverType::Php, DriverType::Json], true),
+            Precedence::Store => true,
+            Precedence::File => ! $this->driver->isWritable() && in_array($this->type, [DriverType::Php, DriverType::Json], true),
             Precedence::Config => $this->type === DriverType::Config,
         };
     }

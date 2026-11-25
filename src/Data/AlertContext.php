@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-use ReflectionClass;
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Support\EventSummary;
+use ReflectionClass;
 use Simtabi\Laranail\Settings\Events\AccessWasDenied;
 use Simtabi\Laranail\Settings\Events\VerificationWasRequired;
+use Simtabi\Laranail\Settings\Support\EventSummary;
 
 /**
  * What an alert says about one event: what happened, where, by whom, how it ended and when.
@@ -58,7 +58,7 @@ final readonly class AlertContext
         $what = trim((string) preg_replace('/(?<!^)[A-Z]/', ' $0', $this->event));
 
         return $this->key === null
-            ? sprintf('laranail/settings: %s%s', $what, $this->store === null ? '' : ' in store ' . $this->store)
+            ? sprintf('laranail/settings: %s%s', $what, $this->store === null ? '' : ' in store '.$this->store)
             : sprintf('laranail/settings: %s, [%s] in store %s', $what, $this->key, $this->store ?? '?');
     }
 
@@ -66,16 +66,16 @@ final readonly class AlertContext
     public function toArray(): array
     {
         return [
-            'event'       => $this->event,
-            'store'       => $this->store,
-            'scope'       => $this->scope,
-            'key'         => $this->key,
-            'locale'      => $this->locale,
-            'outcome'     => $this->outcome,
-            'actor'       => $this->actor,
-            'sensitive'   => $this->sensitive,
+            'event' => $this->event,
+            'store' => $this->store,
+            'scope' => $this->scope,
+            'key' => $this->key,
+            'locale' => $this->locale,
+            'outcome' => $this->outcome,
+            'actor' => $this->actor,
+            'sensitive' => $this->sensitive,
             'occurred_at' => $this->occurredAt->toIso8601String(),
-            'details'     => $this->details,
+            'details' => $this->details,
         ];
     }
 }

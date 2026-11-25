@@ -13,7 +13,7 @@ declare(strict_types=1);
 function mermaidBlocks(): array
 {
     $root = dirname(__DIR__, 2);
-    $files = [$root . '/README.md', ...(glob($root . '/docs/*.md') ?: []), ...(glob($root . '/docs/*/*.md') ?: [])];
+    $files = [$root.'/README.md', ...(glob($root.'/docs/*.md') ?: []), ...(glob($root.'/docs/*/*.md') ?: [])];
     $blocks = [];
 
     foreach ($files as $file) {
@@ -75,8 +75,8 @@ it('keeps every mermaid diagram in the README and docs well formed', function ()
 it('reports a malformed diagram', function (string $block): void {
     expect(mermaidProblem($block))->not->toBeNull();
 })->with([
-    'unknown type'       => "flowchart-ish TD\n    a --> b\n",
+    'unknown type' => "flowchart-ish TD\n    a --> b\n",
     'unbalanced bracket' => "flowchart TD\n    a[\"label\" --> b\n",
-    'unclosed quote'     => "flowchart TD\n    a[\"label] --> b\n",
-    'reserved name'      => "sequenceDiagram\n    participant Actor as ApiActor\n",
+    'unclosed quote' => "flowchart TD\n    a[\"label] --> b\n",
+    'reserved name' => "sequenceDiagram\n    participant Actor as ApiActor\n",
 ]);

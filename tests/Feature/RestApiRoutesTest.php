@@ -16,12 +16,12 @@ function controllerMethods(): array
 {
     $methods = [];
 
-    foreach (glob(dirname(__DIR__, 2) . '/src/Http/Controllers/*.php') ?: [] as $file) {
-        $class = new ReflectionClass('Simtabi\\Laranail\\Settings\\Http\\Controllers\\' . basename($file, '.php'));
+    foreach (glob(dirname(__DIR__, 2).'/src/Http/Controllers/*.php') ?: [] as $file) {
+        $class = new ReflectionClass('Simtabi\\Laranail\\Settings\\Http\\Controllers\\'.basename($file, '.php'));
 
         foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             if ($method->getName() !== '__construct' && $method->getDeclaringClass()->getName() === $class->getName()) {
-                $methods[$class->getShortName() . '::' . $method->getName()] = $method;
+                $methods[$class->getShortName().'::'.$method->getName()] = $method;
             }
         }
     }
@@ -40,7 +40,7 @@ function delegatedActions(ReflectionMethod $method): array
         $type = $parameter->getType();
         $class = $type instanceof ReflectionNamedType ? $type->getName() : '';
 
-        if (str_starts_with($class, 'Simtabi\\Laranail\\Settings\\Actions\\') && preg_match('/\$' . $parameter->getName() . '->(handle|paginate|get|cursor)\(/', $body) === 1) {
+        if (str_starts_with($class, 'Simtabi\\Laranail\\Settings\\Actions\\') && preg_match('/\$'.$parameter->getName().'->(handle|paginate|get|cursor)\(/', $body) === 1) {
             $actions[] = $class;
         }
     }
@@ -73,7 +73,7 @@ it('routes every controller method, and every route to a controller method that 
 
     foreach ($routes as $route) {
         [$controller, $action] = explode('@', $route->getActionName());
-        $key = new ReflectionClass($controller)->getShortName() . '::' . $action;
+        $key = new ReflectionClass($controller)->getShortName().'::'.$action;
         $routed[] = $key;
 
         expect($methods[$key] ?? null)->toBeInstanceOf(ReflectionMethod::class, sprintf('%s names no controller method', $route->getName()));

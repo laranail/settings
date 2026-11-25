@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-use Stringable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Stringable;
 
 /** A category slug: lower-case letters, digits and hyphens, at most 128 characters. */
 final readonly class CategorySlug implements Stringable

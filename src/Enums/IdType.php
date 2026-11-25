@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Enums;
 
-use Simtabi\Laranail\Enumerator\Attributes\Label;
-use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Attributes\Description;
+use Simtabi\Laranail\Enumerator\Attributes\Label;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
+use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 
 /** The key type of a dedicated store's owner table (`stores.<name>.owner.type`); unset, it follows `laranail.db-tools.id_type`. */
 enum IdType: string implements Enumerator

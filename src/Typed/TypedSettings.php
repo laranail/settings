@@ -6,16 +6,16 @@ namespace Simtabi\Laranail\Settings\Typed;
 
 use ReflectionClass;
 use ReflectionProperty;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\Definition;
-use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
+use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
 use Simtabi\Laranail\Settings\Typed\Attributes\Group;
 use Simtabi\Laranail\Settings\Typed\Attributes\Store;
-use Simtabi\Laranail\Settings\Exceptions\TypeMismatch;
-use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
-use Simtabi\Laranail\Settings\Services\Resolution\Overrides;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /**
  * A class whose public typed properties map to setting keys, loaded and saved through a settings
@@ -147,7 +147,7 @@ abstract class TypedSettings
     public function save(?Settings $settings = null): void
     {
         $given = $settings instanceof Settings;
-        $handle = $given ? self::scoped($settings) : ($this->handle ?? throw new TypeMismatch(static::class . ' was not loaded; pass a settings handle to save().'));
+        $handle = $given ? self::scoped($settings) : ($this->handle ?? throw new TypeMismatch(static::class.' was not loaded; pass a settings handle to save().'));
 
         foreach (static::properties() as $name => $property) {
             if (! $property->property->isInitialized($this)) {
@@ -182,8 +182,7 @@ abstract class TypedSettings
     /**
      * @template T of object
      *
-     * @param class-string<T> $attribute
-     *
+     * @param  class-string<T>  $attribute
      * @return ?T
      */
     private static function attribute(string $attribute): ?object

@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Enums;
 
 use Simtabi\Laranail\Enumerator\Attributes\Label;
-use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
+use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
+use Simtabi\Laranail\Settings\Data\Decision;
 
 /**
- * The kind of {@see \Simtabi\Laranail\Settings\Data\Decision} an authorizer returns. When every
+ * The kind of {@see Decision} an authorizer returns. When every
  * authorizer abstains, `authorization.undefined` decides.
  */
 enum Verdict: string implements Enumerator

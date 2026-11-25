@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Authorization;
 
-use Simtabi\Laranail\Settings\Data\Actor;
 use Illuminate\Contracts\Auth\Access\Gate;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\Decision;
-use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Decision;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Enums\Ability;
 
 /**
  * Asks Laravel's gate for `laranail-settings.<ability>` with the {@see Subject}. An ability

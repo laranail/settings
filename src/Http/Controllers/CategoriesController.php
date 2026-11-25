@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
-use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
-use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Http\Support\ApiActor;
-use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
-use Simtabi\Laranail\Settings\Http\Requests\ReasonRequest;
-use Simtabi\Laranail\Settings\Actions\Categories\MoveCategory;
-use Simtabi\Laranail\Settings\Http\Resources\CategoryResource;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Simtabi\Laranail\Settings\Actions\Categories\CreateCategory;
 use Simtabi\Laranail\Settings\Actions\Categories\DeleteCategory;
 use Simtabi\Laranail\Settings\Actions\Categories\ListCategories;
+use Simtabi\Laranail\Settings\Actions\Categories\MoveCategory;
 use Simtabi\Laranail\Settings\Actions\Categories\RenameCategory;
+use Simtabi\Laranail\Settings\Data\Category;
+use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
+use Simtabi\Laranail\Settings\Http\Requests\ReasonRequest;
 use Simtabi\Laranail\Settings\Http\Requests\StoreCategoryRequest;
-use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 use Simtabi\Laranail\Settings\Http\Requests\UpdateCategoryRequest;
+use Simtabi\Laranail\Settings\Http\Resources\CategoryResource;
+use Simtabi\Laranail\Settings\Http\Support\ApiActor;
+use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 
 /** `/stores/{store}/categories`: list, create, rename or move, delete. */
 final readonly class CategoriesController

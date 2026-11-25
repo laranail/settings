@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Typed;
 
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Actions\MigrateSettings;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\SettingsMigrationStep;
+use Simtabi\Laranail\Settings\Data\StoreName;
 
 /**
  * Renames, moves, deletes and adds keys for a settings migration, as the system actor. Uses the

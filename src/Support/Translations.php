@@ -13,8 +13,7 @@ final readonly class Translations
     /**
      * The map to store for a text and its translations.
      *
-     * @param array<string, string> $translations locale => text
-     *
+     * @param  array<string, string>  $translations  locale => text
      * @return array<string, string>
      */
     public static function of(string $text, array $translations = []): array

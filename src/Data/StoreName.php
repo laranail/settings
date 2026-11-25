@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-use Stringable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Stringable;
 
 /**
  * A store name: lower-case letters, digits and underscores, starting with a letter, at most 64

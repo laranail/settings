@@ -7,8 +7,8 @@ namespace Simtabi\Laranail\Settings\Models;
 use Closure;
 use Illuminate\Contracts\Config\Repository;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Enums\TenancyMode;
 use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Enums\TenancyMode;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
@@ -26,8 +26,8 @@ final class ModelContext
     private static ?Closure $tenant = null;
 
     /**
-     * @param Closure(): Repository $config
-     * @param Closure(): ?string $tenant
+     * @param  Closure(): Repository  $config
+     * @param  Closure(): ?string  $tenant
      */
     public static function use(Closure $config, Closure $tenant): void
     {
@@ -65,7 +65,7 @@ final class ModelContext
      */
     public static function store(StoreName $store): array
     {
-        $config = self::config()->get('laranail.settings.stores.' . $store->value);
+        $config = self::config()->get('laranail.settings.stores.'.$store->value);
 
         return is_array($config) ? $config : [];
     }
@@ -74,7 +74,7 @@ final class ModelContext
     public static function connectionOf(StoreName $store): ?string
     {
         foreach ((array) (self::store($store)['layers'] ?? []) as $layer) {
-            $config = is_string($layer) ? self::config()->get('laranail.settings.layers.' . $layer) : null;
+            $config = is_string($layer) ? self::config()->get('laranail.settings.layers.'.$layer) : null;
 
             if (is_array($config) && ($config['driver'] ?? null) === 'database') {
                 return is_string($config['connection'] ?? null) ? $config['connection'] : null;

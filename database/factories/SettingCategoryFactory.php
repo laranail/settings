@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Database\Factories;
 
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 use Simtabi\Laranail\Settings\Models\ModelContext;
-use Illuminate\Database\Eloquent\Factories\Factory;
-use Simtabi\Laranail\Settings\Support\Translations;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
+use Simtabi\Laranail\Settings\Support\Translations;
 
 /**
  * Categories for tests and seeding. Titles are JSON maps of locale to text. No Faker: slugs and titles are generated, so host applications need not
@@ -36,16 +36,16 @@ final class SettingCategoryFactory extends Factory
     /** @return array<string, mixed> */
     public function definition(): array
     {
-        $slug = 'category-' . Str::lower(Str::random(10));
+        $slug = 'category-'.Str::lower(Str::random(10));
 
         return [
-            'store'       => ModelContext::defaultStore()->value,
-            'slug'        => $slug,
-            'title'       => self::text(Str::headline($slug)),
+            'store' => ModelContext::defaultStore()->value,
+            'slug' => $slug,
+            'title' => self::text(Str::headline($slug)),
             'description' => null,
-            'icon'        => null,
-            'sort_order'  => 0,
-            'is_system'   => false,
+            'icon' => null,
+            'sort_order' => 0,
+            'is_system' => false,
         ];
     }
 

@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Enums\Stage;
-use Simtabi\Laranail\Settings\SettingsManager;
-use Simtabi\Laranail\Settings\Contracts\Settings;
-use Simtabi\Laranail\Settings\Diagnostics\Finding;
-use Simtabi\Laranail\Settings\Events\SettingSaved;
+use Simtabi\Laranail\Package\Tools\Exceptions\PackageBootException;
+use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
 use Simtabi\Laranail\Settings\Actions\DiagnoseSettings;
 use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Diagnostics\Finding;
+use Simtabi\Laranail\Settings\Enums\Stage;
+use Simtabi\Laranail\Settings\Events\SettingSaved;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
-use Simtabi\Laranail\Package\Tools\Exceptions\PackageBootException;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\TaggingDecorator;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\SettingsManager;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ContributorsProvider;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedConfigurator;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedPackageContributor;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\TaggingDecorator;
 
 /** Boots with the application configurator, and the package contributor first when given. */
 function bootComposition(Closure $app, ?Closure $package = null): void
@@ -83,7 +83,7 @@ it('runs write stages on the plain value before validation, and read stages afte
         ->pipe(Stage::AfterRead, static function (mixed $value, Key $key) use ($seen): mixed {
             $seen[] = ['read', $key->value, $value];
 
-            return is_string($value) ? $value . '!' : $value;
+            return is_string($value) ? $value.'!' : $value;
         }));
 
     settings()->set('api.token', 'abc');
@@ -96,15 +96,15 @@ it('runs write stages on the plain value before validation, and read stages afte
 it('validates what a write stage returns, so a stage cannot get past the rules', function (): void {
     bootComposition(static fn (SettingsSetup $settings): SettingsSetup => $settings
         ->define('site.code', static fn (DefinitionBuilder $definition): DefinitionBuilder => $definition->ofType('string')->rules(['max:3']))
-        ->pipe(Stage::BeforeWrite, static fn (mixed $value): string => $value . '-and-more'));
+        ->pipe(Stage::BeforeWrite, static fn (mixed $value): string => $value.'-and-more'));
 
     expect(fn () => settings()->set('site.code', 'abc'))->toThrow(InvalidSettingValue::class);
 });
 
 it('runs stages from every owner, packages first', function (): void {
     bootComposition(
-        static fn (SettingsSetup $settings): SettingsSetup => $settings->pipe(Stage::BeforeWrite, static fn (mixed $value): string => $value . '-app'),
-        static fn (SettingsSetup $settings): SettingsSetup => $settings->pipe(Stage::BeforeWrite, static fn (mixed $value): string => $value . '-package'),
+        static fn (SettingsSetup $settings): SettingsSetup => $settings->pipe(Stage::BeforeWrite, static fn (mixed $value): string => $value.'-app'),
+        static fn (SettingsSetup $settings): SettingsSetup => $settings->pipe(Stage::BeforeWrite, static fn (mixed $value): string => $value.'-package'),
     );
 
     settings()->set('site.name', 'acme');

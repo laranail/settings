@@ -23,5 +23,5 @@ it('publishes the config file to config/laranail/settings.php', function (): voi
 
     expect(config_path('laranail/settings.php'))->toBeFile()
         ->and(File::get(config_path('laranail/settings.php')))
-        ->toBe(File::get(dirname(__DIR__, 2) . '/config/settings.php'));
+        ->toBe(File::get(dirname(__DIR__, 2).'/config/settings.php'));
 });

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 use Simtabi\Laranail\Settings\Actions\FindOrphans;
 use Simtabi\Laranail\Settings\Actions\PruneOrphans;
-use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
  * Remove the settings of owners that no longer exist, which bulk deletes leave behind.

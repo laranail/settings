@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
@@ -17,14 +17,14 @@ use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
 beforeEach(function (): void {
     useDatabase([
         'stores.settings.owners' => ['user'],
-        'stores.billing'         => ['layers' => ['database']],
+        'stores.billing' => ['layers' => ['database']],
     ], stores: ['billing']);
 });
 
 /** @param list<AuditEntry> $entries */
 function auditKeys(array $entries): array
 {
-    return array_map(static fn (AuditEntry $entry): string => $entry->action->value . ':' . ($entry->key ?? '-'), $entries);
+    return array_map(static fn (AuditEntry $entry): string => $entry->action->value.':'.($entry->key ?? '-'), $entries);
 }
 
 it('queries the audit trail by owner, store, key, action, outcome and time, newest first', function (): void {

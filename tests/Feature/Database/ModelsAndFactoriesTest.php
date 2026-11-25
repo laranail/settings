@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Models\Setting;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Models\ModelContext;
-use Simtabi\Laranail\Settings\Models\SettingCategory;
-use Simtabi\Laranail\Settings\Models\SettingAuditEntry;
-use Simtabi\Laranail\Settings\Models\SettingDefinition;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Simtabi\Laranail\Settings\Models\ModelContext;
+use Simtabi\Laranail\Settings\Models\Setting;
+use Simtabi\Laranail\Settings\Models\SettingAuditEntry;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
+use Simtabi\Laranail\Settings\Models\SettingDefinition;
 
 /*
  * The Eloquent models and their factories: for tests, seeding and admin screens.

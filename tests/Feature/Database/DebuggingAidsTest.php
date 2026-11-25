@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Psr\Log\AbstractLogger;
-use Illuminate\Support\Facades\DB;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Enums\Channel;
-use Simtabi\Laranail\Settings\Data\AuditEntry;
-use Simtabi\Laranail\Settings\Enums\ActorType;
-use Simtabi\Laranail\Settings\Data\NewCategory;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Audit\LogAuditSink;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Data\NewCategory;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Enums\ActorType;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
+use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 
 /** A logger keeping each entry's context. */
@@ -99,7 +99,7 @@ it('masks a sensitive value unless --reveal is given', function (): void {
         ->assertSuccessful();
 
     $this->artisan('laranail::settings.show', ['key' => 'mail.password', '--reveal' => true])
-        ->expectsOutputToContain('"' . $secret . '"')
+        ->expectsOutputToContain('"'.$secret.'"')
         ->assertSuccessful();
 });
 
@@ -173,10 +173,10 @@ it('logs an audit entry with the standard context', function (): void {
     ));
 
     expect(array_slice($sink->contexts[0], 0, 5))->toBe([
-        'store'   => 'settings',
-        'key'     => 'theme',
-        'scope'   => 'user:7',
-        'actor'   => ['type' => 'user', 'alias' => 'user', 'id' => '7'],
+        'store' => 'settings',
+        'key' => 'theme',
+        'scope' => 'user:7',
+        'actor' => ['type' => 'user', 'alias' => 'user', 'id' => '7'],
         'channel' => 'rest',
     ])->and($sink->contexts[0]['action'])->toBe('update');
 });

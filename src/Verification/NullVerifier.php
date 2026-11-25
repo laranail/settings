@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Verification;
 
+use Simtabi\Laranail\Settings\Contracts\Verifier;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Contracts\Verifier;
 
 /** Treats every actor as verified (`verification.driver = none`). */
 final readonly class NullVerifier implements Verifier

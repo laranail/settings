@@ -5,26 +5,26 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Drivers\JsonDriver;
-use Simtabi\Laranail\Settings\Diagnostics\Finding;
-use Simtabi\Laranail\Settings\Models\ModelContext;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Enums\ContributionStatus;
-use Simtabi\Laranail\Settings\Configurator\AppliedSetup;
-use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
-use Simtabi\Laranail\Settings\Support\LeftoverEnvironment;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
-use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
 use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorResult;
+use Simtabi\Laranail\Settings\Configurator\AppliedSetup;
+use Simtabi\Laranail\Settings\Configurator\ConfiguredBehaviour;
+use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Diagnostics\Finding;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Drivers\JsonDriver;
+use Simtabi\Laranail\Settings\Enums\ContributionStatus;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Models\ModelContext;
+use Simtabi\Laranail\Settings\Models\SettingChangeRequest;
+use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
+use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
-use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
-use Simtabi\Laranail\Settings\Services\Configuration\PersistedConfiguration;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Support\LaravelValueEncrypter;
+use Simtabi\Laranail\Settings\Support\LeftoverEnvironment;
 
 /**
  * The findings of `laranail::settings.doctor`. Read-only.
@@ -109,7 +109,7 @@ final readonly class DiagnoseSettings
         $problems = $this->persisted->problems();
         $findings[] = new Finding('persisted configuration', 'Every persisted store and layer entry is valid', $problems === []
             ? DoctorResult::pass('Every persisted entry is valid (or persisted configuration is off).')
-            : DoctorResult::warn('Persisted entries skipped as invalid: ' . implode('; ', $problems), ['problems' => $problems]));
+            : DoctorResult::warn('Persisted entries skipped as invalid: '.implode('; ', $problems), ['problems' => $problems]));
 
         $findings = [...$findings, ...$this->configurator()];
 
@@ -131,17 +131,17 @@ final readonly class DiagnoseSettings
         $registrations = $this->registry->registrations();
         $applied = $this->registry->applied();
         $findings = [new Finding('configurator', 'The settings configurator and contributors ran while the application booted', match (true) {
-            $registrations === []              => DoctorResult::skip('No configurator or contributor is registered.'),
+            $registrations === [] => DoctorResult::skip('No configurator or contributor is registered.'),
             ! $applied instanceof AppliedSetup => DoctorResult::fail(sprintf('%d registration(s), but the setup has not run: the settings provider did not boot.', count($registrations))),
-            default                            => DoctorResult::pass(sprintf('%d registration(s) in %s mode set %d value(s); see laranail::settings.configurator.', count($registrations), $applied->mode->value, count($applied->values))),
+            default => DoctorResult::pass(sprintf('%d registration(s) in %s mode set %d value(s); see laranail::settings.configurator.', count($registrations), $applied->mode->value, count($applied->values))),
         })];
 
         foreach ($applied->contributions ?? [] as $contribution) {
             if ($contribution->status !== ContributionStatus::Applied) {
-                $findings[] = new Finding('configurator: ' . $contribution->registration->identity, 'A contributor that was not applied', DoctorResult::warn(sprintf(
+                $findings[] = new Finding('configurator: '.$contribution->registration->identity, 'A contributor that was not applied', DoctorResult::warn(sprintf(
                     '%s was %s: nothing it declared applies (%d value(s)).',
                     $contribution->registration->describe(),
-                    $contribution->status === ContributionStatus::Excluded ? 'excluded by the application at ' . $contribution->excludedAt : 'refused in strict mode',
+                    $contribution->status === ContributionStatus::Excluded ? 'excluded by the application at '.$contribution->excludedAt : 'refused in strict mode',
                     count($contribution->values),
                 )));
             }
@@ -150,7 +150,7 @@ final readonly class DiagnoseSettings
         $leftover = LeftoverEnvironment::find();
         $findings[] = new Finding('configurator: environment', 'No LARANAIL_SETTINGS_* variable is left in the environment', $leftover === []
             ? DoctorResult::pass('No LARANAIL_SETTINGS_* variable is set.')
-            : DoctorResult::warn('Still set, and replaced by the configurator: ' . implode('; ', array_map(static fn (string $variable, string $method): string => $variable . ' (use ' . $method . ')', array_keys($leftover), $leftover)), ['variables' => $leftover]));
+            : DoctorResult::warn('Still set, and replaced by the configurator: '.implode('; ', array_map(static fn (string $variable, string $method): string => $variable.' (use '.$method.')', array_keys($leftover), $leftover)), ['variables' => $leftover]));
 
         return $findings;
     }
@@ -188,8 +188,8 @@ final readonly class DiagnoseSettings
 
         return match (true) {
             $ownerId === null || $ownerKey === null => new Finding("{$store->name}: owner key", $label, DoctorResult::skip('The owner table or its key column could not be read.')),
-            $ownerId === $ownerKey                  => new Finding("{$store->name}: owner key", $label, DoctorResult::pass(sprintf('owner_id and %s.%s are both %s.', $store->ownerTable, $store->ownerKey, $ownerId))),
-            default                                 => new Finding("{$store->name}: owner key", $label, DoctorResult::warn(sprintf('owner_id is %s but %s.%s is %s; set stores.%s.owner.type to match and migrate again.', $ownerId, $store->ownerTable, $store->ownerKey, $ownerKey, $store->name))),
+            $ownerId === $ownerKey => new Finding("{$store->name}: owner key", $label, DoctorResult::pass(sprintf('owner_id and %s.%s are both %s.', $store->ownerTable, $store->ownerKey, $ownerId))),
+            default => new Finding("{$store->name}: owner key", $label, DoctorResult::warn(sprintf('owner_id is %s but %s.%s is %s; set stores.%s.owner.type to match and migrate again.', $ownerId, $store->ownerTable, $store->ownerKey, $ownerKey, $store->name))),
         };
     }
 
@@ -201,10 +201,10 @@ final readonly class DiagnoseSettings
         $owner = $store->isDedicated() ? ['owner_id'] : ['settable_type', 'settable_id'];
         $expected = [
             $database->tableFor($store->name) => [...self::VALUES_COLUMNS, ...$owner, ...$tenant],
-            $names->categories()              => [...self::CATEGORY_COLUMNS, ...$tenant],
-            $names->audit()                   => [...self::AUDIT_COLUMNS, ...$tenant],
-            $names->history()                 => [...self::HISTORY_COLUMNS, ...$tenant],
-            $names->changeRequests()          => [...self::CHANGE_REQUEST_COLUMNS, ...$tenant],
+            $names->categories() => [...self::CATEGORY_COLUMNS, ...$tenant],
+            $names->audit() => [...self::AUDIT_COLUMNS, ...$tenant],
+            $names->history() => [...self::HISTORY_COLUMNS, ...$tenant],
+            $names->changeRequests() => [...self::CHANGE_REQUEST_COLUMNS, ...$tenant],
         ];
 
         if ($database->connectionName() === $this->stores->default()->database()?->connectionName()) {
@@ -217,13 +217,13 @@ final readonly class DiagnoseSettings
 
         foreach ($expected as $table => $columns) {
             foreach (array_diff($columns, $inspector->columns($table) ?? []) as $column) {
-                $missing[] = $table . '.' . $column;
+                $missing[] = $table.'.'.$column;
             }
         }
 
         return new Finding("{$store->name}: schema", 'The tables have every column the package uses', $missing === []
             ? DoctorResult::pass('Every column is present.')
-            : DoctorResult::fail('Missing columns (publish and run the latest migrations): ' . implode(', ', $missing), ['missing' => $missing]));
+            : DoctorResult::fail('Missing columns (publish and run the latest migrations): '.implode(', ', $missing), ['missing' => $missing]));
     }
 
     private function scopes(Store $store, DatabaseDriver $database): Finding
@@ -246,12 +246,12 @@ final readonly class DiagnoseSettings
         }
 
         if ($classes !== []) {
-            return new Finding("{$store->name}: scopes", 'Scopes use morph aliases the store lists', DoctorResult::fail('Scopes name classes instead of morph aliases: ' . implode(', ', array_keys($classes)), ['classes' => array_keys($classes)]));
+            return new Finding("{$store->name}: scopes", 'Scopes use morph aliases the store lists', DoctorResult::fail('Scopes name classes instead of morph aliases: '.implode(', ', array_keys($classes)), ['classes' => array_keys($classes)]));
         }
 
         return new Finding("{$store->name}: scopes", 'Scopes use morph aliases the store lists', $unlisted === []
             ? DoctorResult::pass('Every scope uses a listed alias.')
-            : DoctorResult::warn('Scopes use aliases the store does not list (renamed or removed?): ' . implode(', ', array_keys($unlisted)), ['aliases' => array_keys($unlisted)]));
+            : DoctorResult::warn('Scopes use aliases the store does not list (renamed or removed?): '.implode(', ', array_keys($unlisted)), ['aliases' => array_keys($unlisted)]));
     }
 
     /**

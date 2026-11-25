@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Str;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Database\Schema\Blueprint;
-use Simtabi\Laranail\Settings\Data\StoreName;
+use Illuminate\Support\Str;
 use Simtabi\Laranail\Settings\Actions\MakeStore;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 
 // Writes into the testbench application shared by every process, so it cannot run in parallel.
 // It also carries `mutation-excluded`, because Pest's parallel runner honours one --exclude-group.
@@ -20,7 +20,7 @@ pest()->group('shared-app', 'mutation-excluded');
 /** @return list<string> */
 function settingsMigrations(): array
 {
-    return glob(database_path('migrations') . '/*settings*.php') ?: [];
+    return glob(database_path('migrations').'/*settings*.php') ?: [];
 }
 
 beforeEach(function (): void {
@@ -52,7 +52,7 @@ it('refuses to install over a table of the same name that is not its own', funct
         $table->string('name');
     });
 
-    expect(fn () => $this->artisan('laranail::settings.install')->run())->toThrow(InvalidConfiguration::class, DB::getDefaultConnection() . '.settings')
+    expect(fn () => $this->artisan('laranail::settings.install')->run())->toThrow(InvalidConfiguration::class, DB::getDefaultConnection().'.settings')
         ->and(settingsMigrations())->toBe([]);
 
     // Nothing is published yet, so the message names the fix that needs no config file.
@@ -72,7 +72,7 @@ it('refuses to install over a table of the same name that is not its own', funct
 });
 
 it('ships vendor-prefixed table names, so it installs beside an application\'s own settings table', function (): void {
-    $shipped = require dirname(__DIR__, 3) . '/config/settings.php';
+    $shipped = require dirname(__DIR__, 3).'/config/settings.php';
 
     expect($shipped['tables']['prefix'])->toBe('laranail_');
 
@@ -88,7 +88,7 @@ it('ships vendor-prefixed table names, so it installs beside an application\'s o
     $this->artisan('migrate', ['--path' => database_path('migrations'), '--realpath' => true])->assertSuccessful();
 
     foreach (['settings', 'settings_categories', 'settings_definitions', 'settings_audit', 'settings_history', 'settings_change_requests', 'settings_stores'] as $table) {
-        expect(Schema::hasTable('laranail_' . $table))->toBeTrue();
+        expect(Schema::hasTable('laranail_'.$table))->toBeTrue();
     }
 
     expect(Schema::getColumnListing('settings'))->toBe(['id', 'name']);
@@ -154,7 +154,7 @@ it('generates the categories and audit tables too for a store on its own connect
 it('reports readiness, missing columns and rows the database cannot guard', function (): void {
     useDatabase([
         'stores.settings.owners' => ['user'],
-        'stores.files'           => ['layers' => ['runtime']],
+        'stores.files' => ['layers' => ['runtime']],
     ]);
 
     $this->artisan('laranail::settings.doctor')

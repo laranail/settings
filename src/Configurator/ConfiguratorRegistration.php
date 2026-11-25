@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Configurator;
 
-use ReflectionClass;
 use Composer\InstalledVersions;
-use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
-use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
-use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
+use ReflectionClass;
 use Simtabi\Laranail\Settings\Contracts\ModuleSettingsContributor;
 use Simtabi\Laranail\Settings\Contracts\PackageSettingsContributor;
+use Simtabi\Laranail\Settings\Contracts\SettingsConfigurator;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
 
 /**
  * One registered piece of the settings setup: its class, the file the class lives in, the file and
@@ -33,7 +33,7 @@ final readonly class ConfiguratorRegistration
      * Validates the class, reads its scope from the contract it implements, and records where it
      * was registered from.
      *
-     * @param ConfiguratorScope|null $expected the scope the call accepts (useConfigurator() takes the application's only)
+     * @param  ConfiguratorScope|null  $expected  the scope the call accepts (useConfigurator() takes the application's only)
      */
     public static function of(string $class, string $file, int $line, ?ConfiguratorScope $expected = null): self
     {
@@ -45,8 +45,8 @@ final readonly class ConfiguratorRegistration
 
         $scopes = array_keys(array_filter([
             ConfiguratorScope::Application->value => is_subclass_of($class, SettingsConfigurator::class),
-            ConfiguratorScope::Package->value     => is_subclass_of($class, PackageSettingsContributor::class),
-            ConfiguratorScope::Module->value      => is_subclass_of($class, ModuleSettingsContributor::class),
+            ConfiguratorScope::Package->value => is_subclass_of($class, PackageSettingsContributor::class),
+            ConfiguratorScope::Module->value => is_subclass_of($class, ModuleSettingsContributor::class),
         ]));
 
         if (count($scopes) !== 1) {
@@ -71,15 +71,15 @@ final readonly class ConfiguratorRegistration
 
         return new self($class, $classFile, $file, $line, $scope, match ($scope) {
             ConfiguratorScope::Application => 'app',
-            ConfiguratorScope::Package     => self::packageOf($classFile, $class, $site),
-            ConfiguratorScope::Module      => is_subclass_of($class, ModuleSettingsContributor::class) ? self::moduleOf($class, $site) : '',
+            ConfiguratorScope::Package => self::packageOf($classFile, $class, $site),
+            ConfiguratorScope::Module => is_subclass_of($class, ModuleSettingsContributor::class) ? self::moduleOf($class, $site) : '',
         });
     }
 
     /** `file:line` of the registration call. */
     public function site(): string
     {
-        return $this->file . ':' . $this->line;
+        return $this->file.':'.$this->line;
     }
 
     public function describe(): string
@@ -100,7 +100,7 @@ final readonly class ConfiguratorRegistration
             $path = InstalledVersions::getInstallPath($package);
             $path = $path === null ? false : realpath($path);
 
-            if ($path !== false && str_starts_with($file, $path . DIRECTORY_SEPARATOR) && strlen($path) > $depth) {
+            if ($path !== false && str_starts_with($file, $path.DIRECTORY_SEPARATOR) && strlen($path) > $depth) {
                 $best = $package;
                 $depth = strlen($path);
             }

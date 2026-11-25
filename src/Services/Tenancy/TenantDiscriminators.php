@@ -7,8 +7,8 @@ namespace Simtabi\Laranail\Settings\Services\Tenancy;
 use Illuminate\Contracts\Container\Container;
 use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Tenancy\NullTenantDiscriminator;
 use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
+use Simtabi\Laranail\Settings\Tenancy\NullTenantDiscriminator;
 
 /**
  * Builds the tenant discriminator named by `tenancy.discriminator`.
@@ -33,17 +33,17 @@ final readonly class TenantDiscriminators
             $driver = match (true) {
                 class_exists(self::STANCL) => 'stancl',
                 class_exists(self::SPATIE) => 'spatie',
-                default                    => 'null',
+                default => 'null',
             };
         }
 
         return match ($driver) {
             'null', null => new NullTenantDiscriminator,
-            'stancl'     => class_exists(self::STANCL)
+            'stancl' => class_exists(self::STANCL)
                 ? new ClosureTenantDiscriminator(fn (): mixed => $this->stancl())
-                : throw new InvalidConfiguration(self::PATH . ': [stancl] needs stancl/tenancy.'),
+                : throw new InvalidConfiguration(self::PATH.': [stancl] needs stancl/tenancy.'),
             'spatie' => new ClosureTenantDiscriminator(fn (): mixed => $this->spatie()),
-            default  => $this->custom($driver),
+            default => $this->custom($driver),
         };
     }
 

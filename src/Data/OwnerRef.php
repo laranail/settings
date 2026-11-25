@@ -32,8 +32,7 @@ final readonly class OwnerRef
     /**
      * Build an ordered list of owners from alias => id pairs, dropping pairs whose id is null.
      *
-     * @param array<string, int|string|null> $pairs
-     *
+     * @param  array<string, int|string|null>  $pairs
      * @return list<self>
      */
     public static function list(array $pairs): array

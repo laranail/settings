@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Audit;
 
-use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
 
 /**
  * The default sink (`audit.sinks = ['auto']`): the database sink for entries whose store has an

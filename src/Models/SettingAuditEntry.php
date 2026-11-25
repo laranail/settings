@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Models;
 
-use Override;
-use JsonException;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
-use Simtabi\Laranail\Settings\Enums\Channel;
-use Simtabi\Laranail\Settings\Data\StoreName;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use JsonException;
+use Override;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
-use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Data\AuditFilter;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Database\Factories\SettingAuditEntryFactory;
+use Simtabi\Laranail\Settings\Enums\ActorType;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Simtabi\Laranail\Settings\Enums\Channel;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
-use Simtabi\Laranail\Settings\Database\Factories\SettingAuditEntryFactory;
 
 /**
  * A row of the append-only audit table: who did what, when and through which channel. Never holds
@@ -42,26 +42,26 @@ final class SettingAuditEntry extends SettingsModel
     public static function attributesOf(AuditEntry $entry): array
     {
         return [
-            'id'             => $entry->id,
-            'occurred_at'    => $entry->occurredAt,
-            'action'         => $entry->action->value,
-            'outcome'        => $entry->outcome->value,
-            'store'          => $entry->store,
-            'scope'          => $entry->scope,
-            'key'            => $entry->key,
-            'locale'         => $entry->locale,
-            'version_from'   => $entry->versionFrom,
-            'version_to'     => $entry->versionTo,
+            'id' => $entry->id,
+            'occurred_at' => $entry->occurredAt,
+            'action' => $entry->action->value,
+            'outcome' => $entry->outcome->value,
+            'store' => $entry->store,
+            'scope' => $entry->scope,
+            'key' => $entry->key,
+            'locale' => $entry->locale,
+            'version_from' => $entry->versionFrom,
+            'version_to' => $entry->versionTo,
             'change_request' => is_string($entry->meta['change_request'] ?? null) ? $entry->meta['change_request'] : null,
-            'actor_type'     => $entry->actorType->value,
-            'actor_alias'    => $entry->actorAlias,
-            'actor_id'       => $entry->actorId,
-            'channel'        => $entry->channel->value,
-            'ip'             => $entry->ip,
-            'user_agent'     => $entry->userAgent,
-            'request_id'     => $entry->requestId,
-            'reason'         => $entry->reason,
-            'meta'           => $entry->meta === [] ? null : $entry->meta,
+            'actor_type' => $entry->actorType->value,
+            'actor_alias' => $entry->actorAlias,
+            'actor_id' => $entry->actorId,
+            'channel' => $entry->channel->value,
+            'ip' => $entry->ip,
+            'user_agent' => $entry->userAgent,
+            'request_id' => $entry->requestId,
+            'reason' => $entry->reason,
+            'meta' => $entry->meta === [] ? null : $entry->meta,
         ];
     }
 
@@ -118,8 +118,7 @@ final class SettingAuditEntry extends SettingsModel
     /**
      * The rows matching a filter, newest first.
      *
-     * @param Builder<self> $query
-     *
+     * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeMatching(Builder $query, AuditFilter $filter): Builder

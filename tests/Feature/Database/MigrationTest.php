@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Migrations\Migration;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /*
  * The package's one migration: every table, in dependency order, for every recorded database
@@ -18,21 +18,21 @@ use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
 /** The migration, freshly required (each require builds a new instance). */
 function packageMigration(): Migration
 {
-    return require dirname(__DIR__, 3) . '/database/migrations/create_laranail_settings_tables.php';
+    return require dirname(__DIR__, 3).'/database/migrations/create_laranail_settings_tables.php';
 }
 
 it('creates every table of every database store in one run, and drops them all again', function (): void {
-    $other = sys_get_temp_dir() . '/laranail-settings-archive-' . bin2hex(random_bytes(4)) . '.sqlite';
+    $other = sys_get_temp_dir().'/laranail-settings-archive-'.bin2hex(random_bytes(4)).'.sqlite';
     touch($other);
     config()->set('database.connections.archive_db', ['driver' => 'sqlite', 'database' => $other, 'prefix' => '', 'foreign_key_constraints' => true]);
     config()->set('laranail.settings.layers.archive', ['driver' => 'database', 'connection' => 'archive_db']);
 
     useDatabase([
-        'tables.prefix'  => 'app_',
+        'tables.prefix' => 'app_',
         'stores.billing' => ['layers' => ['database'], 'table' => 'billing_values'],
-        'stores.users'   => ['layers' => ['database'], 'owners' => ['user'], 'mode' => 'dedicated', 'owner' => ['table' => 'members']],
+        'stores.users' => ['layers' => ['database'], 'owners' => ['user'], 'mode' => 'dedicated', 'owner' => ['table' => 'members']],
         'stores.archive' => ['layers' => ['archive']],
-        'stores.files'   => ['layers' => ['runtime']],
+        'stores.files' => ['layers' => ['runtime']],
     ], ownerTables: ['members' => 'bigint']);
 
     $main = Schema::connection(DB::getDefaultConnection());
@@ -92,7 +92,7 @@ it('creates the definitions table on the default store\'s connection, after cate
 });
 
 it('reports nothing it cannot look at, rather than a finding', function (): void {
-    config()->set('database.connections.unreachable', ['driver' => 'sqlite', 'database' => sys_get_temp_dir() . '/laranail-missing-' . bin2hex(random_bytes(4)) . '/db.sqlite', 'prefix' => '']);
+    config()->set('database.connections.unreachable', ['driver' => 'sqlite', 'database' => sys_get_temp_dir().'/laranail-missing-'.bin2hex(random_bytes(4)).'/db.sqlite', 'prefix' => '']);
     useDatabase();
     $inspector = new SchemaInspector(new DatabaseDriver(
         app('db'),

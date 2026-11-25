@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Importers;
 
-use InvalidArgumentException;
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Contracts\Config\Repository;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Contracts\DiskImporter;
-use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
-use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
+use Illuminate\Filesystem\Filesystem;
+use InvalidArgumentException;
+use Simtabi\Laranail\Settings\Contracts\DiskImporter;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Transfer\ExportDocument;
+use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 
 /**
  * Imports laranail/toolkit's JSON settings file, flattening nested objects to dot keys. A list is
@@ -61,7 +61,7 @@ final readonly class ToolkitJsonImporter implements DiskImporter
             throw new InvalidImport(sprintf('toolkit: [%s] does not exist on disk [%s].', $path, $disk));
         }
 
-        return $this->document($json, $disk . ':' . $path, $store);
+        return $this->document($json, $disk.':'.$path, $store);
     }
 
     private function document(string $json, string $label, StoreName $store): ExportDocument
@@ -84,7 +84,7 @@ final readonly class ToolkitJsonImporter implements DiskImporter
     /** Toolkit's `laranail.toolkit.settings.<name>`, read only if set, so toolkit is not needed. */
     private function configured(string $name, string $default): string
     {
-        $value = $this->config->get('laranail.toolkit.settings.' . $name);
+        $value = $this->config->get('laranail.toolkit.settings.'.$name);
 
         return is_string($value) && $value !== '' ? $value : $default;
     }
@@ -93,8 +93,7 @@ final readonly class ToolkitJsonImporter implements DiskImporter
      * Every leaf as [dot path, value], keeping a nested and a dotted spelling of the same path
      * apart so the collision check sees both.
      *
-     * @param array<array-key, mixed> $data
-     *
+     * @param  array<array-key, mixed>  $data
      * @return list<array{string, mixed}>
      */
     private function flatten(array $data, string $prefix = ''): array
@@ -102,7 +101,7 @@ final readonly class ToolkitJsonImporter implements DiskImporter
         $flat = [];
 
         foreach ($data as $key => $value) {
-            $path = $prefix === '' ? (string) $key : $prefix . '.' . $key;
+            $path = $prefix === '' ? (string) $key : $prefix.'.'.$key;
 
             if (is_array($value) && $value !== [] && ! array_is_list($value)) {
                 array_push($flat, ...$this->flatten($value, $path));

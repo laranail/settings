@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Models;
 
-use Override;
 use Illuminate\Database\Eloquent\Builder;
-use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\CategorySlug;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Simtabi\Laranail\Settings\Support\Translations;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
-use Simtabi\Laranail\Settings\Models\Scopes\TenantScope;
-use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
-use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Override;
+use Simtabi\Laranail\Settings\Data\Category;
+use Simtabi\Laranail\Settings\Data\CategorySlug;
+use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Database\Factories\SettingCategoryFactory;
+use Simtabi\Laranail\Settings\Exceptions\CategoryCycle;
+use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
+use Simtabi\Laranail\Settings\Exceptions\UnknownCategory;
+use Simtabi\Laranail\Settings\Models\Scopes\TenantScope;
+use Simtabi\Laranail\Settings\Support\Translations;
 
 /**
  * A row of the categories table. Categories belong to one store and nest by `parent_id`; titles and
@@ -138,8 +138,7 @@ final class SettingCategory extends SettingsModel
     }
 
     /**
-     * @param Builder<self> $query
-     *
+     * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeForStore(Builder $query, StoreName|string $store): Builder
@@ -150,8 +149,7 @@ final class SettingCategory extends SettingsModel
     /**
      * The central categories ('' in column-mode tenancy), which every tenant's definitions use.
      *
-     * @param Builder<self> $query
-     *
+     * @param  Builder<self>  $query
      * @return Builder<self>
      */
     public function scopeCentral(Builder $query): Builder

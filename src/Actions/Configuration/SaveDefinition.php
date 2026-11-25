@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions\Configuration;
 
-use Simtabi\Laranail\Settings\Data\Key;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Support\ValueEncoder;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 use Simtabi\Laranail\Settings\Models\SettingDefinition;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
 use Simtabi\Laranail\Settings\Services\Definitions\DatabaseDefinitions;
+use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Support\ValueEncoder;
 
 /**
  * Save a definition into the definitions table from the attributes the configuration file takes.
@@ -35,7 +35,7 @@ final readonly class SaveDefinition
     ) {}
 
     /**
-     * @param array<array-key, mixed> $attributes
+     * @param  array<array-key, mixed>  $attributes
      *
      * @throws InvalidDefinition
      * @throws InvalidConfiguration when the store has no definitions table

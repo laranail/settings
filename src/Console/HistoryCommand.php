@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\HistoryEntry;
-use Simtabi\Laranail\Settings\Contracts\Settings;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
+use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\HistoryEntry;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
 
 /**
  * List a setting's versions, compare two (`--diff=3..5`) or roll back to one (`--rollback=3`).
@@ -92,7 +92,7 @@ final class HistoryCommand extends Command
                 $entry->operation->value,
                 $entry->scope,
                 $entry->locale === '' ? '-' : $entry->locale,
-                $entry->causerType->value . ($entry->causerId === null ? '' : ':' . $entry->causerAlias . ':' . $entry->causerId),
+                $entry->causerType->value.($entry->causerId === null ? '' : ':'.$entry->causerAlias.':'.$entry->causerId),
                 $entry->reason ?? '',
                 $entry->createdAt->toIso8601String(),
             ], $entries),
@@ -112,9 +112,9 @@ final class HistoryCommand extends Command
         $diff = $settings->historyDiff($key, (int) $versions[1], (int) $versions[2]);
         $hidden = $diff->redacted || ($diff->encrypted && $this->option('reveal') !== true);
         $show = static fn (mixed $value, bool $found): string => match (true) {
-            $hidden  => '[protected]',
+            $hidden => '[protected]',
             ! $found => '(no value)',
-            default  => (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            default => (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
         };
 
         $this->line(sprintf('v%d: %s', $diff->fromVersion, $show($diff->from, $diff->fromFound)));

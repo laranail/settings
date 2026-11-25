@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Services\Cache;
 
 use Closure;
-use Throwable;
-use Illuminate\Support\Str;
 use Illuminate\Cache\Repository;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Support\Clock;
-use Simtabi\Laranail\Settings\Data\RecordSet;
+use Illuminate\Support\Str;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Data\CacheTarget;
-use Simtabi\Laranail\Settings\Support\BagCodec;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\RecordSet;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Logging\LogContext;
 use Simtabi\Laranail\Settings\Logging\OperationalLogger;
-use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Support\BagCodec;
+use Simtabi\Laranail\Settings\Support\Clock;
+use Throwable;
 
 /**
  * Caches each scope's raw rows per store ("bags"), never resolved values.
@@ -34,8 +34,8 @@ final class SettingsCache
     private array $bags = [];
 
     /**
-     * @param int $ttl seconds a bag is fresh
-     * @param int $stale seconds after that a stale bag is still answered while it is refreshed
+     * @param  int  $ttl  seconds a bag is fresh
+     * @param  int  $stale  seconds after that a stale bag is still answered while it is refreshed
      */
     public function __construct(
         private readonly Repository $cache,
@@ -55,8 +55,8 @@ final class SettingsCache
     /**
      * Load these scopes' records from memory, then the cache, then one call to `$load`.
      *
-     * @param list<Scope> $scopes
-     * @param Closure(list<Scope>): RecordSet $load reads scopes from the store itself
+     * @param  list<Scope>  $scopes
+     * @param  Closure(list<Scope>): RecordSet  $load  reads scopes from the store itself
      */
     public function load(CacheTarget $target, array $scopes, Closure $load): RecordSet
     {
@@ -118,9 +118,8 @@ final class SettingsCache
     /**
      * The bag key of every scope, and the bags already cached, by scope.
      *
-     * @param non-empty-list<Scope> $scopes
-     * @param Closure(list<Scope>): RecordSet $load
-     *
+     * @param  non-empty-list<Scope>  $scopes
+     * @param  Closure(list<Scope>): RecordSet  $load
      * @return array{array<string, string>, array<string, RecordSet>}
      */
     private function lookup(CacheTarget $target, array $scopes, Closure $load): array
@@ -146,13 +145,13 @@ final class SettingsCache
         }
 
         $entries = $this->cache->many(array_merge(...array_values(array_map(
-            static fn (Scope $scope): array => [$keys[$scope->value], Repository::FLEXIBLE_CREATED_KEY_PREFIX . $keys[$scope->value]],
+            static fn (Scope $scope): array => [$keys[$scope->value], Repository::FLEXIBLE_CREATED_KEY_PREFIX.$keys[$scope->value]],
             $pending,
         ))));
 
         foreach ($pending as $value => $scope) {
             $key = $keys[$value];
-            $created = $entries[Repository::FLEXIBLE_CREATED_KEY_PREFIX . $key] ?? null;
+            $created = $entries[Repository::FLEXIBLE_CREATED_KEY_PREFIX.$key] ?? null;
             $entry = $entries[$key] ?? null;
 
             if (! is_int($created) || ! $this->codec->decode($entry) instanceof RecordSet) {
@@ -177,8 +176,8 @@ final class SettingsCache
     /**
      * Cache freshly loaded bags in the shape flexible() reads.
      *
-     * @param list<string> $keys
-     * @param list<RecordSet> $bags
+     * @param  list<string>  $keys
+     * @param  list<RecordSet>  $bags
      */
     private function put(array $keys, array $bags): void
     {
@@ -188,7 +187,7 @@ final class SettingsCache
         foreach ($keys as $index => $key) {
             $this->bags[$key] = $bags[$index];
             $entries[$key] = $this->codec->encode($bags[$index]);
-            $entries[Repository::FLEXIBLE_CREATED_KEY_PREFIX . $key] = $now;
+            $entries[Repository::FLEXIBLE_CREATED_KEY_PREFIX.$key] = $now;
         }
 
         try {
@@ -201,8 +200,7 @@ final class SettingsCache
     /**
      * The epoch, store and scope tokens of each scope as one generation string, created when missing.
      *
-     * @param non-empty-list<Scope> $scopes
-     *
+     * @param  non-empty-list<Scope>  $scopes
      * @return array<string, string> scope => generation
      */
     private function tokensFor(CacheTarget $target, string $tenant, array $scopes): array
@@ -229,7 +227,7 @@ final class SettingsCache
         $generations = [];
 
         foreach ($scopeKeys as $value => $key) {
-            $generations[$value] = $this->tokens[$epoch] . '.' . $this->tokens[$store] . '.' . $this->tokens[$key];
+            $generations[$value] = $this->tokens[$epoch].'.'.$this->tokens[$store].'.'.$this->tokens[$key];
         }
 
         return $generations;
@@ -257,7 +255,7 @@ final class SettingsCache
         try {
             $seconds === null ? $this->cache->forever($key, $token) : $this->cache->put($key, $token, $seconds);
         } catch (Throwable $exception) {
-            $this->failed('invalidate ' . $operation, $exception);
+            $this->failed('invalidate '.$operation, $exception);
         }
     }
 
@@ -268,28 +266,28 @@ final class SettingsCache
 
     private function epochKey(): string
     {
-        return $this->prefix . ':epoch';
+        return $this->prefix.':epoch';
     }
 
     /** Not per tenant, so a store reset reaches every tenant's bags. */
     private function storeTokenKey(CacheTarget $target): string
     {
-        return $this->prefix . ':store:' . $this->hash($target->parts());
+        return $this->prefix.':store:'.$this->hash($target->parts());
     }
 
     private function scopeTokenKey(CacheTarget $target, string $tenant, Scope $scope): string
     {
-        return $this->prefix . ':scope:' . $this->hash([...$target->parts(), $tenant, $scope->value]);
+        return $this->prefix.':scope:'.$this->hash([...$target->parts(), $tenant, $scope->value]);
     }
 
     /**
      * Hash a length-prefixed tuple, so `a` + `b:c` and `a:b` + `c` stay different.
      *
-     * @param list<string> $parts
+     * @param  list<string>  $parts
      */
     private function hash(array $parts): string
     {
-        return hash('sha1', implode('', array_map(static fn (string $part): string => strlen($part) . ':' . $part, $parts)));
+        return hash('sha1', implode('', array_map(static fn (string $part): string => strlen($part).':'.$part, $parts)));
     }
 
     private function currentTenant(): string
@@ -309,8 +307,7 @@ final class SettingsCache
     }
 
     /**
-     * @param list<Scope> $scopes
-     *
+     * @param  list<Scope>  $scopes
      * @return list<Scope>
      */
     private function unique(array $scopes): array

@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions\Categories;
 
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Stores\Store;
 use Simtabi\Laranail\Settings\Data\NewCategory;
-use Simtabi\Laranail\Settings\Events\CategorySaved;
-use Simtabi\Laranail\Settings\Support\Translations;
-use Simtabi\Laranail\Settings\Events\CategorySaving;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Events\CategoryRenamed;
+use Simtabi\Laranail\Settings\Events\CategorySaved;
+use Simtabi\Laranail\Settings\Events\CategorySaving;
 use Simtabi\Laranail\Settings\Models\SettingCategory;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Support\Translations;
 
 /** Give a category a new title; its slug stays. */
 final readonly class RenameCategory

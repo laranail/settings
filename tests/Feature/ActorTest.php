@@ -5,18 +5,18 @@ declare(strict_types=1);
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\Channel;
-use Simtabi\Laranail\Settings\Enums\ActorType;
-use Simtabi\Laranail\Settings\Data\ActorContext;
-use Simtabi\Laranail\Settings\Contracts\Settings;
-use Simtabi\Laranail\Settings\Contracts\ActorResolver;
-use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
-use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Authentication\GuardActorResolver;
 use Simtabi\Laranail\Settings\Authentication\SanctumActorResolver;
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
+use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\ActorContext;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\ActorType;
+use Simtabi\Laranail\Settings\Enums\Channel;
+use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Tests\Fixtures\TestUser;
 
 it('builds a user actor from an authenticatable, keyed by morph alias and id', function (): void {
     $actor = Actor::user(user(42));
@@ -55,7 +55,7 @@ it('never serialises the authenticatable, keeping identifiers and context', func
     $payload = serialize($actor);
     $copy = unserialize($payload);
 
-    expect($payload)->not->toContain('attributes')->not->toContain('O:' . strlen(TestUser::class))
+    expect($payload)->not->toContain('attributes')->not->toContain('O:'.strlen(TestUser::class))
         ->and($copy)->toBeInstanceOf(Actor::class)
         ->and($copy->user)->toBeNull()
         ->and($copy->id)->toBe('7')
@@ -67,7 +67,7 @@ it('never serialises the authenticatable, keeping identifiers and context', func
 });
 
 it('truncates the user agent to 255 characters', function (): void {
-    expect(mb_strlen((string) (new ActorContext(userAgent: str_repeat('a', 300)))->userAgent))->toBe(255);
+    expect(mb_strlen((string) new ActorContext(userAgent: str_repeat('a', 300))->userAgent))->toBe(255);
 });
 
 it('reads ip, user agent and request id from a request', function (): void {

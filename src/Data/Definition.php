@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
+use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
 use Simtabi\Laranail\Settings\Enums\Precedence;
 use Simtabi\Laranail\Settings\Exceptions\InvalidDefinition;
 
-/** A key's type, default, rules and flags; build one with {@see \Simtabi\Laranail\Settings\Definitions\DefinitionBuilder}. */
+/** A key's type, default, rules and flags; build one with {@see DefinitionBuilder}. */
 final readonly class Definition
 {
     /**
-     * @param list<string> $rules validation rules applied to the raw input
-     * @param list<string> $overridableBy owner aliases that may hold their own value
+     * @param  list<string>  $rules  validation rules applied to the raw input
+     * @param  list<string>  $overridableBy  owner aliases that may hold their own value
      */
     public function __construct(
         public StoreName $store,

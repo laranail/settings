@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Stores;
 
 use Closure;
+use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\PromotionSelection;
 use Simtabi\Laranail\Settings\Data\RecordSet;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Enums\StoreMode;
-use Simtabi\Laranail\Settings\Drivers\JsonDriver;
 use Simtabi\Laranail\Settings\Drivers\CachingDriver;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Data\PromotionSelection;
-use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Drivers\JsonDriver;
+use Simtabi\Laranail\Settings\Enums\StoreMode;
 use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
+use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 
 /**
  * A configured store: its layers in read order, the owner aliases it accepts, and its policies.
@@ -24,12 +24,12 @@ use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 final readonly class Store
 {
     /**
-     * @param list<Layer> $layers
-     * @param list<string> $owners
-     * @param list<string> $approvalKeys key globs whose writes become change requests
-     * @param bool $autoPromote promote the runtime file once the database is ready (`promote: auto`)
-     * @param ?string $ownerTable a dedicated store's owner table (`owner.table`), keyed by `$ownerKey`
-     * @param PromotionSelection $promotion which runtime-file values automatic promotion copies (`promote.include`, `promote.owners`)
+     * @param  list<Layer>  $layers
+     * @param  list<string>  $owners
+     * @param  list<string>  $approvalKeys  key globs whose writes become change requests
+     * @param  bool  $autoPromote  promote the runtime file once the database is ready (`promote: auto`)
+     * @param  ?string  $ownerTable  a dedicated store's owner table (`owner.table`), keyed by `$ownerKey`
+     * @param  PromotionSelection  $promotion  which runtime-file values automatic promotion copies (`promote.include`, `promote.owners`)
      */
     public function __construct(
         public StoreName $name,
@@ -122,8 +122,7 @@ final readonly class Store
      *
      * @template T
      *
-     * @param Closure(): T $callback
-     *
+     * @param  Closure(): T  $callback
      * @return T
      */
     public function transaction(Closure $callback): mixed
@@ -175,7 +174,7 @@ final readonly class Store
     /**
      * Load these scopes into every cached layer and return how many records they hold.
      *
-     * @param list<Scope> $scopes
+     * @param  list<Scope>  $scopes
      */
     public function warmCache(array $scopes): int
     {
@@ -193,8 +192,7 @@ final readonly class Store
     /**
      * Every layer's records for these scopes, one read per layer.
      *
-     * @param list<Scope> $scopes
-     *
+     * @param  list<Scope>  $scopes
      * @return array<string, RecordSet>
      */
     public function load(array $scopes): array

@@ -2,31 +2,31 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
+use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
+use Simtabi\Laranail\Settings\Actions\PruneHistory;
+use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Data\HistoryDiff;
 use Simtabi\Laranail\Settings\Data\HistoryEntry;
-use Simtabi\Laranail\Settings\Actions\PruneHistory;
-use Simtabi\Laranail\Settings\Events\HistoryPruned;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\HistoryOperation;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Events\HistoryPruned;
 use Simtabi\Laranail\Settings\Events\SettingRolledBack;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
-use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
-use Simtabi\Laranail\Package\Tools\Testing\TestCredentials;
 use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
-use Simtabi\Laranail\Settings\Contracts\TenantDiscriminator;
 use Simtabi\Laranail\Settings\Exceptions\HistoryUnavailable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Exceptions\LockedSetting;
 use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
-use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Tenancy\ClosureTenantDiscriminator;
 
 /*
  * Every set, forget, lock, unlock and rollback appends the value before and after, as
@@ -43,7 +43,7 @@ function trail(string $key, ?OwnerRef $owner = null): array
 {
     $history = $owner instanceof OwnerRef ? settings()->for($owner)->history() : settings()->history()->global();
 
-    return array_map(static fn (HistoryEntry $entry): string => $entry->operation->value . ':' . $entry->version, $history->key($key)->get());
+    return array_map(static fn (HistoryEntry $entry): string => $entry->operation->value.':'.$entry->version, $history->key($key)->get());
 }
 
 it('records every change with the payload before and after, the causer and the reason', function (): void {
@@ -252,7 +252,7 @@ it('filters by owner, locale, time and version, and pages with a cursor', functi
     $this->travelBack();
 
     foreach (range(2, 5) as $n) {
-        settings()->set('site.name', 'v' . $n);
+        settings()->set('site.name', 'v'.$n);
     }
 
     settings()->for($user)->set('site.name', 'mine');
@@ -299,7 +299,7 @@ it('prunes history by age and by versions kept, audits the prune and announces i
     $this->travelBack();
 
     foreach (range(1, 5) as $n) {
-        settings()->set('site.name', 'v' . $n);
+        settings()->set('site.name', 'v'.$n);
     }
 
     $byAge = app(PruneHistory::class)->handle(30, null);
@@ -366,7 +366,7 @@ it('reports bad history command input and an empty history', function (): void {
 
 it('prunes from the prune-history command with the configured or given retention', function (): void {
     foreach (range(1, 4) as $n) {
-        settings()->set('site.name', 'v' . $n);
+        settings()->set('site.name', 'v'.$n);
     }
 
     config()->set('laranail.settings.history.keep_days');

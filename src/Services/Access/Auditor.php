@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Services\Access;
 
 use Illuminate\Support\Str;
+use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Support\Clock;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\Support\Clock;
 
 /**
  * Builds audit entries and sends each to every configured and runtime sink.

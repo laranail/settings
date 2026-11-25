@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Console;
 
-use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Console\Tools\Commands\Command;
-use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
-use Simtabi\Laranail\Settings\Actions\DiagnoseSettings;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorReporter;
 use Simtabi\Laranail\Console\Tools\Commands\Concerns\SupportsNamespacedNames;
+use Simtabi\Laranail\Package\Tools\Services\Doctor\DoctorReporter;
+use Simtabi\Laranail\Settings\Actions\DiagnoseSettings;
+use Simtabi\Laranail\Settings\Actions\SyncDefinitions;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
 /**
  * Check each database store's readiness, missing columns and the rows the database cannot guard.

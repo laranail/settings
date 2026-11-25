@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
+use Simtabi\Laranail\Settings\Actions\FindOrphans;
+use Simtabi\Laranail\Settings\Actions\PruneAudit;
+use Simtabi\Laranail\Settings\Actions\PruneOrphans;
 use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Actions\PruneAudit;
-use Simtabi\Laranail\Settings\Actions\FindOrphans;
-use Simtabi\Laranail\Settings\Actions\PruneOrphans;
 use Simtabi\Laranail\Settings\Events\OrphansPruned;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
 use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Tests\Fixtures\SettingsOwner;
@@ -22,7 +22,7 @@ use Simtabi\Laranail\Settings\Tests\Fixtures\SoftDeletingOwner;
 beforeEach(function (): void {
     useDatabase([
         'stores.settings.owners' => ['owner', 'soft'],
-        'stores.teams'           => ['layers' => ['database'], 'owners' => ['team']],
+        'stores.teams' => ['layers' => ['database'], 'owners' => ['team']],
     ], stores: ['teams']);
 
     Schema::create('owners', static function (Blueprint $table): void {
@@ -46,7 +46,7 @@ it('gives a model a settings handle keyed by its morph alias', function (): void
     $owner->settings()->set('ui.theme', 'dark');
 
     expect($owner->settings()->get('ui.theme'))->toBe('dark')
-        ->and(DB::table('settings')->value('scope'))->toBe('owner:' . $owner->id)
+        ->and(DB::table('settings')->value('scope'))->toBe('owner:'.$owner->id)
         ->and($owner->settingsOwner()->alias)->toBe('owner');
 });
 
@@ -65,7 +65,7 @@ it('deletes an owner\'s settings with the owner, and keeps them through a soft d
     $owner->delete();
     $soft->delete();
 
-    expect(DB::table('settings')->pluck('scope')->all())->toBe(['soft:' . $soft->id]);
+    expect(DB::table('settings')->pluck('scope')->all())->toBe(['soft:'.$soft->id]);
 
     $soft->forceDelete();
 
@@ -83,7 +83,7 @@ it('eager-loads a page of owners in one query per store, then reads them with no
     config()->set('laranail.settings.stores.settings.inherits', true);
     app()->forgetScopedInstances();
     $owners = collect(range(1, 5))->map(static fn (int $i): SettingsOwner => SettingsOwner::query()->create(['team_id' => 7]));
-    $owners->each(static fn (SettingsOwner $owner) => $owner->settings()->set('ui.theme', 'theme-' . $owner->id));
+    $owners->each(static fn (SettingsOwner $owner) => $owner->settings()->set('ui.theme', 'theme-'.$owner->id));
     settings()->for(new OwnerRef('team', 7))->set('ui.density', 'compact');
 
     DB::enableQueryLog();
@@ -95,7 +95,7 @@ it('eager-loads a page of owners in one query per store, then reads them with no
     // One query for the owners, one per store (settings for the owners, teams for the parent).
     expect($queries)->toBe(3)
         ->and(count(DB::getQueryLog()))->toBe(3)
-        ->and($values->first())->toBe(['theme-' . $owners->first()?->id, 'compact']);
+        ->and($values->first())->toBe(['theme-'.$owners->first()?->id, 'compact']);
 
     $loaded->first()?->settings()->set('ui.theme', 'changed');
 
@@ -115,7 +115,7 @@ it('finds and prunes the settings of owners deleted in bulk', function (): void 
     config()->set('laranail.settings.stores.teams.owners', ['team']);
 
     $this->artisan('laranail::settings.prune-orphans', ['--dry-run' => true])
-        ->expectsOutputToContain('owner:' . $gone->id)
+        ->expectsOutputToContain('owner:'.$gone->id)
         ->expectsOutputToContain('Alias [team] has no model in the morph map')
         ->expectsOutputToContain('2 orphaned owner(s) found; nothing removed (dry run).')
         ->assertSuccessful();
@@ -125,7 +125,7 @@ it('finds and prunes the settings of owners deleted in bulk', function (): void 
     $this->artisan('laranail::settings.prune-orphans')->expectsOutputToContain('Removed 2 row(s) of 2 orphaned owner(s).')->assertSuccessful();
     $this->artisan('laranail::settings.prune-orphans')->expectsOutputToContain('No orphaned settings.')->assertSuccessful();
 
-    expect(DB::table('settings')->pluck('scope')->sort()->values()->all())->toBe(['owner:' . $kept->id, 'soft:' . $trashed->id]);
+    expect(DB::table('settings')->pluck('scope')->sort()->values()->all())->toBe(['owner:'.$kept->id, 'soft:'.$trashed->id]);
 });
 
 it('needs prune (and forget) to prune orphans with an actor, and audits the run', function (): void {
@@ -156,7 +156,7 @@ it('finds orphans with FindOrphans', function (): void {
 
     $found = app(FindOrphans::class)->handle();
 
-    expect(array_map(static fn (OwnerRef $owner): string => $owner->scope()->value, $found['orphans']['settings'] ?? []))->toBe(['owner:' . $gone->id])
+    expect(array_map(static fn (OwnerRef $owner): string => $owner->scope()->value, $found['orphans']['settings'] ?? []))->toBe(['owner:'.$gone->id])
         ->and(DB::table('settings')->count())->toBe(1);
 });
 

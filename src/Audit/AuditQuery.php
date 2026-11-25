@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Audit;
 
-use DateTimeInterface;
 use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Illuminate\Support\LazyCollection;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\AuditPage;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\AuditEntry;
-use Simtabi\Laranail\Settings\Data\AuditFilter;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Actions\QueryAudit;
 use Simtabi\Laranail\Settings\Contracts\Settable;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\AuditEntry;
+use Simtabi\Laranail\Settings\Data\AuditFilter;
+use Simtabi\Laranail\Settings\Data\AuditPage;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 
 /**

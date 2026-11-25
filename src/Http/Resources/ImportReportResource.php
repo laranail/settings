@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Http\Resources;
 
-use Override;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Attributes\PreserveKeys;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Override;
 use Simtabi\Laranail\Settings\Data\Transfer\ImportReport;
 
 /**

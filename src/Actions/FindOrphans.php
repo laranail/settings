@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Illuminate\Database\Eloquent\Model;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Stores\Store;
 
 /**
  * Find settings whose owner no longer exists, such as rows left by bulk deletes. Soft-deleted
@@ -59,8 +59,7 @@ final readonly class FindOrphans
     }
 
     /**
-     * @param class-string<Model> $model
-     *
+     * @param  class-string<Model>  $model
      * @return list<OwnerRef>
      */
     private function orphansOf(Store $store, DatabaseDriver $database, string $alias, string $model): array

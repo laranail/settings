@@ -5,32 +5,32 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Services\Configuration;
 
 use Closure;
-use Psr\Log\NullLogger;
 use Illuminate\Http\Request;
 use Psr\Log\LoggerInterface;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\Decision;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Data\Definition;
-use Simtabi\Laranail\Settings\Contracts\Driver;
-use Simtabi\Laranail\Settings\Data\LayerConfig;
-use Simtabi\Laranail\Settings\Contracts\Verifier;
+use Psr\Log\NullLogger;
+use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
+use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
+use Simtabi\Laranail\Settings\Contracts\ActorResolver;
 use Simtabi\Laranail\Settings\Contracts\AuditSink;
 use Simtabi\Laranail\Settings\Contracts\Authorizer;
-use Simtabi\Laranail\Settings\Contracts\ActorResolver;
+use Simtabi\Laranail\Settings\Contracts\Driver;
+use Simtabi\Laranail\Settings\Contracts\Verifier;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Decision;
+use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\LayerConfig;
 use Simtabi\Laranail\Settings\Data\PromotionSelection;
-use Simtabi\Laranail\Settings\Verification\ClosureVerifier;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Definitions\DefinitionBuilder;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
-use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
-use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 use Simtabi\Laranail\Settings\Services\Casting\CasterRegistry;
-use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Drivers\DriverFactory;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Verification\ClosureVerifier;
 
 /**
  * Configuration changed in code for the current request or job only.
@@ -70,9 +70,9 @@ final class RuntimeConfiguration
     private int $generation = 0;
 
     /**
-     * @param array<array-key, mixed> $storeConfig `laranail.settings.stores`
-     * @param array<array-key, mixed> $layerConfig `laranail.settings.layers`
-     * @param (Closure(string): void)|null $onChange called with each accepted change
+     * @param  array<array-key, mixed>  $storeConfig  `laranail.settings.stores`
+     * @param  array<array-key, mixed>  $layerConfig  `laranail.settings.layers`
+     * @param  (Closure(string): void)|null  $onChange  called with each accepted change
      */
     public function __construct(
         private readonly DriverFactory $driverFactory,
@@ -88,7 +88,7 @@ final class RuntimeConfiguration
     /**
      * Add or replace a store for this request.
      *
-     * @param array<array-key, mixed> $config the same shape as `laranail.settings.stores.<name>`
+     * @param  array<array-key, mixed>  $config  the same shape as `laranail.settings.stores.<name>`
      *
      * @throws InvalidConfiguration
      */
@@ -104,7 +104,7 @@ final class RuntimeConfiguration
     /**
      * Add or replace a layer for this request.
      *
-     * @param array<array-key, mixed> $config the same shape as `laranail.settings.layers.<name>`
+     * @param  array<array-key, mixed>  $config  the same shape as `laranail.settings.layers.<name>`
      *
      * @throws InvalidConfiguration
      */
@@ -120,7 +120,7 @@ final class RuntimeConfiguration
     /**
      * Register a custom driver for this request.
      *
-     * @param Closure(LayerConfig): Driver $factory
+     * @param  Closure(LayerConfig): Driver  $factory
      *
      * @throws InvalidConfiguration when the name is a built-in driver
      */
@@ -144,7 +144,7 @@ final class RuntimeConfiguration
     /**
      * Replace the configured authorizer for this request.
      *
-     * @param Authorizer|Closure(Actor, Ability, Subject): (Decision|bool|null) $authorizer
+     * @param  Authorizer|Closure(Actor, Ability, Subject): (Decision|bool|null)  $authorizer
      */
     public function authorizeUsing(Authorizer|Closure $authorizer): self
     {
@@ -156,7 +156,7 @@ final class RuntimeConfiguration
     /**
      * Replace the configured verifier for this request.
      *
-     * @param Verifier|Closure(Actor, Subject): bool $verifier
+     * @param  Verifier|Closure(Actor, Subject): bool  $verifier
      */
     public function verifyUsing(Verifier|Closure $verifier): self
     {
@@ -168,7 +168,7 @@ final class RuntimeConfiguration
     /**
      * Replace the configured actor resolver for this request.
      *
-     * @param ActorResolver|Closure(?Request): ?Actor $resolver
+     * @param  ActorResolver|Closure(?Request): ?Actor  $resolver
      */
     public function resolveActorsUsing(ActorResolver|Closure $resolver): self
     {
@@ -226,7 +226,7 @@ final class RuntimeConfiguration
      * Override some of a store's promotion options for this request; what is not given keeps
      * coming from the configuration. Validated before it is kept.
      *
-     * @param array{mode?: string, include?: list<string>, owners?: list<string>|null} $options
+     * @param  array{mode?: string, include?: list<string>, owners?: list<string>|null}  $options
      *
      * @throws InvalidConfiguration
      */
@@ -271,9 +271,8 @@ final class RuntimeConfiguration
      *
      * @template TResult
      *
-     * @param callable(self): mixed $change
-     * @param callable(): TResult $run
-     *
+     * @param  callable(self): mixed  $change
+     * @param  callable(): TResult  $run
      * @return TResult
      */
     public function temporarily(callable $change, callable $run): mixed
@@ -360,9 +359,9 @@ final class RuntimeConfiguration
     }
 
     /**
-     * @param array<array-key, mixed> $stores
-     * @param array<array-key, mixed> $layers
-     * @param array<string, Closure(LayerConfig): Driver> $drivers
+     * @param  array<array-key, mixed>  $stores
+     * @param  array<array-key, mixed>  $layers
+     * @param  array<string, Closure(LayerConfig): Driver>  $drivers
      */
     private function validate(array $stores, array $layers, array $drivers): void
     {

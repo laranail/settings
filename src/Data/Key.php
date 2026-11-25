@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Data;
 
-use Stringable;
 use Simtabi\Laranail\Settings\Exceptions\InvalidKey;
+use Stringable;
 
 /**
  * A setting key: lower-case dot notation of [a-z0-9_] segments, at most 191 characters. Hyphens

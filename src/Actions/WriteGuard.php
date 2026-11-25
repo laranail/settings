@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Closure;
+use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Data\ChangeProposal;
 use Simtabi\Laranail\Settings\Data\ChangeRequest;
 use Simtabi\Laranail\Settings\Data\SettingTarget;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Data\ChangeProposal;
-use Simtabi\Laranail\Settings\Support\AuditedTransaction;
+use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
 use Simtabi\Laranail\Settings\Services\Stores\SettingWriter;
-use Simtabi\Laranail\Settings\Exceptions\ApprovalUnavailable;
-use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
+use Simtabi\Laranail\Settings\Support\AuditedTransaction;
 
 /**
  * Wraps every write: authorize, open a change request when approval is needed, decide lock
@@ -31,10 +31,9 @@ final readonly class WriteGuard
     ) {}
 
     /**
-     * @param bool $respectsLocks whether a locked row stops this write (set and forget, not lock and unlock)
-     * @param Closure(bool): array{?int, ?int} $write runs the write (told whether to override a lock); returns [version before, version after]
-     * @param ?ChangeProposal $proposal the change request to open instead, when the setting needs approval
-     *
+     * @param  bool  $respectsLocks  whether a locked row stops this write (set and forget, not lock and unlock)
+     * @param  Closure(bool): array{?int, ?int}  $write  runs the write (told whether to override a lock); returns [version before, version after]
+     * @param  ?ChangeProposal  $proposal  the change request to open instead, when the setting needs approval
      * @return ?ChangeRequest the change request opened instead of writing, or null when the write ran
      */
     public function run(Ability $ability, SettingTarget $target, ?Actor $actor, bool $respectsLocks, Closure $write, ?ChangeProposal $proposal = null): ?ChangeRequest

@@ -19,13 +19,13 @@ final class StoreCategoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'slug'        => ['required', 'string', 'max:128'],
-            'title'       => ['required', 'string', 'max:255'],
-            'parent'      => ['nullable', 'string', 'max:128'],
+            'slug' => ['required', 'string', 'max:128'],
+            'title' => ['required', 'string', 'max:255'],
+            'parent' => ['nullable', 'string', 'max:128'],
             'description' => ['nullable', 'string'],
-            'icon'        => ['nullable', 'string', 'max:255'],
-            'sort_order'  => ['nullable', 'integer', 'min:0'],
-            'titles'      => ['nullable', 'array'],
+            'icon' => ['nullable', 'string', 'max:255'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'titles' => ['nullable', 'array'],
         ];
     }
 

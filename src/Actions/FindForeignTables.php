@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /**
  * Find the tables `install` would create that already exist and are not this package's,
@@ -15,9 +15,9 @@ use Simtabi\Laranail\Settings\Services\Database\SchemaInspector;
 final readonly class FindForeignTables
 {
     private const array SIGNATURES = [
-        'values'     => ['scope', 'key', 'locale', 'version'],
+        'values' => ['scope', 'key', 'locale', 'version'],
         'categories' => ['store', 'slug', 'parent_id'],
-        'audit'      => ['occurred_at', 'outcome', 'actor_type'],
+        'audit' => ['occurred_at', 'outcome', 'actor_type'],
     ];
 
     public function __construct(
@@ -38,8 +38,8 @@ final readonly class FindForeignTables
                 $database = $layer->driver->database();
                 $tables = [
                     $database->tableFor($store->name) => self::SIGNATURES['values'],
-                    $database->names()->categories()  => self::SIGNATURES['categories'],
-                    $database->names()->audit()       => self::SIGNATURES['audit'],
+                    $database->names()->categories() => self::SIGNATURES['categories'],
+                    $database->names()->audit() => self::SIGNATURES['audit'],
                 ];
 
                 $inspector = new SchemaInspector($database);
@@ -49,7 +49,7 @@ final readonly class FindForeignTables
                     $columns = $inspector->hasTable($table) === true ? $inspector->columns($table) : null;
 
                     if ($columns !== null && array_diff($signature, $columns) !== []) {
-                        $foreign[$database->connectionName() . '.' . $table] = true;
+                        $foreign[$database->connectionName().'.'.$table] = true;
                     }
                 }
             }

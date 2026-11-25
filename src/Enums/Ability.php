@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Enums;
 
 use Simtabi\Laranail\Enumerator\Attributes\Label;
-use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 use Simtabi\Laranail\Enumerator\Concerns\HasEnumeratorBehavior;
+use Simtabi\Laranail\Enumerator\Contracts\Enumerator;
 
 /**
  * Everything an actor can be authorized to do: the gate `laranail-settings.<value>`, and for a
@@ -73,13 +73,13 @@ enum Ability: string implements Enumerator
     /** The gate the gate authorizer asks for this ability. */
     public function gateName(): string
     {
-        return 'laranail-settings.' . $this->value;
+        return 'laranail-settings.'.$this->value;
     }
 
     /** The token ability a token-bearing actor must hold for this ability. */
     public function tokenAbility(): string
     {
-        return 'laranail-settings:' . $this->value;
+        return 'laranail-settings:'.$this->value;
     }
 
     /** Whether the ability only reads, so step-up verification never applies to it. */

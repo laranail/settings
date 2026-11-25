@@ -5,26 +5,26 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\ChangeFilter;
-use Simtabi\Laranail\Settings\Enums\ChangeStatus;
-use Simtabi\Laranail\Settings\Data\ChangeDecision;
-use Simtabi\Laranail\Settings\Data\ChangeProposal;
-use Simtabi\Laranail\Settings\Http\Support\ApiActor;
-use Simtabi\Laranail\Settings\Http\Support\Addresses;
-use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
-use Simtabi\Laranail\Settings\Http\Requests\ReasonRequest;
-use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Simtabi\Laranail\Settings\Actions\Approvals\ApproveChange;
 use Simtabi\Laranail\Settings\Actions\Approvals\CancelChange;
+use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
 use Simtabi\Laranail\Settings\Actions\Approvals\QueryChanges;
 use Simtabi\Laranail\Settings\Actions\Approvals\RejectChange;
-use Simtabi\Laranail\Settings\Actions\Approvals\ApproveChange;
-use Simtabi\Laranail\Settings\Actions\Approvals\ProposeChange;
+use Simtabi\Laranail\Settings\Data\ChangeDecision;
+use Simtabi\Laranail\Settings\Data\ChangeFilter;
+use Simtabi\Laranail\Settings\Data\ChangeProposal;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Enums\ChangeStatus;
+use Simtabi\Laranail\Settings\Exceptions\InvalidIdentifier;
 use Simtabi\Laranail\Settings\Exceptions\UnknownChangeRequest;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
 use Simtabi\Laranail\Settings\Http\Requests\ProposeChangeRequest;
-use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
+use Simtabi\Laranail\Settings\Http\Requests\ReasonRequest;
 use Simtabi\Laranail\Settings\Http\Resources\ChangeRequestResource;
+use Simtabi\Laranail\Settings\Http\Support\Addresses;
+use Simtabi\Laranail\Settings\Http\Support\ApiActor;
+use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 
 /**
  * `/stores/{store}/changes`: list, read, propose, approve, reject and cancel change requests.

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Models\Scopes;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
-use Illuminate\Database\Eloquent\Builder;
 use Simtabi\Laranail\Settings\Models\ModelContext;
 use Simtabi\Laranail\Settings\Models\SettingsModel;
 
@@ -22,8 +22,8 @@ use Simtabi\Laranail\Settings\Models\SettingsModel;
 final class TenantScope implements Scope
 {
     /**
-     * @param Builder<covariant TModel> $builder
-     * @param TModel $model
+     * @param  Builder<covariant TModel>  $builder
+     * @param  TModel  $model
      */
     public function apply(Builder $builder, Model $model): void
     {

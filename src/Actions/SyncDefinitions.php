@@ -4,26 +4,26 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Cache\Lock;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Illuminate\Contracts\Events\Dispatcher;
-use Simtabi\Laranail\Settings\Data\Subject;
 use Illuminate\Contracts\Cache\LockProvider;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\StoreName;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Contracts\Events\Dispatcher;
+use Simtabi\Laranail\Settings\Data\Actor;
 use Simtabi\Laranail\Settings\Data\Definition;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
-use Simtabi\Laranail\Settings\Support\ValueEncoder;
-use Illuminate\Contracts\Cache\LockTimeoutException;
-use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
-use Simtabi\Laranail\Settings\Models\SettingCategory;
-use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Simtabi\Laranail\Settings\Events\DefinitionsSynced;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
 use Simtabi\Laranail\Settings\Models\SettingDefinition;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 use Simtabi\Laranail\Settings\Services\Definitions\DefinitionRegistry;
+use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
+use Simtabi\Laranail\Settings\Support\ValueEncoder;
 
 /**
  * Copy code and config definitions into the definitions table as system rows and remove system
@@ -93,9 +93,9 @@ final readonly class SyncDefinitions
         }
 
         $this->access->auditor()->record(AuditAction::ManageDefinitions, AuditOutcome::Allowed, $subject, $actor, meta: [
-            'sync'      => true,
-            'synced'    => $report['synced'],
-            'removed'   => $report['removed'],
+            'sync' => true,
+            'synced' => $report['synced'],
+            'removed' => $report['removed'],
             'conflicts' => count($report['conflicts']),
         ]);
         $this->events->dispatch(new DefinitionsSynced($report['synced'], $report['removed'], count($report['conflicts']), count($report['skipped'])));
@@ -106,8 +106,7 @@ final readonly class SyncDefinitions
     /**
      * Sync a store's code and config definitions as system rows, leaving runtime rows alone.
      *
-     * @param list<Definition> $definitions
-     *
+     * @param  list<Definition>  $definitions
      * @return array{synced: int, removed: int, conflicts: list<string>}
      */
     private function sync(DatabaseDriver $database, StoreName $store, array $definitions): array
@@ -125,7 +124,7 @@ final readonly class SyncDefinitions
             $row = $rows->get($definition->key->value);
 
             if ($row !== null && ! $row->is_system) {
-                $conflicts[] = $store->value . '.' . $definition->key->value;
+                $conflicts[] = $store->value.'.'.$definition->key->value;
 
                 continue;
             }

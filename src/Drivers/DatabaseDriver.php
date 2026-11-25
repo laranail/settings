@@ -4,38 +4,38 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Drivers;
 
+use Carbon\CarbonImmutable;
 use Closure;
 use Exception;
-use PDOException;
-use Carbon\CarbonImmutable;
-use Illuminate\Support\Str;
 use Illuminate\Database\Connection;
-use Illuminate\Database\Query\Builder;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\Locale;
-use Simtabi\Laranail\Settings\Data\Record;
-use Simtabi\Laranail\Settings\Enums\IdType;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Data\RecordSet;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\Models\Setting;
-use Simtabi\Laranail\Settings\Models\ModelContext;
-use Simtabi\Laranail\Settings\Database\SchemaNames;
 use Illuminate\Database\ConnectionResolverInterface;
-use Simtabi\Laranail\Settings\Models\SettingCategory;
-use Simtabi\Laranail\Settings\Support\DatabaseValues;
-use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
-use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
-use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
-use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
-use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
-use Simtabi\Laranail\Settings\Exceptions\SettingsException;
-use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Illuminate\Support\Str;
+use PDOException;
+use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
+use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\Locale;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\RecordSet;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Database\SchemaNames;
+use Simtabi\Laranail\Settings\Enums\IdType;
 use Simtabi\Laranail\Settings\Exceptions\CategoryStoreMismatch;
 use Simtabi\Laranail\Settings\Exceptions\ConcurrentModification;
-use Simtabi\Laranail\DbTools\Schema\Contracts\SchemaReadinessInterface;
+use Simtabi\Laranail\Settings\Exceptions\DriverFailure;
+use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
+use Simtabi\Laranail\Settings\Exceptions\InvalidSettingValue;
+use Simtabi\Laranail\Settings\Exceptions\OwnerNotAllowed;
+use Simtabi\Laranail\Settings\Exceptions\SettingsException;
+use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
+use Simtabi\Laranail\Settings\Models\ModelContext;
+use Simtabi\Laranail\Settings\Models\Setting;
+use Simtabi\Laranail\Settings\Models\SettingCategory;
+use Simtabi\Laranail\Settings\Support\DatabaseValues;
 
 /**
  * Stores records in a database table through the query builder.
@@ -50,12 +50,12 @@ final readonly class DatabaseDriver implements DatabaseBacked
     private const array COLUMNS = ['scope', 'key', 'locale', 'value', 'type', 'is_encrypted', 'is_locked', 'is_public', 'group', 'version', 'updated_at'];
 
     /**
-     * @param ?string $table the store's configured table (`stores.<name>.table`); null uses the store name
-     * @param Closure(): SchemaReadinessInterface $probe db-tools' schema readiness, resolved only after a database error
-     * @param bool $tenantColumn whether the tables carry a tenant column (`tenancy.mode` = column)
-     * @param (Closure(): ?string)|null $tenant the current tenant; null is no tenant
-     * @param ?string $ownerAlias the one owner alias of a dedicated store; null for a polymorphic store
-     * @param ?string $fallback the store a dedicated store's global values live in
+     * @param  ?string  $table  the store's configured table (`stores.<name>.table`); null uses the store name
+     * @param  Closure(): SchemaReadinessInterface  $probe  db-tools' schema readiness, resolved only after a database error
+     * @param  bool  $tenantColumn  whether the tables carry a tenant column (`tenancy.mode` = column)
+     * @param  (Closure(): ?string)|null  $tenant  the current tenant; null is no tenant
+     * @param  ?string  $ownerAlias  the one owner alias of a dedicated store; null for a polymorphic store
+     * @param  ?string  $fallback  the store a dedicated store's global values live in
      */
     public function __construct(
         private ConnectionResolverInterface $db,
@@ -184,12 +184,12 @@ final readonly class DatabaseDriver implements DatabaseBacked
 
                 // Restore as a fresh write so nothing from the forgotten row comes back.
                 if ($expected > 0 && $softDeletes && $this->trashed($store)->where('scope', $record->scope->value)->where('key', $record->key->value)->where('locale', $record->locale->value)->where('version', $expected)->update($columns + [
-                    'deleted_at'  => null,
-                    'label'       => null,
+                    'deleted_at' => null,
+                    'label' => null,
                     'description' => null,
-                    'meta'        => null,
-                    'autoload'    => true,
-                    'sort_order'  => 0,
+                    'meta' => null,
+                    'autoload' => true,
+                    'sort_order' => 0,
                 ]) > 0) {
                     return;
                 }
@@ -197,12 +197,12 @@ final readonly class DatabaseDriver implements DatabaseBacked
                 try {
                     // A savepoint: on Postgres a unique violation would abort the whole transaction.
                     $this->connection()->transaction(fn (): bool => $this->table($store)->insert($columns + $this->tenantColumns() + [
-                        'id'         => (string) Str::ulid(),
-                        'uid'        => (string) Str::ulid(),
-                        'scope'      => $record->scope->value,
-                        'key'        => $record->key->value,
-                        'locale'     => $record->locale->value,
-                        'autoload'   => true,
+                        'id' => (string) Str::ulid(),
+                        'uid' => (string) Str::ulid(),
+                        'scope' => $record->scope->value,
+                        'key' => $record->key->value,
+                        'locale' => $record->locale->value,
+                        'autoload' => true,
                         'sort_order' => 0,
                         'created_at' => $now,
                     ]));
@@ -230,7 +230,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
      * query, in the order their `scope|key|locale` identities sort, so an export never holds the
      * whole store. Returns how many records were handed over.
      *
-     * @param Closure(Record): void $each
+     * @param  Closure(Record): void  $each
      */
     public function eachRecord(StoreName $store, Closure $each, int $chunk = 500): int
     {
@@ -238,8 +238,8 @@ final readonly class DatabaseDriver implements DatabaseBacked
             // `a|` sorts after `a0|`, as the identity string does; ordering by the bare column would not.
             [$scope, $key] = match ($this->connection()->getDriverName()) {
                 'mysql', 'mariadb' => ["concat(`scope`, '|')", "concat(`key`, '|')"],
-                'sqlsrv'           => ["[scope] + '|'", "[key] + '|'"],
-                default            => ['"scope" || \'|\'', '"key" || \'|\''],
+                'sqlsrv' => ["[scope] + '|'", "[key] + '|'"],
+                default => ['"scope" || \'|\'', '"key" || \'|\''],
             };
             $count = 0;
 
@@ -330,8 +330,8 @@ final readonly class DatabaseDriver implements DatabaseBacked
     {
         return $this->attempt($store, fn (): array => array_values(array_filter(
             $this->live($store)
-                ->where('scope', '>=', $alias . ':')
-                ->where('scope', '<', $alias . ';')
+                ->where('scope', '>=', $alias.':')
+                ->where('scope', '<', $alias.';')
                 ->distinct()
                 ->orderBy('scope')
                 ->pluck('scope')
@@ -352,8 +352,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
     /**
      * Rewrite every encrypted payload in the store, across tenants and trashed rows.
      *
-     * @param Closure(string): ?string $rewrite returns the new payload, or null when the old one cannot be read
-     *
+     * @param  Closure(string): ?string  $rewrite  returns the new payload, or null when the old one cannot be read
      * @return array{int, int} rewritten and failed counts
      */
     public function rewriteEncrypted(StoreName $store, Closure $rewrite): array
@@ -400,13 +399,13 @@ final readonly class DatabaseDriver implements DatabaseBacked
             $changed = 0;
 
             $this->connection()->table($this->tableFor($store))
-                ->where('scope', '>=', $from . ':')
-                ->where('scope', '<', $from . ';')
+                ->where('scope', '>=', $from.':')
+                ->where('scope', '<', $from.';')
                 ->select(['id', 'scope'])
                 ->chunkById(500, function ($rows) use ($store, $from, $to, &$changed): void {
                     foreach ($rows as $row) {
                         $row = (array) $row;
-                        $scope = $to . substr(is_string($row['scope'] ?? null) ? $row['scope'] : '', strlen($from));
+                        $scope = $to.substr(is_string($row['scope'] ?? null) ? $row['scope'] : '', strlen($from));
                         $columns = $this->ownerAlias === null ? ['scope' => $scope, 'settable_type' => $to] : ['scope' => $scope];
 
                         $changed += $this->connection()->table($this->tableFor($store))->where('id', $row['id'])->update($columns);
@@ -422,8 +421,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
      *
      * @template T
      *
-     * @param Closure(): T $callback
-     *
+     * @param  Closure(): T  $callback
      * @return T
      */
     public function transaction(Closure $callback, StoreName $store = new StoreName('settings')): mixed
@@ -444,8 +442,7 @@ final readonly class DatabaseDriver implements DatabaseBacked
      *
      * @template T
      *
-     * @param Closure(): T $operation
-     *
+     * @param  Closure(): T  $operation
      * @return T
      */
     public function attempt(StoreName $store, Closure $operation): mixed
@@ -547,14 +544,14 @@ final readonly class DatabaseDriver implements DatabaseBacked
         $category = $this->categoryId($store, $record);
 
         return $this->ownerColumns($store, $record->scope) + [
-            'category_id'    => $category,
+            'category_id' => $category,
             'category_store' => $category === null ? null : $store->value,
-            'group'          => $group,
-            'value'          => $record->payload,
-            'type'           => $record->type,
-            'is_encrypted'   => $record->encrypted,
-            'is_locked'      => $record->locked,
-            'is_public'      => $record->public,
+            'group' => $group,
+            'value' => $record->payload,
+            'type' => $record->type,
+            'is_encrypted' => $record->encrypted,
+            'is_locked' => $record->locked,
+            'is_public' => $record->public,
         ];
     }
 
@@ -584,8 +581,8 @@ final readonly class DatabaseDriver implements DatabaseBacked
 
         return ['owner_id' => match ($this->ownerKeyType) {
             IdType::Bigint => ctype_digit($id) ? (int) $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as bigint; [%s] is not one.', $store, $id)),
-            IdType::Uuid   => strlen($id) === 36 ? $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as uuid; [%s] is not one.', $store, $id)),
-            IdType::Ulid   => strlen($id) === 26 ? $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as ulid; [%s] is not one.', $store, $id)),
+            IdType::Uuid => strlen($id) === 36 ? $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as uuid; [%s] is not one.', $store, $id)),
+            IdType::Ulid => strlen($id) === 26 ? $id : throw new OwnerNotAllowed(sprintf('Store [%s] types owner keys as ulid; [%s] is not one.', $store, $id)),
         }];
     }
 

@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Support\LazyCollection;
-use Illuminate\Database\Eloquent\Builder;
 use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\AuditPage;
-use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Data\AuditEntry;
 use Simtabi\Laranail\Settings\Data\AuditFilter;
+use Simtabi\Laranail\Settings\Data\AuditPage;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
 use Simtabi\Laranail\Settings\Models\SettingAuditEntry;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Exceptions\DriverUnavailable;
 use Simtabi\Laranail\Settings\Services\Stores\StoreRegistry;
 
 /** Read the audit trail of the filtered store, or the default store, newest first. */
@@ -84,8 +84,7 @@ final readonly class QueryAudit
      * The names of the stores an actor may audit; null for trusted code and the system, which
      * read every store.
      *
-     * @param Closure(StoreName): Subject $subject
-     *
+     * @param  Closure(StoreName): Subject  $subject
      * @return list<string>|null
      */
     private function readableStores(?Actor $actor, Closure $subject): ?array

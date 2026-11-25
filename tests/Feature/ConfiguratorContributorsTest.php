@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-use Simtabi\Laranail\Settings\Facades\Settings;
-use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
+use Simtabi\Laranail\Package\Tools\Exceptions\PackageBootException;
+use Simtabi\Laranail\Settings\Configurator\AppliedSetup;
 use Simtabi\Laranail\Settings\Configurator\CacheSetup;
+use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
+use Simtabi\Laranail\Settings\Configurator\Contribution;
+use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
 use Simtabi\Laranail\Settings\Configurator\StoreSetup;
+use Simtabi\Laranail\Settings\Enums\ConfiguratorMode;
 use Simtabi\Laranail\Settings\Enums\ConfiguratorScope;
 use Simtabi\Laranail\Settings\Enums\ContributionStatus;
-use Simtabi\Laranail\Settings\Configurator\AppliedSetup;
-use Simtabi\Laranail\Settings\Configurator\Contribution;
-use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
-use Simtabi\Laranail\Settings\Configurator\SettingsSetup;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Package\Tools\Exceptions\PackageBootException;
-use Simtabi\Laranail\Settings\Configurator\ConfiguratorRegistration;
+use Simtabi\Laranail\Settings\Exceptions\SettingsMisuse;
+use Simtabi\Laranail\Settings\Facades\Settings;
 use Simtabi\Laranail\Settings\Services\Configurator\ConfiguratorRegistry;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\PrefixConfigurator;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ContributorsProvider;
-use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedConfigurator;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\OtherModuleContributor;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\OtherPackageContributor;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\PrefixConfigurator;
+use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedConfigurator;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedModuleContributor;
 use Simtabi\Laranail\Settings\Tests\Fixtures\Configurator\ScriptedPackageContributor;
 
@@ -133,8 +133,8 @@ it('refuses a name declared by two owners in any pairing, naming both', function
 
     $message = bootFailure($classes);
 
-    expect($message)->toContain('laranail.settings.stores.billing is owned by the ' . $first)
-        ->and($message)->toContain('the ' . $second);
+    expect($message)->toContain('laranail.settings.stores.billing is owned by the '.$first)
+        ->and($message)->toContain('the '.$second);
 })->with([
     'package and module' => [
         [ScriptedPackageContributor::class, ScriptedModuleContributor::class],
@@ -191,13 +191,13 @@ it('lets one owner change its own entry as often as it likes', function (): void
 it('refuses an application-wide decision from a package or a module, naming it', function (string $class, Closure $decision, string $method): void {
     ScriptedPackageContributor::$configure = ScriptedModuleContributor::$configure = $decision;
 
-    expect(bootFailure([$class]))->toContain($method . ' is the application\'s decision');
+    expect(bootFailure([$class]))->toContain($method.' is the application\'s decision');
 })->with([
-    'package tables'   => [ScriptedPackageContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->tables(prefix: 'pkg_'), 'tables()'],
-    'module store'     => [ScriptedModuleContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->defaultStore('invoices'), 'defaultStore()'],
-    'package tenancy'  => [ScriptedPackageContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->tenancy(static fn ($tenancy) => $tenancy->column()), 'tenancy()'],
-    'module http'      => [ScriptedModuleContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->http(static fn ($http) => $http->enabled()), 'http()'],
-    'package mode'     => [ScriptedPackageContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->mode(ConfiguratorMode::Strict), 'mode()'],
+    'package tables' => [ScriptedPackageContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->tables(prefix: 'pkg_'), 'tables()'],
+    'module store' => [ScriptedModuleContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->defaultStore('invoices'), 'defaultStore()'],
+    'package tenancy' => [ScriptedPackageContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->tenancy(static fn ($tenancy) => $tenancy->column()), 'tenancy()'],
+    'module http' => [ScriptedModuleContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->http(static fn ($http) => $http->enabled()), 'http()'],
+    'package mode' => [ScriptedPackageContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->mode(ConfiguratorMode::Strict), 'mode()'],
     'module exclusion' => [ScriptedModuleContributor::class, static fn (SettingsSetup $settings): SettingsSetup => $settings->exclude(package: PACKAGE), 'exclude()'],
 ]);
 
@@ -219,9 +219,9 @@ it('lets the application exclude a package or a module on the record, and take i
 it('refuses a second contributor with the same identity, or the same class twice', function (array $classes, string $message): void {
     expect(fn () => bootContributors($classes))->toThrow(SettingsMisuse::class, $message);
 })->with([
-    'one package, two classes' => [[ScriptedPackageContributor::class, OtherPackageContributor::class], 'laranail/settings is already registered as package [laranail/settings] ' . ScriptedPackageContributor::class],
-    'one class, twice'         => [[ScriptedModuleContributor::class, ScriptedModuleContributor::class], 'Billing is already registered as module [Billing]'],
-    'two applications'         => [[ScriptedConfigurator::class, PrefixConfigurator::class], 'One settings configurator per application'],
+    'one package, two classes' => [[ScriptedPackageContributor::class, OtherPackageContributor::class], 'laranail/settings is already registered as package [laranail/settings] '.ScriptedPackageContributor::class],
+    'one class, twice' => [[ScriptedModuleContributor::class, ScriptedModuleContributor::class], 'Billing is already registered as module [Billing]'],
+    'two applications' => [[ScriptedConfigurator::class, PrefixConfigurator::class], 'One settings configurator per application'],
 ]);
 
 it('keeps useConfigurator() for the application configurator only', function (): void {

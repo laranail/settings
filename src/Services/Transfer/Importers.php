@@ -15,7 +15,7 @@ use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 final readonly class Importers
 {
     /**
-     * @param array<array-key, mixed> $classes `laranail.settings.importers`
+     * @param  array<array-key, mixed>  $classes  `laranail.settings.importers`
      */
     public function __construct(
         private Container $container,

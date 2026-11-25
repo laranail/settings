@@ -27,7 +27,7 @@ final readonly class ApprovalPolicy
     }
 
     /**
-     * @param array<array-key, mixed> $approvals `laranail.settings.approvals`
+     * @param  array<array-key, mixed>  $approvals  `laranail.settings.approvals`
      */
     public static function fromConfig(array $approvals): self
     {

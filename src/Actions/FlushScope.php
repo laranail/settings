@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Actions;
 
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Illuminate\Contracts\Events\Dispatcher;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Simtabi\Laranail\Settings\Data\OwnerRef;
-use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Contracts\Driver;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\OwnerRef;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Enums\Ability;
 use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Simtabi\Laranail\Settings\Enums\AuditOutcome;
 use Simtabi\Laranail\Settings\Events\ScopeFlushed;
 use Simtabi\Laranail\Settings\Events\ScopeFlushing;
-use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
+use Simtabi\Laranail\Settings\Stores\Store;
 
 /** Remove every value an owner holds in a store; returns the number of rows removed. */
 final readonly class FlushScope

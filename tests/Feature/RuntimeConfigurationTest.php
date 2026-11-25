@@ -2,27 +2,27 @@
 
 declare(strict_types=1);
 
-use Psr\Log\AbstractLogger;
 use Illuminate\Http\Request;
-use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Data\Decision;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\StoreName;
-use Simtabi\Laranail\Settings\SettingsManager;
-use Simtabi\Laranail\Settings\Data\LayerConfig;
-use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
+use Psr\Log\AbstractLogger;
 use Simtabi\Laranail\Settings\Audit\InMemoryAuditSink;
-use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
-use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
-use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
-use Simtabi\Laranail\Settings\Verification\NullVerifier;
-use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
-use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
-use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
 use Simtabi\Laranail\Settings\Authentication\ClosureActorResolver;
+use Simtabi\Laranail\Settings\Authorization\ClosureAuthorizer;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Decision;
+use Simtabi\Laranail\Settings\Data\Key;
+use Simtabi\Laranail\Settings\Data\LayerConfig;
+use Simtabi\Laranail\Settings\Data\StoreName;
+use Simtabi\Laranail\Settings\Data\Subject;
+use Simtabi\Laranail\Settings\Drivers\ArrayDriver;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Exceptions\AccessDenied;
+use Simtabi\Laranail\Settings\Exceptions\ActorRequired;
+use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
+use Simtabi\Laranail\Settings\Exceptions\UnknownStore;
+use Simtabi\Laranail\Settings\Exceptions\VerificationRequired;
 use Simtabi\Laranail\Settings\Services\Configuration\RuntimeConfiguration;
+use Simtabi\Laranail\Settings\SettingsManager;
+use Simtabi\Laranail\Settings\Verification\NullVerifier;
 
 /** A logger that keeps messages, for runtime logTo() tests. */
 function memoryLogger(): AbstractLogger

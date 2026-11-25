@@ -13,10 +13,10 @@ final readonly class StoreSetup
     public function layers(string ...$layers): self
     {
         foreach ($layers as $layer) {
-            SetupValues::name('store()->layers()', $this->path . '.layers', $layer);
+            SetupValues::name('store()->layers()', $this->path.'.layers', $layer);
         }
 
-        $this->values->set($this->path . '.layers', array_values($layers));
+        $this->values->set($this->path.'.layers', array_values($layers));
 
         return $this;
     }
@@ -25,10 +25,10 @@ final readonly class StoreSetup
     public function owners(string ...$owners): self
     {
         foreach ($owners as $owner) {
-            SetupValues::filled('store()->owners()', $this->path . '.owners', $owner);
+            SetupValues::filled('store()->owners()', $this->path.'.owners', $owner);
         }
 
-        $this->values->set($this->path . '.owners', array_values($owners));
+        $this->values->set($this->path.'.owners', array_values($owners));
 
         return $this;
     }
@@ -36,7 +36,7 @@ final readonly class StoreSetup
     /** `strict`: reject keys that have no definition. */
     public function strict(bool $strict = true): self
     {
-        $this->values->set($this->path . '.strict', $strict);
+        $this->values->set($this->path.'.strict', $strict);
 
         return $this;
     }
@@ -44,7 +44,7 @@ final readonly class StoreSetup
     /** `inherits`: owners fall back to their parents and the global value. */
     public function inherits(bool $inherits = true): self
     {
-        $this->values->set($this->path . '.inherits', $inherits);
+        $this->values->set($this->path.'.inherits', $inherits);
 
         return $this;
     }
@@ -52,7 +52,7 @@ final readonly class StoreSetup
     /** `bootstrap`: skip this store's database layer while the application installs. */
     public function bootstrap(bool $installing = true): self
     {
-        $this->values->set($this->path . '.bootstrap', $installing);
+        $this->values->set($this->path.'.bootstrap', $installing);
 
         return $this;
     }
@@ -60,7 +60,7 @@ final readonly class StoreSetup
     /** `promote`: `manual` or `auto`. */
     public function promote(string $mode): self
     {
-        $this->values->set($this->path . '.promote', SetupValues::oneOf('store()->promote()', $this->path . '.promote', $mode, ['manual', 'auto']));
+        $this->values->set($this->path.'.promote', SetupValues::oneOf('store()->promote()', $this->path.'.promote', $mode, ['manual', 'auto']));
 
         return $this;
     }
@@ -68,7 +68,7 @@ final readonly class StoreSetup
     /** `table`: the values table name (default: the store name). */
     public function table(string $table): self
     {
-        $this->values->set($this->path . '.table', SetupValues::name('store()->table()', $this->path . '.table', $table));
+        $this->values->set($this->path.'.table', SetupValues::name('store()->table()', $this->path.'.table', $table));
 
         return $this;
     }
@@ -76,7 +76,7 @@ final readonly class StoreSetup
     /** `soft_deletes`: keep forgotten rows trashed and restore them on write. */
     public function softDeletes(bool $enabled = true): self
     {
-        $this->values->set($this->path . '.soft_deletes', $enabled);
+        $this->values->set($this->path.'.soft_deletes', $enabled);
 
         return $this;
     }

@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
-use Simtabi\Laranail\Settings\Http\Support\ApiActor;
-use Simtabi\Laranail\Settings\Http\Support\Addresses;
-use Simtabi\Laranail\Settings\Actions\RollbackSetting;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Simtabi\Laranail\Settings\Actions\Reads\ReadHistory;
 use Simtabi\Laranail\Settings\Actions\Reads\ReadSetting;
+use Simtabi\Laranail\Settings\Actions\RollbackSetting;
 use Simtabi\Laranail\Settings\Http\Requests\PageRequest;
-use Simtabi\Laranail\Settings\Http\Resources\SettingResource;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
-use Simtabi\Laranail\Settings\Http\Resources\HistoryEntryResource;
 use Simtabi\Laranail\Settings\Http\Requests\RollbackSettingRequest;
+use Simtabi\Laranail\Settings\Http\Resources\HistoryEntryResource;
+use Simtabi\Laranail\Settings\Http\Resources\SettingResource;
+use Simtabi\Laranail\Settings\Http\Support\Addresses;
+use Simtabi\Laranail\Settings\Http\Support\ApiActor;
+use Simtabi\Laranail\Settings\Services\Resolution\SettingTargets;
 
 /** `…/settings/{key}/history` and `…/rollback`. */
 final readonly class HistoryController

@@ -5,29 +5,29 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Actions;
 
 use Carbon\CarbonImmutable;
-use Simtabi\Laranail\Settings\Data\Actor;
-use Simtabi\Laranail\Settings\Data\Scope;
-use Simtabi\Laranail\Settings\Data\Record;
-use Illuminate\Contracts\Events\Dispatcher;
-use Simtabi\Laranail\Settings\Data\Subject;
-use Simtabi\Laranail\Settings\Stores\Store;
-use Illuminate\Contracts\Cache\LockProvider;
-use Simtabi\Laranail\Settings\Enums\Ability;
-use Simtabi\Laranail\Settings\Data\Definition;
-use Simtabi\Laranail\Settings\Enums\AuditAction;
 use Illuminate\Contracts\Cache\Factory as Caches;
-use Simtabi\Laranail\Settings\Drivers\JsonDriver;
+use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Contracts\Events\Dispatcher;
+use Simtabi\Laranail\Settings\Data\Actor;
+use Simtabi\Laranail\Settings\Data\Definition;
 use Simtabi\Laranail\Settings\Data\PromotionReport;
-use Simtabi\Laranail\Settings\Events\StorePromoted;
 use Simtabi\Laranail\Settings\Data\PromotionRequest;
-use Simtabi\Laranail\Settings\Events\StorePromoting;
+use Simtabi\Laranail\Settings\Data\Record;
+use Simtabi\Laranail\Settings\Data\Scope;
+use Simtabi\Laranail\Settings\Data\Subject;
 use Simtabi\Laranail\Settings\Drivers\DatabaseDriver;
+use Simtabi\Laranail\Settings\Drivers\JsonDriver;
+use Simtabi\Laranail\Settings\Enums\Ability;
+use Simtabi\Laranail\Settings\Enums\AuditAction;
+use Simtabi\Laranail\Settings\Events\StorePromoted;
+use Simtabi\Laranail\Settings\Events\StorePromoting;
 use Simtabi\Laranail\Settings\Exceptions\PromotionLocked;
-use Simtabi\Laranail\Settings\Support\AuditedTransaction;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Services\Access\AccessGuard;
-use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
 use Simtabi\Laranail\Settings\Services\Definitions\Definitions;
+use Simtabi\Laranail\Settings\Services\Values\ValuePipeline;
+use Simtabi\Laranail\Settings\Stores\Store;
+use Simtabi\Laranail\Settings\Support\AuditedTransaction;
 
 /**
  * Copy a store's runtime file into its database layer, then archive the file as
@@ -61,7 +61,7 @@ final readonly class PromoteStore
         }
 
         $lockStore = $this->caches->store()->getStore();
-        $lock = $lockStore instanceof LockProvider ? $lockStore->lock('laranail-settings:promote:' . $store->name->value, 600) : null;
+        $lock = $lockStore instanceof LockProvider ? $lockStore->lock('laranail-settings:promote:'.$store->name->value, 600) : null;
 
         if ($lock !== null && ! $lock->get()) {
             throw new PromotionLocked(sprintf('Store [%s] is already being promoted.', $store->name));
@@ -91,7 +91,7 @@ final readonly class PromoteStore
             fn (): array => $this->copy($store, $request, $database, $records),
             static fn (array $result): array => ['meta' => [
                 'promoted' => count($result[0]),
-                'skipped'  => count($result[1]),
+                'skipped' => count($result[1]),
                 'replayed' => $request->from,
             ]],
         );
@@ -104,8 +104,8 @@ final readonly class PromoteStore
         // record was left out is not touched.
         $archive = match (true) {
             $request->from !== null, $records === [] && $kept !== [] => null,
-            $kept === []                                             => $runtime->archive($store->name, CarbonImmutable::now()),
-            default                                                  => $runtime->archiveKeeping($store->name, CarbonImmutable::now(), $kept),
+            $kept === [] => $runtime->archive($store->name, CarbonImmutable::now()),
+            default => $runtime->archiveKeeping($store->name, CarbonImmutable::now(), $kept),
         };
 
         $this->events->dispatch(new StorePromoted($store->name->value, count($promoted), count($skipped), $archive));
@@ -114,8 +114,7 @@ final readonly class PromoteStore
     }
 
     /**
-     * @param list<Record> $records
-     *
+     * @param  list<Record>  $records
      * @return array{list<string>, array<string, string>}
      */
     private function copy(Store $store, PromotionRequest $request, DatabaseDriver $database, array $records): array

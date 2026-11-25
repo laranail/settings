@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Drivers;
 
+use Illuminate\Contracts\Events\Dispatcher;
+use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Data\Key;
-use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\Locale;
 use Simtabi\Laranail\Settings\Data\Record;
-use Illuminate\Contracts\Events\Dispatcher;
 use Simtabi\Laranail\Settings\Data\RecordSet;
+use Simtabi\Laranail\Settings\Data\Scope;
 use Simtabi\Laranail\Settings\Data\StoreName;
 use Simtabi\Laranail\Settings\Events\LayerSkipped;
-use Simtabi\Laranail\Settings\Contracts\DatabaseBacked;
 use Simtabi\Laranail\Settings\Exceptions\StoreNotWritable;
 use Simtabi\Laranail\Settings\Stores\InstallationEvidence;
 

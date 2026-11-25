@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Simtabi\Laranail\Settings\Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use Illuminate\Contracts\Config\Repository;
-use Simtabi\Laranail\Settings\Data\NewCategory;
+use Illuminate\Database\Seeder;
 use Simtabi\Laranail\Settings\Contracts\Settings;
+use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidConfiguration;
 
 /**
@@ -52,8 +52,7 @@ final class DefaultCategoriesSeeder extends Seeder
     }
 
     /**
-     * @param array<array-key, mixed> $seed
-     *
+     * @param  array<array-key, mixed>  $seed
      * @return list<string>
      */
     private function stores(array $seed, Repository $config): array
@@ -76,8 +75,7 @@ final class DefaultCategoriesSeeder extends Seeder
     /**
      * Parents first, so a child's parent always exists when the child is created.
      *
-     * @param array<array-key, mixed> $seed
-     *
+     * @param  array<array-key, mixed>  $seed
      * @return list<NewCategory>
      */
     private function categories(array $seed): array

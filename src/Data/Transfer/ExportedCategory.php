@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Simtabi\Laranail\Settings\Data\Transfer;
 
 use Simtabi\Laranail\Settings\Data\Category;
-use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Data\CategorySlug;
+use Simtabi\Laranail\Settings\Data\NewCategory;
 use Simtabi\Laranail\Settings\Exceptions\InvalidImport;
 use Simtabi\Laranail\Settings\Exceptions\SettingsException;
 
@@ -31,7 +31,7 @@ final readonly class ExportedCategory
     }
 
     /**
-     * @param array<array-key, mixed> $data
+     * @param  array<array-key, mixed>  $data
      *
      * @throws InvalidImport
      */
@@ -65,14 +65,14 @@ final readonly class ExportedCategory
     public function toArray(): array
     {
         return array_filter([
-            'slug'        => $this->slug->value,
-            'title'       => $this->title,
-            'titles'      => $this->titles === [] ? null : $this->titles,
-            'parent'      => $this->parent?->value,
+            'slug' => $this->slug->value,
+            'title' => $this->title,
+            'titles' => $this->titles === [] ? null : $this->titles,
+            'parent' => $this->parent?->value,
             'description' => $this->description,
-            'icon'        => $this->icon,
-            'sort_order'  => $this->sortOrder,
-            'system'      => $this->system ?: null,
+            'icon' => $this->icon,
+            'sort_order' => $this->sortOrder,
+            'system' => $this->system ?: null,
         ], static fn (mixed $value): bool => $value !== null);
     }
 }

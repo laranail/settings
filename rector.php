@@ -7,9 +7,9 @@ use Rector\Set\ValueObject\SetList;
 
 return RectorConfig::configure()
     ->withPaths([
-        __DIR__ . '/src',
-        __DIR__ . '/config',
-        __DIR__ . '/tests',
+        __DIR__.'/src',
+        __DIR__.'/config',
+        __DIR__.'/tests',
     ])
     ->withPhpSets(php84: true)
     ->withSets([
